@@ -657,12 +657,21 @@ function assignLeaguePts(rounds) {
 }
 
 async function loadAll() {
+  const safeGet = async (path) => {
+    try {
+      const result = await get(path);
+      return result;
+    } catch(e) {
+      console.error('safeGet error for', path, e.message);
+      return [];
+    }
+  };
   try {
     const [players, events, rounds, noticeboard] = await Promise.all([
-      get('players?order=name'),
-      get('events?order=event_date'),
-      get('rounds?order=created_at'),
-      get('noticeboard?order=created_at.desc')
+      safeGet('players?order=name'),
+      safeGet('events?order=event_date'),
+      safeGet('rounds?order=created_at'),
+      safeGet('noticeboard?order=created_at.desc')
     ]);
     db.players     = players     || [];
     db.events      = events      || [];
@@ -670,10 +679,12 @@ async function loadAll() {
     db.noticeboard = noticeboard || [];
     const pill = document.getElementById('conn-pill');
     pill.textContent = 'Connected'; pill.className = 'conn-pill ok';
+    console.log('Loaded:', db.players.length, 'players,', db.events.length, 'events');
   } catch(e) {
+    console.error('loadAll error:', e.message);
     const pill = document.getElementById('conn-pill');
-    pill.textContent = 'Offline'; pill.className = 'conn-pill err';
-    toast('Could not connect to database', 'error');
+    pill.textContent = 'Error: '+e.message.slice(0,30); pill.className = 'conn-pill err';
+    toast('Could not connect: '+e.message, 'error');
   }
   renderAll();
 }
@@ -1411,13 +1422,15 @@ async function verifyRound(rid) {
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
+function safeRender(fn) { try { fn(); } catch(e) { console.error('Render error in', fn.name, e); } }
+
 function renderAll() {
-  renderHome();
-  renderLeaderboard();
-  renderPlayers();
-  renderEvents();
-  renderAddRound();
-  renderSchedule();
+  safeRender(renderHome);
+  safeRender(renderLeaderboard);
+  safeRender(renderPlayers);
+  safeRender(renderEvents);
+  safeRender(renderAddRound);
+  safeRender(renderSchedule);
 }
 
 function showTab(name) {
