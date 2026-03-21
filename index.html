@@ -305,6 +305,26 @@
 
   .divider { height: 1px; background: var(--border); margin: 1rem 0; }
 
+  .login-screen {
+    position: fixed; inset: 0; z-index: 500;
+    background: linear-gradient(to bottom, rgba(10,40,20,0.92) 0%, rgba(10,40,20,0.75) 100%),
+      url('https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=1400&q=80&fit=crop') center / cover no-repeat;
+    display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+  }
+  .login-box {
+    background: rgba(255,255,255,0.97); border-radius: var(--radius-xl);
+    padding: 2rem 1.75rem; width: 100%; max-width: 360px;
+    text-align: center;
+  }
+  .login-box img { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin-bottom: 1rem; border: 3px solid var(--green-light); }
+  .login-box h2 { font-family: 'DM Serif Display', serif; font-size: 22px; margin-bottom: 4px; }
+  .login-box p { font-size: 13px; color: var(--text-2); margin-bottom: 1.5rem; }
+  .login-name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; max-height: 280px; overflow-y: auto; }
+  .login-name-btn { padding: 10px 8px; border-radius: var(--radius); border: 1px solid var(--border-strong); background: var(--bg); font-size: 13px; font-family: 'DM Sans',sans-serif; cursor: pointer; text-align: left; transition: all 0.15s; }
+  .login-name-btn:hover, .login-name-btn.selected { background: var(--green-light); border-color: var(--green); color: var(--green-dark); }
+  .locked-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; text-align: center; color: var(--text-2); }
+  .locked-tab svg { margin-bottom: 1rem; opacity: 0.4; }
+
   @media(max-width:480px){
     .content { padding: 1rem; }
     .card { padding: 1rem; }
@@ -315,13 +335,35 @@
 </head>
 <body>
 
-<div class="topbar">
-  <img src="data:image/jpeg;base64,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" 
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="login-screen" style="display:none">
+  <div class="login-box">
+    <img id="login-logo" src="" alt="Bray Head Golf Society" />
+    <h2>Bray Head Golf Society</h2>
+    <p id="login-subtitle">Select your name to continue</p>
+    <div class="login-name-grid" id="login-name-grid"></div>
+    <div id="login-pin-section" style="display:none">
+      <div class="form-group" style="margin-bottom:12px;text-align:left">
+        <label>Enter your PIN <span style="font-weight:400;color:var(--text-3)">(your first name)</span></label>
+        <input type="password" id="login-pin-input" placeholder="PIN" onkeydown="if(event.key==='Enter')submitPin()" style="text-align:center;letter-spacing:4px;font-size:18px" />
+      </div>
+      <button class="btn primary" onclick="submitPin()" style="width:100%;margin-bottom:8px">Login</button>
+      <button class="btn" onclick="backToNames()" style="width:100%;font-size:12px">Back</button>
+      <div id="login-pin-error" style="color:#A32D2D;font-size:12px;margin-top:8px;display:none">Incorrect PIN — try your first name</div>
+    </div>
+    <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem">
+      <button class="btn" onclick="showAdminLoginFromScreen()" style="width:100%;font-size:12px;color:var(--text-3)">Admin login</button>
+    </div>
+  </div>
+</div>
+<div class="topbar"> 
        alt="Bray Head Golf Society" 
        style="width:46px;height:46px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid #e8e4d4;">
   <span class="site-title">Bray Head Golf Society</span>
   <span class="site-sub">2026 Season</span>
   <span class="conn-pill" id="conn-pill">Connecting…</span>
+  <span id="topbar-user" style="font-size:12px;color:rgba(255,255,255,0.7);margin-left:4px"></span>
+  <button class="btn sm" onclick="logout()" style="border-color:rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);font-size:11px;padding:3px 8px">Log out</button>
 </div>
 
 <nav class="nav">
@@ -337,10 +379,7 @@
 
   <!-- HOME / NOTICEBOARD -->
   <div id="home" class="section active">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
-      <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--text)">Bray Head Golf Society</div>
-      <button class="btn sm" onclick="showAdminLogin()" style="border-color:rgba(255,255,255,0.3);color:var(--text-2)">Admin</button>
-    </div>
+    <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--text);margin-bottom:1rem">Bray Head Golf Society</div>
     <div id="noticeboard-feed"><div class="empty" style="padding:3rem">Loading updates…</div></div>
   </div>
 
@@ -731,7 +770,14 @@ function renderEvents() {
 function renderAddRound() {
   const rp = document.getElementById('r-player');
   const re = document.getElementById('r-event');
-  rp.innerHTML = '<option value="">Select player…</option>' + db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const isMember = currentUser && currentUser.role === 'member';
+  if (isMember) {
+    rp.innerHTML = db.players.filter(p=>p.id===currentUser.playerId).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    rp.disabled = true;
+  } else {
+    rp.disabled = false;
+    rp.innerHTML = '<option value="">Select player…</option>' + db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  }
   re.innerHTML = '<option value="">Select event…</option>' + [...db.events].reverse().map(e=>`<option value="${e.id}">${fmtDate(e.event_date)} — ${e.course_name} (${e.event_type==='outing_18'?'18h':'9h'})</option>`).join('');
   buildHoleInputs(9);
 }
@@ -1121,23 +1167,7 @@ function renderHome() {
 }
 
 function showAdminLogin() {
-  if (isAdmin) { toast('Already logged in as admin', 'success'); return; }
-  document.getElementById('admin-pw-input').value = '';
-  document.getElementById('admin-pw-error').style.display = 'none';
-  document.getElementById('admin-modal').classList.add('open');
-  setTimeout(()=>document.getElementById('admin-pw-input').focus(), 100);
-}
-
-function checkAdminPw() {
-  const pw = document.getElementById('admin-pw-input').value;
-  if (pw === ADMIN_PW) {
-    isAdmin = true;
-    document.getElementById('admin-modal').classList.remove('open');
-    toast('Logged in as admin', 'success');
-    renderAll();
-  } else {
-    document.getElementById('admin-pw-error').style.display = 'block';
-  }
+  showAdminLoginFromScreen();
 }
 
 function closeAdminModal() { document.getElementById('admin-modal').classList.remove('open'); }
@@ -1238,12 +1268,166 @@ function toast(msg, type='') {
   setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(), 400); }, 3200);
 }
 
-loadAll();
+const LOGO_SRC = document.querySelector('.topbar img') ? document.querySelector('.topbar img').src : '';
+
+function getLogoSrc() {
+  const img = document.querySelector('.topbar img');
+  return img ? img.src : '';
+}
+
+function getStoredSession() {
+  try { return JSON.parse(localStorage.getItem('bhgs_session')||'null'); } catch(e){ return null; }
+}
+function storeSession(s) {
+  try { localStorage.setItem('bhgs_session', JSON.stringify(s)); } catch(e){}
+}
+function clearSession() {
+  try { localStorage.removeItem('bhgs_session'); } catch(e){}
+}
+
+let currentUser = null;
+
+function showLoginScreen() {
+  const ls = document.getElementById('login-screen');
+  ls.style.display = 'flex';
+  const img = document.getElementById('login-logo');
+  img.src = getLogoSrc();
+  renderLoginNames();
+}
+function hideLoginScreen() {
+  document.getElementById('login-screen').style.display = 'none';
+}
+
+function renderLoginNames() {
+  document.getElementById('login-pin-section').style.display = 'none';
+  document.getElementById('login-subtitle').textContent = 'Select your name to continue';
+  const grid = document.getElementById('login-name-grid');
+  const viewBtn = `<button class="login-name-btn" style="grid-column:1/-1;text-align:center;background:var(--green-light);color:var(--green-dark);border-color:var(--green)" onclick="loginAsViewer()">View only (no login)</button>`;
+  grid.innerHTML = viewBtn + db.players.map(p=>
+    `<button class="login-name-btn" onclick="selectPlayer('${p.id}')">${p.name}</button>`
+  ).join('');
+}
+
+function loginAsViewer() {
+  currentUser = { role: 'viewer' };
+  storeSession(currentUser);
+  hideLoginScreen();
+  updateUIForRole();
+}
+
+let selectedPlayerId = null;
+function selectPlayer(pid) {
+  selectedPlayerId = pid;
+  const p = db.players.find(x=>x.id===pid);
+  document.getElementById('login-subtitle').textContent = `Hi ${p.name.split(' ')[0]}! Enter your PIN`;
+  document.getElementById('login-pin-section').style.display = 'block';
+  document.getElementById('login-name-grid').style.display = 'none';
+  document.getElementById('login-pin-input').value = '';
+  document.getElementById('login-pin-error').style.display = 'none';
+  setTimeout(()=>document.getElementById('login-pin-input').focus(), 100);
+}
+
+function backToNames() {
+  document.getElementById('login-pin-section').style.display = 'none';
+  document.getElementById('login-name-grid').style.display = 'grid';
+  document.getElementById('login-subtitle').textContent = 'Select your name to continue';
+}
+
+function submitPin() {
+  const pin = document.getElementById('login-pin-input').value.trim();
+  const p = db.players.find(x=>x.id===selectedPlayerId);
+  if (!p) return;
+  const storedPin = p.pin || p.name.split(' ')[0];
+  if (pin.toLowerCase() === storedPin.toLowerCase()) {
+    currentUser = { role: 'member', playerId: p.id, name: p.name };
+    storeSession(currentUser);
+    hideLoginScreen();
+    updateUIForRole();
+    toast(`Welcome ${p.name.split(' ')[0]}!`, 'success');
+  } else {
+    document.getElementById('login-pin-error').style.display = 'block';
+  }
+}
+
+function showAdminLoginFromScreen() {
+  document.getElementById('admin-pw-input').value = '';
+  document.getElementById('admin-pw-error').style.display = 'none';
+  document.getElementById('admin-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('admin-pw-input').focus(), 100);
+}
+
+function checkAdminPw() {
+  const pw = document.getElementById('admin-pw-input').value;
+  if (pw === ADMIN_PW) {
+    isAdmin = true;
+    currentUser = { role: 'admin' };
+    storeSession(currentUser);
+    document.getElementById('admin-modal').classList.remove('open');
+    hideLoginScreen();
+    toast('Logged in as admin', 'success');
+    updateUIForRole();
+    renderAll();
+  } else {
+    document.getElementById('admin-pw-error').style.display = 'block';
+  }
+}
+
+function updateUIForRole() {
+  const role = currentUser ? currentUser.role : 'viewer';
+  isAdmin = role === 'admin';
+  const userLabel = document.getElementById('topbar-user');
+  if (userLabel) {
+    if (role === 'admin') userLabel.textContent = 'Admin';
+    else if (role === 'member') userLabel.textContent = currentUser.name.split(' ')[0];
+    else userLabel.textContent = 'Viewing';
+  }
+  const tabs = ['home','leaderboard','players','events','add-round','schedule'];
+  const visibleTabs = role === 'admin'
+    ? tabs
+    : role === 'member'
+      ? ['home','leaderboard','schedule','add-round']
+      : ['home','leaderboard','schedule'];
+  document.querySelectorAll('.nav-btn').forEach((btn, i) => {
+    btn.style.display = visibleTabs.includes(tabs[i]) ? '' : 'none';
+  });
+  showTab('home');
+  renderAll();
+}
+
+function logout() {
+  clearSession();
+  currentUser = null;
+  isAdmin = false;
+  updateUIForRole();
+  showLoginScreen();
+}
+
+async function init() {
+  await loadAll();
+  const session = getStoredSession();
+  if (session) {
+    if (session.role === 'admin') {
+      currentUser = session; isAdmin = true;
+      hideLoginScreen(); updateUIForRole();
+    } else if (session.role === 'member') {
+      const p = db.players.find(x=>x.id===session.playerId);
+      if (p) { currentUser = session; hideLoginScreen(); updateUIForRole(); }
+      else showLoginScreen();
+    } else {
+      currentUser = session; hideLoginScreen(); updateUIForRole();
+    }
+  } else {
+    showLoginScreen();
+  }
+}
+
 buildEventSIInputs(9);
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/brayhead-golf/sw.js', { scope: '/brayhead-golf/' }).catch(()=>{});
 }
+
+init();
 </script>
 </body>
 </html>
