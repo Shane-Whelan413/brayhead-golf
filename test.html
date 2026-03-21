@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connection Test</title>
+<style>
+  body { font-family: sans-serif; padding: 2rem; background: #f5f5f5; }
+  .box { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+  .ok { color: green; font-weight: bold; }
+  .err { color: red; font-weight: bold; }
+  pre { background: #f0f0f0; padding: 1rem; border-radius: 8px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+  button { padding: 12px 24px; background: #1D9E75; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 1rem; }
+</style>
+</head>
+<body>
+
+<div class="box">
+  <h2>Supabase Connection Test</h2>
+  <p>Testing connection to your database...</p>
+  <button onclick="runTest()">Run test</button>
+</div>
+
+<div class="box" id="result" style="display:none">
+  <h3 id="status"></h3>
+  <pre id="output"></pre>
+</div>
+
+<script>
+const URL = 'https://vlpfqavpwwhpflamujcp.supabase.co';
+const KEY = 'sb_publishable_rWKTQbAjJNir43JJ_HDjRw_u2DclJtd';
+
+async function runTest() {
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('status').textContent = 'Testing...';
+  document.getElementById('output').textContent = '';
+
+  const tests = [
+    { name: 'players', url: `${URL}/rest/v1/players?order=name` },
+    { name: 'events',  url: `${URL}/rest/v1/events?order=event_date` },
+    { name: 'rounds',  url: `${URL}/rest/v1/rounds?order=created_at` },
+    { name: 'noticeboard', url: `${URL}/rest/v1/noticeboard?order=created_at.desc` },
+  ];
+
+  let log = '';
+  let allOk = true;
+
+  for (const t of tests) {
+    try {
+      const res = await fetch(t.url, {
+        headers: {
+          'apikey': KEY,
+          'Authorization': `Bearer ${KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const text = await res.text();
+      if (res.ok) {
+        const data = JSON.parse(text);
+        log += `✓ ${t.name}: OK (${data.length} rows)\n`;
+      } else {
+        log += `✗ ${t.name}: HTTP ${res.status} — ${text}\n`;
+        allOk = false;
+      }
+    } catch(e) {
+      log += `✗ ${t.name}: FETCH ERROR — ${e.message}\n`;
+      allOk = false;
+    }
+  }
+
+  document.getElementById('status').textContent = allOk ? '✓ All good!' : '✗ Some errors found';
+  document.getElementById('status').className = allOk ? 'ok' : 'err';
+  document.getElementById('output').textContent = log;
+}
+
+runTest();
+</script>
+</body>
+</html>
