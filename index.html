@@ -357,7 +357,7 @@
   </div>
 </div>
 <div class="topbar"> 
-       alt="Bray Head Golf Society" 
+  <img id="topbar-logo" src="icon-192.png" alt="Bray Head Golf Society" 
        style="width:46px;height:46px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid #e8e4d4;">
   <span class="site-title">Bray Head Golf Society</span>
   <span class="site-sub">2026 Season</span>
@@ -1268,13 +1268,6 @@ function toast(msg, type='') {
   setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(), 400); }, 3200);
 }
 
-const LOGO_SRC = document.querySelector('.topbar img') ? document.querySelector('.topbar img').src : '';
-
-function getLogoSrc() {
-  const img = document.querySelector('.topbar img');
-  return img ? img.src : '';
-}
-
 function getStoredSession() {
   try { return JSON.parse(localStorage.getItem('bhgs_session')||'null'); } catch(e){ return null; }
 }
@@ -1291,7 +1284,7 @@ function showLoginScreen() {
   const ls = document.getElementById('login-screen');
   ls.style.display = 'flex';
   const img = document.getElementById('login-logo');
-  img.src = getLogoSrc();
+  img.src = 'icon-192.png';
   renderLoginNames();
 }
 function hideLoginScreen() {
@@ -1339,11 +1332,13 @@ function submitPin() {
   if (!p) return;
   const storedPin = p.pin || p.name.split(' ')[0];
   if (pin.toLowerCase() === storedPin.toLowerCase()) {
-    currentUser = { role: 'member', playerId: p.id, name: p.name };
+    const role = p.is_admin ? 'admin' : 'member';
+    currentUser = { role, playerId: p.id, name: p.name };
+    isAdmin = role === 'admin';
     storeSession(currentUser);
     hideLoginScreen();
     updateUIForRole();
-    toast(`Welcome ${p.name.split(' ')[0]}!`, 'success');
+    toast(`Welcome ${p.name.split(' ')[0]}${role==='admin'?' (Admin)':''}!`, 'success');
   } else {
     document.getElementById('login-pin-error').style.display = 'block';
   }
@@ -1409,10 +1404,14 @@ async function init() {
     if (session.role === 'admin') {
       currentUser = session; isAdmin = true;
       hideLoginScreen(); updateUIForRole();
-    } else if (session.role === 'member') {
+    } else if (session.role === 'member' || session.role === 'admin') {
       const p = db.players.find(x=>x.id===session.playerId);
-      if (p) { currentUser = session; hideLoginScreen(); updateUIForRole(); }
-      else showLoginScreen();
+      if (p) {
+        const role = p.is_admin ? 'admin' : 'member';
+        currentUser = { role, playerId: p.id, name: p.name };
+        isAdmin = role === 'admin';
+        hideLoginScreen(); updateUIForRole();
+      } else showLoginScreen();
     } else {
       currentUser = session; hideLoginScreen(); updateUIForRole();
     }
