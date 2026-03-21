@@ -357,12 +357,12 @@
     <div class="login-name-grid" id="login-name-grid"></div>
     <div id="login-pin-section" style="display:none">
       <div class="form-group" style="margin-bottom:12px;text-align:left">
-        <label>Enter your PIN <span style="font-weight:400;color:var(--text-3)">(your first name)</span></label>
+        <label id="login-pin-label">Enter your PIN</label>
         <input type="password" id="login-pin-input" placeholder="PIN" onkeydown="if(event.key==='Enter')submitPin()" style="text-align:center;letter-spacing:4px;font-size:18px" />
       </div>
       <button class="btn primary" onclick="submitPin()" style="width:100%;margin-bottom:8px">Login</button>
-      <button class="btn" onclick="backToNames()" style="width:100%;font-size:12px">Back</button>
-      <div id="login-pin-error" style="color:#A32D2D;font-size:12px;margin-top:8px;display:none">Incorrect PIN — try your first name</div>
+      <button class="btn" onclick="backToNames()" style="width:100%;font-size:12px;margin-bottom:8px">Back</button>
+      <div id="login-pin-error" style="color:#A32D2D;font-size:12px;margin-top:4px;display:none">Incorrect PIN — try your first name if you haven't set one yet</div>
     </div>
     <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem">
       <button class="btn" onclick="showAdminLoginFromScreen()" style="width:100%;font-size:12px;color:var(--text-3)">Admin login</button>
@@ -375,6 +375,7 @@
   <span class="site-sub">2026 Season</span>
   <span class="conn-pill" id="conn-pill">Connecting…</span>
   <span id="topbar-user" style="font-size:12px;color:rgba(255,255,255,0.7);margin-left:4px"></span>
+  <button class="btn sm" id="btn-change-pin" onclick="showChangePin()" style="border-color:rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);font-size:11px;padding:3px 8px;display:none">Change PIN</button>
   <button class="btn sm" onclick="logout()" style="border-color:rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);font-size:11px;padding:3px 8px">Log out</button>
 </div>
 
@@ -551,6 +552,30 @@
       <button class="btn sm" onclick="closePostModal()">Close</button>
     </div>
     <div id="post-update-body"></div>
+  </div>
+</div>
+
+<!-- CHANGE PIN MODAL -->
+<div class="modal-overlay" id="change-pin-modal" onclick="maybeCloseChangePinModal(event)">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-hdr">
+      <span class="modal-title">Change your PIN</span>
+      <button class="btn sm" onclick="closeChangePinModal()">Close</button>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Current PIN <span style="font-weight:400;color:var(--text-3)">(your first name if not set)</span></label>
+      <input type="password" id="cp-current" placeholder="Current PIN" style="text-align:center;letter-spacing:4px;font-size:16px" />
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>New PIN</label>
+      <input type="password" id="cp-new" placeholder="New PIN" style="text-align:center;letter-spacing:4px;font-size:16px" />
+    </div>
+    <div class="form-group" style="margin-bottom:1rem">
+      <label>Confirm new PIN</label>
+      <input type="password" id="cp-confirm" placeholder="Confirm PIN" style="text-align:center;letter-spacing:4px;font-size:16px" onkeydown="if(event.key==='Enter')saveNewPin()" />
+    </div>
+    <button class="btn primary" onclick="saveNewPin()" style="width:100%">Save new PIN</button>
+    <div id="cp-error" style="color:#A32D2D;font-size:12px;margin-top:8px;display:none"></div>
   </div>
 </div>
 
@@ -785,6 +810,7 @@ function renderPlayers() {
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn sm" onclick="viewPlayerRounds('${p.id}','${p.name.replace(/'/g,"\\'")}')">Rounds</button>
           ${isAdmin ? `<button class="btn sm" style="background:#EEEDFE;color:#3C3489;border-color:#AFA9EC" onclick="toggleWomensIndex('${p.id}',${!!p.plays_womens_index})">${p.plays_womens_index?'Set men\'s':'Set women\'s'}</button>` : ''}
+          ${isAdmin ? `<button class="btn sm" onclick="adminResetPin('${p.id}','${p.name.replace(/'/g,"\\'")}')">Reset PIN</button>` : ''}
           ${isAdmin ? `<button class="btn sm danger" onclick="deletePlayer('${p.id}','${p.name.replace(/'/g,"\\'")}')">Remove</button>` : ''}
         </td>
       </tr>`;
@@ -1334,6 +1360,15 @@ async function saveHandicap(pid) {
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
+async function adminResetPin(pid, name) {
+  if (!confirm(`Reset ${name}'s PIN back to their first name?`)) return;
+  try {
+    await patch(`players?id=eq.${pid}`, { pin: null });
+    toast(`${name.split(' ')[0]}'s PIN reset to their first name`, 'success');
+    await loadAll(); renderAll();
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
 async function toggleWomensIndex(pid, currentVal) {
   try {
     await patch(`players?id=eq.${pid}`, { plays_womens_index: !currentVal });
@@ -1520,7 +1555,9 @@ let selectedPlayerId = null;
 function selectPlayer(pid) {
   selectedPlayerId = pid;
   const p = db.players.find(x=>x.id===pid);
+  const hasPin = p && p.pin;
   document.getElementById('login-subtitle').textContent = `Hi ${p.name.split(' ')[0]}! Enter your PIN`;
+  document.getElementById('login-pin-label').textContent = hasPin ? 'Enter your PIN' : 'Enter your PIN (first name until you set one)';
   document.getElementById('login-pin-section').style.display = 'block';
   document.getElementById('login-name-grid').style.display = 'none';
   document.getElementById('login-pin-input').value = '';
@@ -1584,6 +1621,8 @@ function updateUIForRole() {
     else if (role === 'member') userLabel.textContent = currentUser.name.split(' ')[0];
     else userLabel.textContent = 'Viewing';
   }
+  const pinBtn = document.getElementById('btn-change-pin');
+  if (pinBtn) pinBtn.style.display = (role === 'member' || role === 'admin') && currentUser.playerId ? '' : 'none';
   const tabs = ['home','leaderboard','players','events','add-round','schedule'];
   const visibleTabs = role === 'admin'
     ? tabs
@@ -1595,6 +1634,50 @@ function updateUIForRole() {
   });
   showTab('home');
   renderAll();
+}
+
+function showChangePin() {
+  document.getElementById('cp-current').value = '';
+  document.getElementById('cp-new').value = '';
+  document.getElementById('cp-confirm').value = '';
+  document.getElementById('cp-error').style.display = 'none';
+  document.getElementById('change-pin-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('cp-current').focus(), 100);
+}
+
+function closeChangePinModal() { document.getElementById('change-pin-modal').classList.remove('open'); }
+function maybeCloseChangePinModal(e) { if(e.target===document.getElementById('change-pin-modal')) closeChangePinModal(); }
+
+async function saveNewPin() {
+  const current = document.getElementById('cp-current').value.trim();
+  const newPin  = document.getElementById('cp-new').value.trim();
+  const confirm = document.getElementById('cp-confirm').value.trim();
+  const errEl   = document.getElementById('cp-error');
+  errEl.style.display = 'none';
+
+  if (!currentUser || !currentUser.playerId) return;
+  const p = db.players.find(x=>x.id===currentUser.playerId);
+  if (!p) return;
+
+  const storedPin = p.pin || p.name.split(' ')[0];
+  if (current.toLowerCase() !== storedPin.toLowerCase()) {
+    errEl.textContent = 'Current PIN is incorrect'; errEl.style.display = 'block'; return;
+  }
+  if (!newPin) {
+    errEl.textContent = 'Please enter a new PIN'; errEl.style.display = 'block'; return;
+  }
+  if (newPin !== confirm) {
+    errEl.textContent = 'New PINs do not match'; errEl.style.display = 'block'; return;
+  }
+  if (newPin.length < 4) {
+    errEl.textContent = 'PIN must be at least 4 characters'; errEl.style.display = 'block'; return;
+  }
+  try {
+    await patch(`players?id=eq.${p.id}`, { pin: newPin });
+    toast('PIN updated successfully!', 'success');
+    closeChangePinModal();
+    await loadAll(); renderAll();
+  } catch(e) { errEl.textContent = 'Error: '+e.message; errEl.style.display = 'block'; }
 }
 
 function logout() {
