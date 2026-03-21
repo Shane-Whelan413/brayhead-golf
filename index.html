@@ -459,13 +459,16 @@
         <div class="form-group"><label>Slope rating</label><input id="e-wslope" type="number" placeholder="e.g. 120" /></div>
         <div class="form-group"><label>Par</label><input id="e-wpar" type="number" placeholder="e.g. 36" /></div>
       </div>
-      <div class="hole-section-label" id="e-par-title">Par per hole <span style="font-weight:400;text-transform:none;letter-spacing:0">— enter 3, 4 or 5 for each hole</span></div>
+      <div class="hole-section-label" id="e-par-title">Men's par per hole <span style="font-weight:400;text-transform:none;letter-spacing:0">— enter 3, 4 or 5 for each hole</span></div>
       <div class="hole-grid" id="e-par-labels"></div>
       <div class="hole-grid" id="e-par-inputs"></div>
+      <div class="hole-section-label" id="e-wpar-h-title">Women's par per hole <span style="font-weight:400;text-transform:none;letter-spacing:0">— leave blank if same as men's</span></div>
+      <div class="hole-grid" id="e-wpar-h-labels"></div>
+      <div class="hole-grid" id="e-wpar-h-inputs"></div>
       <div class="hole-section-label" id="e-si-title">Men's stroke index <span style="font-weight:400;text-transform:none;letter-spacing:0">— enter 1 to 9 from scorecard (1 = hardest)</span></div>
       <div class="hole-grid" id="e-si-labels"></div>
       <div class="hole-grid" id="e-si-inputs"></div>
-      <div class="hole-section-label" id="e-wsi-title">Women's stroke index <span style="font-weight:400;text-transform:none;letter-spacing:0">— enter 1 to 9 from scorecard (leave blank if same as men's)</span></div>
+      <div class="hole-section-label" id="e-wsi-title">Women's stroke index <span style="font-weight:400;text-transform:none;letter-spacing:0">— leave blank if same as men's</span></div>
       <div class="hole-grid" id="e-wsi-labels"></div>
       <div class="hole-grid" id="e-wsi-inputs"></div>
       <div style="margin-top:1rem">
@@ -842,19 +845,22 @@ function buildHoleInputs(n) {
 }
 
 function buildEventSIInputs(n) {
-  const siLbl  = document.getElementById('e-si-labels');
-  const siInp  = document.getElementById('e-si-inputs');
-  const wsiLbl = document.getElementById('e-wsi-labels');
-  const wsiInp = document.getElementById('e-wsi-inputs');
-  const parLbl = document.getElementById('e-par-labels');
-  const parInp = document.getElementById('e-par-inputs');
+  const siLbl    = document.getElementById('e-si-labels');
+  const siInp    = document.getElementById('e-si-inputs');
+  const wsiLbl   = document.getElementById('e-wsi-labels');
+  const wsiInp   = document.getElementById('e-wsi-inputs');
+  const parLbl   = document.getElementById('e-par-labels');
+  const parInp   = document.getElementById('e-par-inputs');
+  const wparLbl  = document.getElementById('e-wpar-h-labels');
+  const wparInp  = document.getElementById('e-wpar-h-inputs');
   const siTitle  = document.getElementById('e-si-title');
   const wsiTitle = document.getElementById('e-wsi-title');
   siLbl.innerHTML=''; siInp.innerHTML='';
   wsiLbl.innerHTML=''; wsiInp.innerHTML='';
   parLbl.innerHTML=''; parInp.innerHTML='';
+  wparLbl.innerHTML=''; wparInp.innerHTML='';
   siTitle.querySelector('span').textContent  = `— enter 1 to ${n} from scorecard (1 = hardest)`;
-  wsiTitle.querySelector('span').textContent = `— enter 1 to ${n} from scorecard (leave blank if same as men's)`;
+  wsiTitle.querySelector('span').textContent = `— leave blank if same as men's`;
   for (let i=1; i<=n; i++) {
     const lsi = document.createElement('div'); lsi.className='hole-lbl'; lsi.textContent=i; siLbl.appendChild(lsi);
     const si  = document.createElement('input'); si.type='number'; si.min=1; si.max=n; si.id='e-si'+i; si.placeholder=i; siInp.appendChild(si);
@@ -862,6 +868,8 @@ function buildEventSIInputs(n) {
     const wsi  = document.createElement('input'); wsi.type='number'; wsi.min=1; wsi.max=n; wsi.id='e-wsi'+i; wsi.placeholder=i; wsiInp.appendChild(wsi);
     const lpar = document.createElement('div'); lpar.className='hole-lbl'; lpar.textContent=i; parLbl.appendChild(lpar);
     const par  = document.createElement('input'); par.type='number'; par.min=3; par.max=5; par.id='e-par-h'+i; par.placeholder='4'; parInp.appendChild(par);
+    const lwpar = document.createElement('div'); lwpar.className='hole-lbl'; lwpar.textContent=i; wparLbl.appendChild(lwpar);
+    const wpar  = document.createElement('input'); wpar.type='number'; wpar.min=3; wpar.max=5; wpar.id='e-wpar-h'+i; wpar.placeholder='4'; wparInp.appendChild(wpar);
   }
 }
 
@@ -924,7 +932,9 @@ function getSIValues(n, ev, player) {
   return Array.from({length:n}, (_,i) => i+1);
 }
 
-function getParValues(n, ev) {
+function getParValues(n, ev, player) {
+  const isWomens = player && player.plays_womens_index;
+  if (isWomens && ev && ev.womens_par_values && ev.womens_par_values.length >= n) return ev.womens_par_values;
   if (ev && ev.par_values && ev.par_values.length >= n) return ev.par_values;
   return Array.from({length:n}, () => 4);
 }
@@ -962,7 +972,7 @@ function updateRoundSummary() {
   if (ev.event_type === 'outing_18') courseHcp = courseHcp * 2;
   const indexLabel = p && p.plays_womens_index ? ' (W)' : ' (M)';
   const siVals  = getSIValues(n, ev, p || pl || null);
-  const parVals = getParValues(n, ev);
+  const parVals = getParValues(n, ev, p || pl || null);
   let pts=0, holes=0;
   for (let i=1; i<=n; i++) {
     const v = parseInt(document.getElementById('h'+i)?.value);
@@ -991,7 +1001,7 @@ async function saveRound() {
     const v = parseInt(document.getElementById('h'+i)?.value);
     scores.push(isNaN(v)?null:v);
   }
-  const parVals = getParValues(n, ev);
+  const parVals = getParValues(n, ev, p || pl || null);
   if (scores.filter(s=>s!==null).length < n) { toast(`Enter all ${n} hole scores`, 'error'); return; }
   if (db.rounds.find(r=>r.event_id===eid&&r.player_id===pid)) { toast('Round already recorded for this player at this event', 'error'); return; }
 
@@ -1059,7 +1069,7 @@ async function addEvent() {
   const n      = type==='outing_18' ? 18 : 9;
   if (!date || !course) { toast('Enter date and course name', 'error'); return; }
   if (db.events.find(e=>e.event_date===date)) { toast('An event already exists on this date', 'error'); return; }
-  const siVals = [], wsiVals = [], parVals = [];
+  const siVals = [], wsiVals = [], parVals = [], wparVals = [];
   for (let i=1; i<=n; i++) {
     const sv  = parseInt(document.getElementById('e-si'+i)?.value);
     siVals.push(isNaN(sv) ? i : sv);
@@ -1067,10 +1077,12 @@ async function addEvent() {
     wsiVals.push(isNaN(wsv) ? (isNaN(sv) ? i : sv) : wsv);
     const pv  = parseInt(document.getElementById('e-par-h'+i)?.value);
     parVals.push(isNaN(pv) ? 4 : pv);
+    const wpv = parseInt(document.getElementById('e-wpar-h'+i)?.value);
+    wparVals.push(isNaN(wpv) ? (isNaN(pv) ? 4 : pv) : wpv);
   }
   const btn = document.getElementById('btn-add-event'); btn.disabled=true;
   try {
-    await post('events',{ event_date:date, event_type:type, course_name:course, course_rating:cr, slope_rating:slope, par, womens_course_rating:wcr, womens_slope_rating:wslope, womens_par:wpar, stroke_index:siVals, womens_stroke_index:wsiVals, par_values:parVals });
+    await post('events',{ event_date:date, event_type:type, course_name:course, course_rating:cr, slope_rating:slope, par, womens_course_rating:wcr, womens_slope_rating:wslope, womens_par:wpar, stroke_index:siVals, womens_stroke_index:wsiVals, par_values:parVals, womens_par_values:wparVals });
     document.getElementById('e-course').value='';
     document.getElementById('e-wcr').value='';
     document.getElementById('e-wslope').value='';
@@ -1079,6 +1091,7 @@ async function addEvent() {
       const es=document.getElementById('e-si'+i); if(es) es.value='';
       const ews=document.getElementById('e-wsi'+i); if(ews) ews.value='';
       const ep=document.getElementById('e-par-h'+i); if(ep) ep.value='';
+      const ewp=document.getElementById('e-wpar-h'+i); if(ewp) ewp.value='';
     }
     toast('Event created!', 'success');
     await loadAll(); renderAll();
@@ -1363,7 +1376,7 @@ function editRound(rid) {
   const p = db.players.find(x=>x.id===r.player_id);
   if (!r || !ev) return;
   const n = ev.event_type==='outing_18' ? 18 : 9;
-  const parVals = getParValues(n, ev);
+  const parVals = getParValues(n, ev, p || pl || null);
   const siVals = getSIValues(n, ev, p || pl || null);
   document.getElementById('modal-title').textContent = `Edit round — ${p?p.name:'?'} · ${ev.course_name}`;
   let holeInputs = `<div style="margin-bottom:1rem">
@@ -1400,7 +1413,7 @@ async function saveEditedRound(rid) {
     scores.push(isNaN(v)?null:v);
   }
   if (scores.filter(s=>s!==null).length < n) { toast(`Enter all ${n} scores`, 'error'); return; }
-  const parVals = getParValues(n, ev);
+  const parVals = getParValues(n, ev, p || pl || null);
   const siVals = getSIValues(n, ev, p || pl || null);
   const hcpIdx = parseFloat(r.handicap_before);
   const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
