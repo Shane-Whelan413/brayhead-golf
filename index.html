@@ -1313,7 +1313,8 @@ async function toggleWomensIndex(pid, currentVal) {
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
-  const rounds = db.rounds.filter(r=>r.player_id===pid).sort((a,b)=>b.created_at?.localeCompare(a.created_at||'')||0);
+
+function viewPlayerRounds(pid, name) {
   const canEdit = isAdmin || (currentUser && currentUser.playerId===pid);
   document.getElementById('modal-title').textContent = `Rounds — ${name}`;
   if (!rounds.length) {
