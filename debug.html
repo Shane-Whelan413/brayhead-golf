@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debug</title>
+<style>
+  body { font-family: sans-serif; padding: 1rem; background: #f5f5f5; font-size:14px; }
+  pre { background: white; padding: 1rem; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-size:12px; }
+  .ok { color: green; } .err { color: red; }
+  h3 { margin: 1rem 0 0.5rem; }
+</style>
+</head>
+<body>
+<h2>BHGS Debug</h2>
+<div id="log"></div>
+
+<script>
+const URL = 'https://vlpfqavpwwhpflamujcp.supabase.co';
+const KEY = 'sb_publishable_rWKTQbAjJNir43JJ_HDjRw_u2DclJtd';
+const log = document.getElementById('log');
+
+function out(msg, cls='') {
+  const p = document.createElement('p');
+  p.className = cls;
+  p.textContent = msg;
+  log.appendChild(p);
+}
+function pre(obj) {
+  const el = document.createElement('pre');
+  el.textContent = JSON.stringify(obj, null, 2);
+  log.appendChild(el);
+}
+
+window.onerror = (msg, src, line, col, err) => {
+  out('JS ERROR: ' + msg + ' (line ' + line + ')', 'err');
+};
+
+async function run() {
+  out('Fetching data...');
+  try {
+    const headers = { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` };
+    const [p, e, r, n] = await Promise.all([
+      fetch(`${URL}/rest/v1/players?order=name`, {headers}).then(r=>r.json()),
+      fetch(`${URL}/rest/v1/events?order=event_date`, {headers}).then(r=>r.json()),
+      fetch(`${URL}/rest/v1/rounds?order=created_at`, {headers}).then(r=>r.json()),
+      fetch(`${URL}/rest/v1/noticeboard?order=created_at.desc`, {headers}).then(r=>r.json()),
+    ]);
+    out('✓ players: ' + p.length, 'ok');
+    out('✓ events: ' + e.length, 'ok');
+    out('✓ rounds: ' + r.length, 'ok');
+    out('✓ noticeboard: ' + n.length, 'ok');
+
+    out('Event data:');
+    pre(e);
+
+    out('Player[0] columns:');
+    pre(p[0]);
+
+    out('Testing localStorage...');
+    try {
+      localStorage.setItem('test','1');
+      localStorage.removeItem('test');
+      out('✓ localStorage works', 'ok');
+    } catch(e) {
+      out('✗ localStorage blocked: ' + e.message, 'err');
+    }
+
+    out('All done — data looks fine. Issue is in render code.');
+  } catch(err) {
+    out('✗ FETCH FAILED: ' + err.message, 'err');
+  }
+}
+run();
+</script>
+</body>
+</html>
