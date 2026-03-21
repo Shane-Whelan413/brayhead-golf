@@ -635,6 +635,13 @@ function fmtDate(d) {
 
 function calcStableford(score, par, allowance) { return Math.max(0, par - (score - allowance) + 2); }
 function calcCourseHcp(idx, slope, cr, par) { return Math.round(idx * (slope/113) + (cr - par)); }
+function calcNewHcp(hcpIdx, totalPts) {
+  if (totalPts >= 18) {
+    return Math.max(0, Math.round(hcpIdx) - 1);
+  } else {
+    return Math.min(54, parseFloat((hcpIdx + 0.2).toFixed(1)));
+  }
+}
 
 function assignLeaguePts(rounds) {
   const sorted = [...rounds].sort((a,b) => b.stableford_points - a.stableford_points);
@@ -747,10 +754,16 @@ function renderPlayers() {
       for (const eid in byEvent) { const r=byEvent[eid].find(x=>x.player_id===p.id); if(r) lp+=r._lp; }
       return `<tr>
         <td><div class="player-cell"><div class="avatar">${initials(p.name)}</div>${p.name}</div></td>
-        <td><span class="badge green">${parseFloat(p.handicap_index).toFixed(1)}</span></td>
+        <td>
+          <span class="badge green">${parseFloat(p.handicap_index).toFixed(1)}</span>
+          ${isAdmin ? `<button class="btn sm" style="margin-left:6px" onclick="editHandicap('${p.id}','${p.name.replace(/'/g,"\\'")}',${p.handicap_index})">Edit</button>` : ''}
+        </td>
         <td>${rounds.length}</td>
         <td><strong>${lp}</strong></td>
-        <td><button class="btn sm danger" onclick="deletePlayer('${p.id}','${p.name.replace(/'/g,"\\'")}')">Remove</button></td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn sm" onclick="viewPlayerRounds('${p.id}','${p.name.replace(/'/g,"\\'")}')">Rounds</button>
+          ${isAdmin ? `<button class="btn sm danger" onclick="deletePlayer('${p.id}','${p.name.replace(/'/g,"\\'")}')">Remove</button>` : ''}
+        </td>
       </tr>`;
     }).join('')}</tbody>
   </table>`;
@@ -906,7 +919,8 @@ function updateRoundSummary() {
   const p   = db.players.find(x=>x.id===pid);
   const hcp = p ? parseFloat(p.handicap_index) : 18;
   const par = parseInt(ev.par) || (n===9?36:72);
-  const courseHcp = calcCourseHcp(hcp, parseInt(ev.slope_rating)||113, parseFloat(ev.course_rating)||35, par);
+  let courseHcp = calcCourseHcp(hcp, parseInt(ev.slope_rating)||113, parseFloat(ev.course_rating)||35, par);
+  if (ev.event_type === 'outing_18') courseHcp = courseHcp * 2;
   const siVals  = getSIValues(n, ev);
   const parVals = getParValues(n, ev);
   let pts=0, holes=0;
@@ -915,14 +929,12 @@ function updateRoundSummary() {
     if (!isNaN(v)) { pts += calcStableford(v, parVals[i-1], getStrokeAllowance(courseHcp, siVals[i-1], n)); holes++; }
   }
   if (holes > 0) {
-    const isSunday = ev.event_type === 'sunday_9';
-    let hcpNote = '';
-    if (isSunday) {
-      hcpNote = pts > 17
-        ? ` · Hcp will drop by 1 (${hcp} → ${Math.max(0, Math.floor(hcp)-1)})`
-        : ` · Hcp +0.2 (${hcp} → ${Math.min(54,(hcp+0.2).toFixed(1))})`;
-    }
-    sb.textContent = `${holes} holes · ${pts} stableford pts · Course hcp: ${courseHcp}${hcpNote}`;
+    const newH = calcNewHcp(hcp, pts);
+    const hcpNote = pts >= 18
+      ? ` · Hcp: ${hcp} → ${newH} (-1)`
+      : ` · Hcp: ${hcp} → ${newH} (+0.2)`;
+    const outingNote = ev.event_type==='outing_18' ? ` · Course hcp doubled (${courseHcp})` : ` · Course hcp: ${courseHcp}`;
+    sb.textContent = `${holes} holes · ${pts} stableford pts${outingNote}${hcpNote}`;
     sb.classList.add('show');
   } else { sb.classList.remove('show'); }
 }
@@ -946,26 +958,15 @@ async function saveRound() {
   const pl = db.players.find(x=>x.id===pid);
   const hcpIdx = pl ? parseFloat(pl.handicap_index) : 18;
   const par = parseInt(ev.par) || (n===9?36:72);
-  const courseHcp = calcCourseHcp(hcpIdx, parseInt(ev.slope_rating)||113, parseFloat(ev.course_rating)||35, par);
+  let courseHcp = calcCourseHcp(hcpIdx, parseInt(ev.slope_rating)||113, parseFloat(ev.course_rating)||35, par);
+  if (ev.event_type === 'outing_18') courseHcp = courseHcp * 2;
   const siVals = getSIValues(n, ev);
   let totalPts=0;
   for (let i=0; i<n; i++) {
     if (scores[i]!==null) totalPts += calcStableford(scores[i], parVals[i], getStrokeAllowance(courseHcp, siVals[i], n));
   }
   const gross = scores.reduce((a,b)=>a+(b||0),0);
-  let newHcp;
-  if (ev.event_type === 'sunday_9') {
-    if (totalPts > 17) {
-      newHcp = Math.max(0, Math.floor(hcpIdx) - 1);
-    } else {
-      newHcp = Math.min(54, parseFloat((hcpIdx + 0.2).toFixed(1)));
-    }
-  } else {
-    const expected = 36;
-    const diff = totalPts - expected;
-    const hcpChange = diff>2 ? -0.1*Math.min(diff,8) : diff<-2 ? 0.1 : 0;
-    newHcp = Math.max(0, Math.min(54, parseFloat((hcpIdx+hcpChange).toFixed(1))));
-  }
+  const newHcp = calcNewHcp(hcpIdx, totalPts);
 
   const btn = document.getElementById('btn-save-round');
   btn.disabled=true; btn.textContent='Saving…';
@@ -1246,6 +1247,129 @@ async function deleteNotice(id) {
     await del(`noticeboard?id=eq.${id}`);
     toast('Update removed', 'success');
     await loadAll();
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+function editHandicap(pid, name, currentHcp) {
+  document.getElementById('modal-title').textContent = `Edit handicap — ${name}`;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group" style="margin-bottom:1rem">
+      <label>New handicap index</label>
+      <input type="number" id="edit-hcp-val" min="0" max="54" step="0.1" value="${parseFloat(currentHcp).toFixed(1)}" style="font-size:18px;text-align:center" />
+    </div>
+    <button class="btn primary" onclick="saveHandicap('${pid}')" style="width:100%">Save handicap</button>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function saveHandicap(pid) {
+  const val = parseFloat(document.getElementById('edit-hcp-val').value);
+  if (isNaN(val) || val < 0 || val > 54) { toast('Enter a valid handicap (0–54)', 'error'); return; }
+  try {
+    await patch(`players?id=eq.${pid}`, { handicap_index: parseFloat(val.toFixed(1)) });
+    toast('Handicap updated!', 'success');
+    closeModal();
+    await loadAll();
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+function viewPlayerRounds(pid, name) {
+  const rounds = db.rounds.filter(r=>r.player_id===pid).sort((a,b)=>b.created_at?.localeCompare(a.created_at||'')||0);
+  const canEdit = isAdmin || (currentUser && currentUser.playerId===pid);
+  document.getElementById('modal-title').textContent = `Rounds — ${name}`;
+  if (!rounds.length) {
+    document.getElementById('modal-body').innerHTML = '<div class="empty">No rounds yet</div>';
+  } else {
+    document.getElementById('modal-body').innerHTML = `<table>
+      <thead><tr><th>Event</th><th>Stableford</th><th>Course hcp</th><th>Hcp after</th><th>Status</th><th></th></tr></thead>
+      <tbody>${rounds.map(r=>{
+        const ev = db.events.find(e=>e.id===r.event_id);
+        return `<tr>
+          <td style="font-size:12px">${ev ? fmtDate(ev.event_date)+'<br>'+ev.course_name : '—'}</td>
+          <td><strong>${r.stableford_points}</strong></td>
+          <td>${r.course_handicap}</td>
+          <td>${parseFloat(r.handicap_before).toFixed(1)} → ${parseFloat(r.handicap_after).toFixed(1)}</td>
+          <td>${r.verified ? '<span class="badge green">✓ Verified</span>' : '<span class="badge gray">Unverified</span>'}</td>
+          <td style="display:flex;gap:4px;flex-wrap:wrap">
+            ${canEdit ? `<button class="btn sm" onclick="editRound('${r.id}')">Edit</button>` : ''}
+            ${isAdmin && !r.verified ? `<button class="btn sm" style="background:#E1F5EE;color:#085041;border-color:#9FE1CB" onclick="verifyRound('${r.id}')">Verify</button>` : ''}
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  }
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function editRound(rid) {
+  const r = db.rounds.find(x=>x.id===rid);
+  const ev = db.events.find(e=>e.id===r.event_id);
+  const p = db.players.find(x=>x.id===r.player_id);
+  if (!r || !ev) return;
+  const n = ev.event_type==='outing_18' ? 18 : 9;
+  const parVals = getParValues(n, ev);
+  const siVals = getSIValues(n, ev);
+  document.getElementById('modal-title').textContent = `Edit round — ${p?p.name:'?'} · ${ev.course_name}`;
+  let holeInputs = `<div style="margin-bottom:1rem">
+    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Hole scores</div>
+    <div style="display:grid;grid-template-columns:repeat(${n<=9?9:9},1fr);gap:4px;margin-bottom:4px">
+      ${Array.from({length:Math.min(n,9)},(_,i)=>`<div style="font-size:10px;text-align:center;color:var(--text-3)">${i+1}</div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(n,9)},1fr);gap:4px;margin-bottom:8px">
+      ${Array.from({length:Math.min(n,9)},(_,i)=>`<input type="number" id="er-h${i+1}" value="${r.hole_scores[i]||''}" min="1" max="15" style="height:34px;text-align:center;font-size:13px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:var(--font-sans)" />`).join('')}
+    </div>`;
+  if (n > 9) {
+    holeInputs += `<div style="display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-bottom:4px">
+      ${Array.from({length:9},(_,i)=>`<div style="font-size:10px;text-align:center;color:var(--text-3)">${i+10}</div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:4px">
+      ${Array.from({length:9},(_,i)=>`<input type="number" id="er-h${i+10}" value="${r.hole_scores[i+9]||''}" min="1" max="15" style="height:34px;text-align:center;font-size:13px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:var(--font-sans)" />`).join('')}
+    </div>`;
+  }
+  holeInputs += '</div>';
+  document.getElementById('modal-body').innerHTML = holeInputs + `
+    <button class="btn primary" onclick="saveEditedRound('${rid}')" style="width:100%">Save changes</button>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function saveEditedRound(rid) {
+  const r = db.rounds.find(x=>x.id===rid);
+  const ev = db.events.find(e=>e.id===r.event_id);
+  const pl = db.players.find(x=>x.id===r.player_id);
+  if (!r||!ev||!pl) return;
+  const n = ev.event_type==='outing_18' ? 18 : 9;
+  const scores = [];
+  for (let i=1;i<=n;i++) {
+    const v = parseInt(document.getElementById('er-h'+i)?.value);
+    scores.push(isNaN(v)?null:v);
+  }
+  if (scores.filter(s=>s!==null).length < n) { toast(`Enter all ${n} scores`, 'error'); return; }
+  const parVals = getParValues(n, ev);
+  const siVals = getSIValues(n, ev);
+  const hcpIdx = parseFloat(r.handicap_before);
+  const par = parseInt(ev.par)||(n===9?36:72);
+  let courseHcp = calcCourseHcp(hcpIdx, parseInt(ev.slope_rating)||113, parseFloat(ev.course_rating)||35, par);
+  if (ev.event_type==='outing_18') courseHcp = courseHcp * 2;
+  let totalPts=0;
+  for (let i=0;i<n;i++) {
+    if (scores[i]!==null) totalPts += calcStableford(scores[i], parVals[i], getStrokeAllowance(courseHcp, siVals[i], n));
+  }
+  const gross = scores.reduce((a,b)=>a+(b||0),0);
+  const newHcp = calcNewHcp(hcpIdx, totalPts);
+  try {
+    await patch(`rounds?id=eq.${rid}`, { hole_scores:scores, stableford_points:totalPts, gross_score:gross, course_handicap:courseHcp, handicap_after:newHcp, verified:false });
+    await patch(`players?id=eq.${pl.id}`, { handicap_index:newHcp });
+    toast(`Round updated! ${totalPts} pts · Hcp → ${newHcp}`, 'success');
+    closeModal();
+    await loadAll();
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+async function verifyRound(rid) {
+  try {
+    await patch(`rounds?id=eq.${rid}`, { verified: true });
+    toast('Round verified!', 'success');
+    await loadAll();
+    closeModal();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
