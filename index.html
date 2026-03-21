@@ -658,13 +658,7 @@ function assignLeaguePts(rounds) {
 
 async function loadAll() {
   const safeGet = async (path) => {
-    try {
-      const result = await get(path);
-      return result;
-    } catch(e) {
-      console.error('safeGet error for', path, e.message);
-      return [];
-    }
+    try { return await get(path); } catch(e) { console.error('safeGet error:', path, e.message); return []; }
   };
   try {
     const [players, events, rounds, noticeboard] = await Promise.all([
@@ -679,14 +673,11 @@ async function loadAll() {
     db.noticeboard = noticeboard || [];
     const pill = document.getElementById('conn-pill');
     pill.textContent = 'Connected'; pill.className = 'conn-pill ok';
-    console.log('Loaded:', db.players.length, 'players,', db.events.length, 'events');
   } catch(e) {
     console.error('loadAll error:', e.message);
     const pill = document.getElementById('conn-pill');
-    pill.textContent = 'Error: '+e.message.slice(0,30); pill.className = 'conn-pill err';
-    toast('Could not connect: '+e.message, 'error');
+    pill.textContent = 'Offline'; pill.className = 'conn-pill err';
   }
-  renderAll();
 }
 
 function renderLeaderboard() {
@@ -1012,7 +1003,7 @@ async function saveRound() {
     toast(`Saved! ${totalPts} stableford pts · Hcp ${hcpIdx} → ${newHcp}`, 'success');
     for (let i=1; i<=n; i++) { const h=document.getElementById('h'+i); if(h)h.value=''; }
     document.getElementById('round-summary').classList.remove('show');
-    await loadAll();
+    await loadAll(); renderAll();
   } catch(e) { toast('Error saving: '+e.message, 'error'); }
   btn.disabled=false; btn.textContent='Save round';
 }
@@ -1027,7 +1018,7 @@ async function addPlayer() {
     await post('players',{ name, handicap_index:hcp });
     document.getElementById('p-name').value='';
     toast(`${name} added!`, 'success');
-    await loadAll();
+    await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
   btn.disabled=false;
 }
@@ -1038,7 +1029,7 @@ async function deletePlayer(id, name) {
     await del(`rounds?player_id=eq.${id}`);
     await del(`players?id=eq.${id}`);
     toast(`${name} removed`, 'success');
-    await loadAll();
+    await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
@@ -1074,7 +1065,7 @@ async function addEvent() {
       const ep=document.getElementById('e-par-h'+i); if(ep) ep.value='';
     }
     toast('Event created!', 'success');
-    await loadAll();
+    await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
   btn.disabled=false;
 }
@@ -1085,7 +1076,7 @@ async function deleteEvent(id) {
     await del(`rounds?event_id=eq.${id}`);
     await del(`events?id=eq.${id}`);
     toast('Event deleted', 'success');
-    await loadAll();
+    await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
@@ -1279,7 +1270,7 @@ async function saveNotice(eid, existingId) {
     }
     toast('Update posted to home page!', 'success');
     closePostModal();
-    await loadAll();
+    await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
@@ -1288,7 +1279,7 @@ async function deleteNotice(id) {
   try {
     await del(`noticeboard?id=eq.${id}`);
     toast('Update removed', 'success');
-    await loadAll();
+    await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
@@ -1310,7 +1301,7 @@ async function saveHandicap(pid) {
     await patch(`players?id=eq.${pid}`, { handicap_index: parseFloat(val.toFixed(1)) });
     toast('Handicap updated!', 'success');
     closeModal();
-    await loadAll();
+    await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
@@ -1319,7 +1310,7 @@ async function toggleWomensIndex(pid, currentVal) {
     await patch(`players?id=eq.${pid}`, { plays_womens_index: !currentVal });
     const p = db.players.find(x=>x.id===pid);
     toast(`${p?p.name:'Player'} set to ${!currentVal?"women's":"men's"} index`, 'success');
-    await loadAll();
+    await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
   const rounds = db.rounds.filter(r=>r.player_id===pid).sort((a,b)=>b.created_at?.localeCompare(a.created_at||'')||0);
@@ -1409,7 +1400,7 @@ async function saveEditedRound(rid) {
     await patch(`players?id=eq.${pl.id}`, { handicap_index:newHcp });
     toast(`Round updated! ${totalPts} pts · Hcp → ${newHcp}`, 'success');
     closeModal();
-    await loadAll();
+    await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
@@ -1417,7 +1408,7 @@ async function verifyRound(rid) {
   try {
     await patch(`rounds?id=eq.${rid}`, { verified: true });
     toast('Round verified!', 'success');
-    await loadAll();
+    await loadAll(); renderAll();
     closeModal();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
@@ -1585,24 +1576,33 @@ function logout() {
 }
 
 async function init() {
-  await loadAll();
-  const session = getStoredSession();
-  if (session) {
-    if (session.role === 'admin') {
-      currentUser = session; isAdmin = true;
-      hideLoginScreen(); updateUIForRole();
-    } else if (session.role === 'member' || session.role === 'admin') {
-      const p = db.players.find(x=>x.id===session.playerId);
-      if (p) {
-        const role = p.is_admin ? 'admin' : 'member';
-        currentUser = { role, playerId: p.id, name: p.name };
-        isAdmin = role === 'admin';
+  try {
+    await loadAll();
+  } catch(e) {
+    console.error('loadAll failed:', e);
+  }
+  try {
+    const session = getStoredSession();
+    if (session) {
+      if (session.role === 'admin') {
+        currentUser = session; isAdmin = true;
         hideLoginScreen(); updateUIForRole();
-      } else showLoginScreen();
+      } else if (session.role === 'member') {
+        const p = db.players.find(x=>x.id===session.playerId);
+        if (p) {
+          const role = p.is_admin ? 'admin' : 'member';
+          currentUser = { role, playerId: p.id, name: p.name };
+          isAdmin = role === 'admin';
+          hideLoginScreen(); updateUIForRole();
+        } else { showLoginScreen(); }
+      } else {
+        currentUser = session; hideLoginScreen(); updateUIForRole();
+      }
     } else {
-      currentUser = session; hideLoginScreen(); updateUIForRole();
+      showLoginScreen();
     }
-  } else {
+  } catch(e) {
+    console.error('init session failed:', e);
     showLoginScreen();
   }
 }
