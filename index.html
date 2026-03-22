@@ -1018,25 +1018,29 @@ function updateRoundSummary() {
 async function saveRound() {
   const eid = document.getElementById('r-event').value;
   const pid = document.getElementById('r-player').value;
-  if (!eid || !pid) { toast('Select an event and a player', 'error'); return; }
+  if (!eid) { toast('No event selected', 'error'); return; }
+  if (!pid) { toast('No player selected', 'error'); return; }
   const ev = db.events.find(e=>e.id===eid);
-  if (!ev) { toast('Event not found', 'error'); return; }
+  if (!ev) { toast('Event not found in database', 'error'); return; }
   const pl = db.players.find(x=>x.id===pid);
+  if (!pl) { toast('Player not found in database', 'error'); return; }
   const n = ev.event_type==='outing_18' ? 18 : 9;
   const scores = [];
   for (let i=1; i<=n; i++) {
-    const v = parseInt(document.getElementById('h'+i)?.value);
+    const el = document.getElementById('h'+i);
+    if (!el) { toast(`Hole input h${i} missing from page`, 'error'); return; }
+    const v = parseInt(el.value);
     scores.push(isNaN(v)?null:v);
   }
-  const parVals = getParValues(n, ev, pl || null);
-  if (scores.filter(s=>s!==null).length < n) { toast(`Enter all ${n} hole scores`, 'error'); return; }
+  const filled = scores.filter(s=>s!==null).length;
+  if (filled < n) { toast(`Only ${filled} of ${n} hole scores entered`, 'error'); return; }
   if (db.rounds.find(r=>r.event_id===eid&&r.player_id===pid)) { toast('Round already recorded for this player at this event', 'error'); return; }
-
-  const hcpIdx = pl ? parseFloat(pl.handicap_index) : 18;
+  const parVals = getParValues(n, ev, pl);
+  const hcpIdx = parseFloat(pl.handicap_index) || 18;
   const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
   let courseHcp = calcCourseHcp(hcpIdx, slope, cr, par);
   if (ev.event_type === 'outing_18') courseHcp = courseHcp * 2;
-  const siVals = getSIValues(n, ev, pl || null);
+  const siVals = getSIValues(n, ev, pl);
   let totalPts=0;
   for (let i=0; i<n; i++) {
     if (scores[i]!==null) totalPts += calcStableford(scores[i], parVals[i], getStrokeAllowance(courseHcp, siVals[i], n));
