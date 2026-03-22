@@ -1697,6 +1697,28 @@ function renderProfile() {
     else if (pos===3) third++;
   }
 
+  // Outing-only ranking
+  const outingEvents = db.events.filter(e=>e.event_type==='outing_18');
+  const outingByEvent = {};
+  for (const ev of outingEvents) {
+    const evRounds = db.rounds.filter(r=>r.event_id===ev.id);
+    if (evRounds.length) outingByEvent[ev.id] = assignLeaguePts(evRounds.map(r=>({...r})));
+  }
+  const outingTotals = {};
+  for (const eid in outingByEvent) {
+    for (const r of outingByEvent[eid]) {
+      if (!outingTotals[r.player_id]) outingTotals[r.player_id] = 0;
+      outingTotals[r.player_id] += r._lp;
+    }
+  }
+  const outingSorted = Object.entries(outingTotals).sort((a,b)=>b[1]-a[1]);
+  const outingPos = outingSorted.findIndex(([id])=>id===pid) + 1;
+  const myOutingPts = outingTotals[pid] || 0;
+  const myOutingRounds = db.rounds.filter(r=>r.player_id===pid && outingEvents.find(e=>e.id===r.event_id));
+  const outingPosLabel = outingPos===0?'—':outingPos===1?'1st':outingPos===2?'2nd':outingPos===3?'3rd':outingPos+'th';
+  const outingPosColor = outingPos===1?'#FAC775':outingPos===2?'#D3D1C7':outingPos===3?'#F0997B':'#EEEDFE';
+  const outingPosText  = outingPos===1?'#633806':outingPos===2?'#444441':outingPos===3?'#4A1B0C':'#3C3489';
+
   const posLabel = lbPos === 0 ? '—' : lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos+'th';
   const posColor = lbPos===1?'#FAC775':lbPos===2?'#D3D1C7':lbPos===3?'#F0997B':'var(--green-light)';
   const posText  = lbPos===1?'#633806':lbPos===2?'#444441':lbPos===3?'#4A1B0C':'var(--green-dark)';
@@ -1743,6 +1765,16 @@ function renderProfile() {
         </div>
       </div>
     </div>
+
+    ${outingEvents.length ? `
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-title">Outings ranking</div>
+      <div class="stat" style="background:${outingPosColor};border-radius:var(--radius)">
+        <div class="stat-label" style="color:${outingPosText}">Outing rank</div>
+        <div class="stat-value" style="color:${outingPosText}">${outingPosLabel}</div>
+        <div style="font-size:11px;color:${outingPosText};margin-top:2px">${myOutingPts} league pts from ${myOutingRounds.length} outing${myOutingRounds.length!==1?'s':''}</div>
+      </div>
+    </div>` : ''}
 
     ${myRounds.length ? `
     <div class="card">
