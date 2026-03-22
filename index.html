@@ -833,8 +833,9 @@ function renderEvents() {
         <td>${count}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn sm" onclick="viewEventResults('${e.id}')">Results</button>
-          <button class="btn sm" style="background:#E1F5EE;color:#085041;border-color:#9FE1CB" onclick="showPostUpdate('${e.id}')">Post update</button>
-          <button class="btn sm danger" onclick="deleteEvent('${e.id}')">Delete</button>
+          ${isAdmin ? `<button class="btn sm" onclick="editEvent('${e.id}')">Edit</button>` : ''}
+          ${isAdmin ? `<button class="btn sm" style="background:#E1F5EE;color:#085041;border-color:#9FE1CB" onclick="showPostUpdate('${e.id}')">Post update</button>` : ''}
+          ${isAdmin ? `<button class="btn sm danger" onclick="deleteEvent('${e.id}')">Delete</button>` : ''}
         </td>
       </tr>`;
     }).join('')}</tbody>
@@ -1127,6 +1128,94 @@ async function addEvent() {
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
   btn.disabled=false;
+}
+
+function editEvent(eid) {
+  const ev = db.events.find(e=>e.id===eid);
+  if (!ev) return;
+  const n = ev.event_type==='outing_18' ? 18 : 9;
+  const si   = ev.stroke_index   || Array.from({length:n},(_,i)=>i+1);
+  const wsi  = ev.womens_stroke_index || si;
+  const pars = ev.par_values     || Array.from({length:n},()=>4);
+  const wpars= ev.womens_par_values || pars;
+
+  const holeRow = (idPrefix, vals, placeholder) =>
+    Array.from({length:n},(_,i)=>
+      `<input type="number" id="${idPrefix}${i+1}" value="${vals[i]||''}" placeholder="${placeholder}" min="1" max="${n>9?18:9}" style="height:32px;width:100%;text-align:center;font-size:12px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:var(--font-sans)">`
+    ).join('');
+  const holeLabels = Array.from({length:n},(_,i)=>
+    `<div style="font-size:10px;text-align:center;color:var(--text-3)">${i+1}</div>`
+  ).join('');
+  const grid = `display:grid;grid-template-columns:repeat(${n},minmax(0,1fr));gap:3px;margin-bottom:6px`;
+
+  document.getElementById('modal-title').textContent = `Edit event — ${ev.course_name}`;
+  document.getElementById('modal-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="form-group"><label>Course name</label><input id="ee-name" value="${ev.course_name}" /></div>
+      <div class="form-group"><label>Date</label><input type="date" id="ee-date" value="${ev.event_date}" /></div>
+      <div class="form-group"><label>Par total</label><input type="number" id="ee-par" value="${ev.par}" /></div>
+    </div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Men's index</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="form-group"><label>Course rating</label><input type="number" step="0.1" id="ee-cr" value="${ev.course_rating}" /></div>
+      <div class="form-group"><label>Slope</label><input type="number" id="ee-slope" value="${ev.slope_rating}" /></div>
+      <div class="form-group"><label>Par</label><input type="number" id="ee-mpar" value="${ev.par}" /></div>
+    </div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Women's index</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="form-group"><label>Course rating</label><input type="number" step="0.1" id="ee-wcr" value="${ev.womens_course_rating||''}" placeholder="optional" /></div>
+      <div class="form-group"><label>Slope</label><input type="number" id="ee-wslope" value="${ev.womens_slope_rating||''}" placeholder="optional" /></div>
+      <div class="form-group"><label>Par</label><input type="number" id="ee-wpar" value="${ev.womens_par||''}" placeholder="optional" /></div>
+    </div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Men's par per hole</div>
+    <div style="${grid}">${holeLabels}</div>
+    <div style="${grid};margin-bottom:10px">${holeRow('ee-ph', pars, '4')}</div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Women's par per hole</div>
+    <div style="${grid}">${holeLabels}</div>
+    <div style="${grid};margin-bottom:10px">${holeRow('ee-wph', wpars, '4')}</div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Men's stroke index</div>
+    <div style="${grid}">${holeLabels}</div>
+    <div style="${grid};margin-bottom:10px">${holeRow('ee-si', si, String(n))}</div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Women's stroke index</div>
+    <div style="${grid}">${holeLabels}</div>
+    <div style="${grid};margin-bottom:14px">${holeRow('ee-wsi', wsi, String(n))}</div>
+    <button class="btn primary" onclick="saveEditedEvent('${eid}')" style="width:100%">Save changes</button>
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function saveEditedEvent(eid) {
+  const ev = db.events.find(e=>e.id===eid);
+  if (!ev) return;
+  const n = ev.event_type==='outing_18' ? 18 : 9;
+  const name  = document.getElementById('ee-name').value.trim();
+  const date  = document.getElementById('ee-date').value;
+  const par   = parseInt(document.getElementById('ee-par').value) || ev.par;
+  const cr    = parseFloat(document.getElementById('ee-cr').value) || ev.course_rating;
+  const slope = parseInt(document.getElementById('ee-slope').value) || ev.slope_rating;
+  const wcr   = parseFloat(document.getElementById('ee-wcr').value) || null;
+  const wslope= parseInt(document.getElementById('ee-wslope').value) || null;
+  const wpar  = parseInt(document.getElementById('ee-wpar').value) || null;
+  if (!name || !date) { toast('Course name and date are required', 'error'); return; }
+  const siVals=[], wsiVals=[], parVals=[], wparVals=[];
+  for (let i=1; i<=n; i++) {
+    const sv  = parseInt(document.getElementById('ee-si'+i)?.value);  siVals.push(isNaN(sv)?i:sv);
+    const wsv = parseInt(document.getElementById('ee-wsi'+i)?.value); wsiVals.push(isNaN(wsv)?siVals[i-1]:wsv);
+    const pv  = parseInt(document.getElementById('ee-ph'+i)?.value);  parVals.push(isNaN(pv)?4:pv);
+    const wpv = parseInt(document.getElementById('ee-wph'+i)?.value); wparVals.push(isNaN(wpv)?parVals[i-1]:wpv);
+  }
+  try {
+    await patch(`events?id=eq.${eid}`, {
+      course_name:name, event_date:date, par,
+      course_rating:cr, slope_rating:slope,
+      womens_course_rating:wcr, womens_slope_rating:wslope, womens_par:wpar,
+      stroke_index:siVals, womens_stroke_index:wsiVals,
+      par_values:parVals, womens_par_values:wparVals
+    });
+    toast('Event updated!', 'success');
+    closeModal();
+    await loadAll(); renderAll();
+  } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
 async function deleteEvent(id) {
