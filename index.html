@@ -1776,6 +1776,12 @@ function renderProfile() {
       </div>
     </div>` : ''}
 
+    ${myRounds.length > 1 ? `
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-title">Handicap progression</div>
+      <canvas id="hcp-chart" style="width:100%;height:180px"></canvas>
+    </div>` : ''}
+
     ${myRounds.length ? `
     <div class="card">
       <div class="card-title">Round history</div>
@@ -1793,6 +1799,90 @@ function renderProfile() {
       </table></div>
     </div>` : '<div class="card"><div class="empty">No rounds played yet this season</div></div>'}
   `;
+
+  // Draw handicap chart after DOM update
+  if (myRounds.length > 1) {
+    setTimeout(() => {
+      const canvas = document.getElementById('hcp-chart');
+      if (!canvas) return;
+      const sorted = [...myRounds].sort((a,b)=>a.created_at?.localeCompare(b.created_at||'')||0);
+      const labels = sorted.map(r=>{ const ev=db.events.find(e=>e.id===r.event_id); return ev?ev.course_name.split(' ')[0]:'R'; });
+      const data   = sorted.map(r=>parseFloat(r.handicap_after));
+      // Add starting point
+      const startHcp = parseFloat(sorted[0].handicap_before);
+      const allData  = [startHcp, ...data];
+      const allLabels= ['Start', ...labels];
+
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.offsetWidth;
+      const h = 180;
+      canvas.width  = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width  = w + 'px';
+      canvas.style.height = h + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      const pad = { top:16, right:16, bottom:36, left:36 };
+      const cw = w - pad.left - pad.right;
+      const ch = h - pad.top - pad.bottom;
+
+      const minV = Math.max(0, Math.min(...allData) - 1);
+      const maxV = Math.max(...allData) + 1;
+      const range = maxV - minV || 1;
+
+      const xStep = cw / (allData.length - 1);
+      const yPos  = v => pad.top + ch - ((v - minV) / range) * ch;
+      const xPos  = i => pad.left + i * xStep;
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+      ctx.lineWidth = 1;
+      for (let i=0; i<=4; i++) {
+        const y = pad.top + (ch/4)*i;
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+cw, y); ctx.stroke();
+        const val = (maxV - (range/4)*i).toFixed(1);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(val, pad.left-4, y+3);
+      }
+
+      // Fill under line
+      ctx.beginPath();
+      ctx.moveTo(xPos(0), yPos(allData[0]));
+      allData.forEach((v,i) => ctx.lineTo(xPos(i), yPos(v)));
+      ctx.lineTo(xPos(allData.length-1), pad.top+ch);
+      ctx.lineTo(xPos(0), pad.top+ch);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(29,158,117,0.12)';
+      ctx.fill();
+
+      // Line
+      ctx.beginPath();
+      ctx.strokeStyle = '#1D9E75';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap  = 'round';
+      allData.forEach((v,i) => i===0 ? ctx.moveTo(xPos(i),yPos(v)) : ctx.lineTo(xPos(i),yPos(v)));
+      ctx.stroke();
+
+      // Dots + labels
+      allData.forEach((v,i) => {
+        ctx.beginPath();
+        ctx.arc(xPos(i), yPos(v), 4, 0, Math.PI*2);
+        ctx.fillStyle = '#1D9E75';
+        ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(allLabels[i], xPos(i), pad.top+ch+14);
+        ctx.fillStyle = '#085041';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText(v.toFixed(1), xPos(i), yPos(v)-8);
+      });
+    }, 50);
+  }
 }
 
 function safeRender(fn) { try { fn(); } catch(e) { console.error('Render error in', fn.name, e); } }
