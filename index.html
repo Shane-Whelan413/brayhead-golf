@@ -382,6 +382,7 @@
 <nav class="nav">
   <button class="nav-btn active" onclick="showTab('home')">Home</button>
   <button class="nav-btn" onclick="showTab('leaderboard')">Leaderboard</button>
+  <button class="nav-btn" onclick="showTab('profile')">Profile</button>
   <button class="nav-btn" onclick="showTab('players')">Players</button>
   <button class="nav-btn" onclick="showTab('events')">Events</button>
   <button class="nav-btn" onclick="showTab('add-round')">+ Add round</button>
@@ -394,6 +395,11 @@
   <div id="home" class="section active">
     <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--text);margin-bottom:1rem">Bray Head Golf Society</div>
     <div id="noticeboard-feed"><div class="empty" style="padding:3rem">Loading updates…</div></div>
+  </div>
+
+  <!-- PROFILE -->
+  <div id="profile" class="section">
+    <div id="profile-content"><div class="empty" style="padding:3rem">Loading profile…</div></div>
   </div>
 
   <!-- LEADERBOARD -->
@@ -1646,11 +1652,123 @@ async function verifyRound(rid) {
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
+function renderProfile() {
+  const el = document.getElementById('profile-content');
+  if (!el) return;
+  if (!currentUser || !currentUser.playerId) {
+    el.innerHTML = '<div class="empty" style="padding:3rem">Log in to view your profile</div>';
+    return;
+  }
+  const pid = currentUser.playerId;
+  const player = db.players.find(p=>p.id===pid);
+  if (!player) { el.innerHTML = '<div class="empty">Player not found</div>'; return; }
+
+  const myRounds = db.rounds.filter(r=>r.player_id===pid);
+  const totalRounds = myRounds.length;
+  const totalEvents = db.events.length;
+  const bestScore = myRounds.length ? Math.max(...myRounds.map(r=>r.stableford_points)) : 0;
+  const avgScore  = myRounds.length ? (myRounds.reduce((a,r)=>a+r.stableford_points,0)/myRounds.length).toFixed(1) : '—';
+  const attendance = totalEvents > 0 ? Math.round((totalRounds/totalEvents)*100) : 0;
+
+  // Leaderboard position
+  const byEvent = {};
+  for (const r of db.rounds) { if(!byEvent[r.event_id]) byEvent[r.event_id]=[]; byEvent[r.event_id].push({...r}); }
+  for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
+  const playerTotals = {};
+  for (const eid in byEvent) {
+    for (const r of byEvent[eid]) {
+      if(!playerTotals[r.player_id]) playerTotals[r.player_id]=0;
+      playerTotals[r.player_id]+=r._lp;
+    }
+  }
+  const sorted = Object.entries(playerTotals).sort((a,b)=>b[1]-a[1]);
+  const lbPos  = sorted.findIndex(([id])=>id===pid) + 1;
+  const myLeaguePts = playerTotals[pid] || 0;
+
+  // Count 1st, 2nd, 3rd finishes
+  let first=0, second=0, third=0;
+  for (const eid in byEvent) {
+    const ranked = byEvent[eid];
+    const myRound = ranked.find(r=>r.player_id===pid);
+    if (!myRound) continue;
+    const pos = ranked.indexOf(myRound) + 1;
+    if (pos===1) first++;
+    else if (pos===2) second++;
+    else if (pos===3) third++;
+  }
+
+  const posLabel = lbPos === 0 ? '—' : lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos+'th';
+  const posColor = lbPos===1?'#FAC775':lbPos===2?'#D3D1C7':lbPos===3?'#F0997B':'var(--green-light)';
+  const posText  = lbPos===1?'#633806':lbPos===2?'#444441':lbPos===3?'#4A1B0C':'var(--green-dark)';
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:1rem">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:1rem">
+        <div style="width:52px;height:52px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;color:var(--green-dark);flex-shrink:0">${initials(player.name)}</div>
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:20px">${player.name}</div>
+          <div style="font-size:13px;color:var(--text-2)">
+            ${player.plays_womens_index?'<span class="badge purple" style="font-size:10px;margin-right:4px">Women\'s index</span>':''}
+            Handicap index: <strong>${parseFloat(player.handicap_index).toFixed(1)}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:1rem">
+      <div class="stat" style="background:${posColor};border-radius:var(--radius)">
+        <div class="stat-label" style="color:${posText}">Leaderboard</div>
+        <div class="stat-value" style="color:${posText}">${posLabel}</div>
+        <div style="font-size:11px;color:${posText};margin-top:2px">${myLeaguePts} league pts</div>
+      </div>
+      <div class="stat"><div class="stat-label">Handicap</div><div class="stat-value">${parseFloat(player.handicap_index).toFixed(1)}</div></div>
+      <div class="stat"><div class="stat-label">Rounds played</div><div class="stat-value">${totalRounds}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">${attendance}% attendance</div></div>
+      <div class="stat"><div class="stat-label">Best score</div><div class="stat-value">${bestScore||'—'}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">Avg: ${avgScore}</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-title">Podium finishes</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">
+        <div style="background:#FAEEDA;border-radius:var(--radius);padding:1rem">
+          <div style="font-size:28px;font-weight:600;color:#633806">${first}</div>
+          <div style="font-size:12px;color:#BA7517;margin-top:2px">1st place</div>
+        </div>
+        <div style="background:#F1EFE8;border-radius:var(--radius);padding:1rem">
+          <div style="font-size:28px;font-weight:600;color:#444441">${second}</div>
+          <div style="font-size:12px;color:#5F5E5A;margin-top:2px">2nd place</div>
+        </div>
+        <div style="background:#FAECE7;border-radius:var(--radius);padding:1rem">
+          <div style="font-size:28px;font-weight:600;color:#4A1B0C">${third}</div>
+          <div style="font-size:12px;color:#993C1D;margin-top:2px">3rd place</div>
+        </div>
+      </div>
+    </div>
+
+    ${myRounds.length ? `
+    <div class="card">
+      <div class="card-title">Round history</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Event</th><th>Stableford</th><th>Course hcp</th><th>Status</th></tr></thead>
+        <tbody>${[...myRounds].sort((a,b)=>b.created_at?.localeCompare(a.created_at||'')||0).map(r=>{
+          const ev = db.events.find(e=>e.id===r.event_id);
+          return `<tr>
+            <td style="font-size:12px">${ev?fmtDate(ev.event_date)+'<br><span style="color:var(--text-3)">'+ev.course_name+'</span>':'—'}</td>
+            <td><strong>${r.stableford_points}</strong></td>
+            <td>${r.course_handicap}</td>
+            <td>${r.verified?'<span class="badge green">✓ Verified</span>':'<span class="badge gray">Pending</span>'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+    </div>` : '<div class="card"><div class="empty">No rounds played yet this season</div></div>'}
+  `;
+}
+
 function safeRender(fn) { try { fn(); } catch(e) { console.error('Render error in', fn.name, e); } }
 
 function renderAll() {
   safeRender(renderHome);
   safeRender(renderLeaderboard);
+  safeRender(renderProfile);
   safeRender(renderPlayers);
   safeRender(renderEvents);
   safeRender(renderAddRound);
@@ -1661,7 +1779,7 @@ function showTab(name) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(name).classList.add('active');
-  const tabs = ['home','leaderboard','players','events','add-round','schedule'];
+  const tabs = ['home','leaderboard','profile','players','events','add-round','schedule'];
   const i = tabs.indexOf(name);
   if (i>=0) document.querySelectorAll('.nav-btn')[i].classList.add('active');
 }
@@ -1791,11 +1909,11 @@ function updateUIForRole() {
   }
   const pinBtn = document.getElementById('btn-change-pin');
   if (pinBtn) pinBtn.style.display = (role === 'member' || role === 'admin') && currentUser.playerId ? '' : 'none';
-  const tabs = ['home','leaderboard','players','events','add-round','schedule'];
+  const tabs = ['home','leaderboard','profile','players','events','add-round','schedule'];
   const visibleTabs = role === 'admin'
     ? tabs
     : role === 'member'
-      ? ['home','leaderboard','schedule','add-round']
+      ? ['home','leaderboard','profile','schedule','add-round']
       : ['home','leaderboard','schedule'];
   document.querySelectorAll('.nav-btn').forEach((btn, i) => {
     btn.style.display = visibleTabs.includes(tabs[i]) ? '' : 'none';
