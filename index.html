@@ -701,20 +701,16 @@ function tiebreakerCompare(a, b) {
   const ev = db.events.find(e=>e.id===a.event_id);
   if (!ev) return 0;
   const n = ev.event_type==='outing_18' ? 18 : 9;
-  const last3Start = n - 3;
-  // Last 3 holes total
+
+  // Step 1: total of last 3 holes
   let aLast=0, bLast=0;
-  for (let i=last3Start; i<n; i++) { aLast += calcHolePts(a,i); bLast += calcHolePts(b,i); }
+  for (let i=n-3; i<n; i++) { aLast += calcHolePts(a,i); bLast += calcHolePts(b,i); }
   if (aLast !== bLast) return bLast - aLast;
-  // 4th from last (n-4)
-  if (n >= 4) {
-    const a4 = calcHolePts(a, n-4), b4 = calcHolePts(b, n-4);
-    if (a4 !== b4) return b4 - a4;
-  }
-  // 5th from last (n-5)
-  if (n >= 5) {
-    const a5 = calcHolePts(a, n-5), b5 = calcHolePts(b, n-5);
-    if (a5 !== b5) return b5 - a5;
+
+  // Step 2: work backwards from hole 5 (index 4), then 4, 3, 2, 1
+  for (let i=4; i>=0; i--) {
+    const aH = calcHolePts(a, i), bH = calcHolePts(b, i);
+    if (aH !== bH) return bH - aH;
   }
   return 0;
 }
