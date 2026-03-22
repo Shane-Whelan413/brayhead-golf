@@ -997,8 +997,8 @@ function updateRoundSummary() {
   let courseHcp = calcCourseHcp(hcp, slope, cr, par);
   if (ev.event_type === 'outing_18') courseHcp = courseHcp * 2;
   const indexLabel = p && p.plays_womens_index ? ' (W)' : ' (M)';
-  const siVals  = getSIValues(n, ev, p || pl || null);
-  const parVals = getParValues(n, ev, p || pl || null);
+  const siVals  = getSIValues(n, ev, p || null);
+  const parVals = getParValues(n, ev, p || null);
   let pts=0, holes=0;
   for (let i=1; i<=n; i++) {
     const v = parseInt(document.getElementById('h'+i)?.value);
@@ -1021,22 +1021,22 @@ async function saveRound() {
   if (!eid || !pid) { toast('Select an event and a player', 'error'); return; }
   const ev = db.events.find(e=>e.id===eid);
   if (!ev) { toast('Event not found', 'error'); return; }
+  const pl = db.players.find(x=>x.id===pid);
   const n = ev.event_type==='outing_18' ? 18 : 9;
   const scores = [];
   for (let i=1; i<=n; i++) {
     const v = parseInt(document.getElementById('h'+i)?.value);
     scores.push(isNaN(v)?null:v);
   }
-  const parVals = getParValues(n, ev, p || pl || null);
+  const parVals = getParValues(n, ev, pl || null);
   if (scores.filter(s=>s!==null).length < n) { toast(`Enter all ${n} hole scores`, 'error'); return; }
   if (db.rounds.find(r=>r.event_id===eid&&r.player_id===pid)) { toast('Round already recorded for this player at this event', 'error'); return; }
 
-  const pl = db.players.find(x=>x.id===pid);
   const hcpIdx = pl ? parseFloat(pl.handicap_index) : 18;
   const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
   let courseHcp = calcCourseHcp(hcpIdx, slope, cr, par);
   if (ev.event_type === 'outing_18') courseHcp = courseHcp * 2;
-  const siVals = getSIValues(n, ev, p || pl || null);
+  const siVals = getSIValues(n, ev, pl || null);
   let totalPts=0;
   for (let i=0; i<n; i++) {
     if (scores[i]!==null) totalPts += calcStableford(scores[i], parVals[i], getStrokeAllowance(courseHcp, siVals[i], n));
@@ -1411,8 +1411,8 @@ function editRound(rid) {
   const p = db.players.find(x=>x.id===r.player_id);
   if (!r || !ev) return;
   const n = ev.event_type==='outing_18' ? 18 : 9;
-  const parVals = getParValues(n, ev, p || pl || null);
-  const siVals = getSIValues(n, ev, p || pl || null);
+  const parVals = getParValues(n, ev, p || null);
+  const siVals = getSIValues(n, ev, p || null);
   document.getElementById('modal-title').textContent = `Edit round — ${p?p.name:'?'} · ${ev.course_name}`;
   let holeInputs = `<div style="margin-bottom:1rem">
     <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Hole scores</div>
@@ -1448,8 +1448,8 @@ async function saveEditedRound(rid) {
     scores.push(isNaN(v)?null:v);
   }
   if (scores.filter(s=>s!==null).length < n) { toast(`Enter all ${n} scores`, 'error'); return; }
-  const parVals = getParValues(n, ev, p || pl || null);
-  const siVals = getSIValues(n, ev, p || pl || null);
+  const parVals = getParValues(n, ev, p || null);
+  const siVals = getSIValues(n, ev, p || null);
   const hcpIdx = parseFloat(r.handicap_before);
   const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
   let courseHcp = calcCourseHcp(hcpIdx, slope, cr, par);
