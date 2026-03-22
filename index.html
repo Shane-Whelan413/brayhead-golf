@@ -681,8 +681,49 @@ function calcNewHcp(hcpIdx, totalPts) {
   }
 }
 
+function calcHolePts(r, holeIndex) {
+  if (!r.hole_scores || !r.par_values) return 0;
+  const ev = db.events.find(e=>e.id===r.event_id);
+  const pl = db.players.find(x=>x.id===r.player_id);
+  if (!ev) return 0;
+  const n = ev.event_type==='outing_18' ? 18 : 9;
+  const siVals  = getSIValues(n, ev, pl);
+  const parVals = getParValues(n, ev, pl);
+  const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
+  let courseHcp = calcCourseHcp(parseFloat(r.handicap_before)||0, slope, cr, par);
+  if (ev.event_type==='outing_18') courseHcp *= 2;
+  const score = r.hole_scores[holeIndex];
+  if (score == null) return 0;
+  return calcStableford(score, parVals[holeIndex], getStrokeAllowance(courseHcp, siVals[holeIndex], n));
+}
+
+function tiebreakerCompare(a, b) {
+  const ev = db.events.find(e=>e.id===a.event_id);
+  if (!ev) return 0;
+  const n = ev.event_type==='outing_18' ? 18 : 9;
+  const last3Start = n - 3;
+  // Last 3 holes total
+  let aLast=0, bLast=0;
+  for (let i=last3Start; i<n; i++) { aLast += calcHolePts(a,i); bLast += calcHolePts(b,i); }
+  if (aLast !== bLast) return bLast - aLast;
+  // 4th from last (n-4)
+  if (n >= 4) {
+    const a4 = calcHolePts(a, n-4), b4 = calcHolePts(b, n-4);
+    if (a4 !== b4) return b4 - a4;
+  }
+  // 5th from last (n-5)
+  if (n >= 5) {
+    const a5 = calcHolePts(a, n-5), b5 = calcHolePts(b, n-5);
+    if (a5 !== b5) return b5 - a5;
+  }
+  return 0;
+}
+
 function assignLeaguePts(rounds) {
-  const sorted = [...rounds].sort((a,b) => b.stableford_points - a.stableford_points);
+  const sorted = [...rounds].sort((a,b) => {
+    if (b.stableford_points !== a.stableford_points) return b.stableford_points - a.stableford_points;
+    return tiebreakerCompare(a, b);
+  });
   sorted.forEach((r,i) => { r._lp = LEAGUE_PTS(i+1); });
   return sorted;
 }
@@ -1472,6 +1513,7 @@ async function toggleWomensIndex(pid, currentVal) {
 }
 
 function viewPlayerRounds(pid, name) {
+  const rounds = db.rounds.filter(r=>r.player_id===pid).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
   const canEdit = isAdmin || (currentUser && currentUser.playerId===pid);
   document.getElementById('modal-title').textContent = `Rounds — ${name}`;
   if (!rounds.length) {
@@ -1541,8 +1583,8 @@ async function saveEditedRound(rid) {
     scores.push(isNaN(v)?null:v);
   }
   if (scores.filter(s=>s!==null).length < n) { toast(`Enter all ${n} scores`, 'error'); return; }
-  const parVals = getParValues(n, ev, p || null);
-  const siVals = getSIValues(n, ev, p || null);
+  const parVals = getParValues(n, ev, pl);
+  const siVals  = getSIValues(n, ev, pl);
   const hcpIdx = parseFloat(r.handicap_before);
   const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
   let courseHcp = calcCourseHcp(hcpIdx, slope, cr, par);
