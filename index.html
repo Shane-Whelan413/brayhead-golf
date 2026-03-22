@@ -682,19 +682,21 @@ function calcNewHcp(hcpIdx, totalPts) {
 }
 
 function calcHolePts(r, holeIndex) {
-  if (!r.hole_scores || !r.par_values) return 0;
-  const ev = db.events.find(e=>e.id===r.event_id);
-  const pl = db.players.find(x=>x.id===r.player_id);
-  if (!ev) return 0;
-  const n = ev.event_type==='outing_18' ? 18 : 9;
-  const siVals  = getSIValues(n, ev, pl);
-  const parVals = getParValues(n, ev, pl);
-  const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
-  let courseHcp = calcCourseHcp(parseFloat(r.handicap_before)||0, slope, cr, par);
-  if (ev.event_type==='outing_18') courseHcp *= 2;
-  const score = r.hole_scores[holeIndex];
-  if (score == null) return 0;
-  return calcStableford(score, parVals[holeIndex], getStrokeAllowance(courseHcp, siVals[holeIndex], n));
+  try {
+    if (!r.hole_scores || !r.hole_scores[holeIndex]) return 0;
+    const ev = db.events.find(e=>e.id===r.event_id);
+    const pl = db.players.find(x=>x.id===r.player_id);
+    if (!ev) return 0;
+    const n = ev.event_type==='outing_18' ? 18 : 9;
+    const siVals  = getSIValues(n, ev, pl);
+    const parVals = getParValues(n, ev, pl);
+    const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
+    let courseHcp = calcCourseHcp(parseFloat(r.handicap_before)||0, slope, cr, par);
+    if (ev.event_type==='outing_18') courseHcp *= 2;
+    const score = r.hole_scores[holeIndex];
+    if (score == null) return 0;
+    return calcStableford(score, parVals[holeIndex], getStrokeAllowance(courseHcp, siVals[holeIndex], n));
+  } catch(e) { return 0; }
 }
 
 function tiebreakerCompare(a, b) {
@@ -1090,8 +1092,7 @@ async function saveRound() {
   btn.disabled=true; btn.textContent='Saving…';
   try {
     await post('rounds',{ event_id:eid, player_id:pid, hole_scores:scores, par_values:parVals, stableford_points:totalPts, gross_score:gross, course_handicap:courseHcp, handicap_before:hcpIdx, handicap_after:newHcp, league_points:0 });
-    await patch(`players?id=eq.${pid}`,{ handicap_index:newHcp });
-    toast(`Saved! ${totalPts} stableford pts · Hcp ${hcpIdx} → ${newHcp}`, 'success');
+    toast(`Saved! ${totalPts} stableford pts · Pending verification`, 'success');
     for (let i=1; i<=n; i++) { const h=document.getElementById('h'+i); if(h)h.value=''; }
     document.getElementById('round-summary').classList.remove('show');
     await loadAll(); renderAll();
@@ -1258,10 +1259,29 @@ async function saveEditedEvent(eid) {
 async function deleteEvent(id) {
   if (!confirm('Delete this event and all its rounds?')) return;
   try {
+    const eventRounds = db.rounds.filter(r=>r.event_id===id && r.verified);
+    for (const r of eventRounds) {
+      await patch(`players?id=eq.${r.player_id}`, { handicap_index: parseFloat(r.handicap_before) });
+    }
     await del(`rounds?event_id=eq.${id}`);
     await del(`events?id=eq.${id}`);
-    toast('Event deleted', 'success');
+    toast('Event deleted — handicaps reverted', 'success');
     await loadAll(); renderAll();
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+async function deleteRound(rid) {
+  if (!confirm('Delete this round? If verified, the player\'s handicap will revert.')) return;
+  const r = db.rounds.find(x=>x.id===rid);
+  if (!r) return;
+  try {
+    if (r.verified) {
+      await patch(`players?id=eq.${r.player_id}`, { handicap_index: parseFloat(r.handicap_before) });
+    }
+    await del(`rounds?id=eq.${rid}`);
+    toast('Round deleted' + (r.verified ? ' — handicap reverted' : ''), 'success');
+    await loadAll(); renderAll();
+    closeModal();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
@@ -1528,6 +1548,7 @@ function viewPlayerRounds(pid, name) {
           <td style="display:flex;gap:4px;flex-wrap:wrap">
             ${canEdit ? `<button class="btn sm" onclick="editRound('${r.id}')">Edit</button>` : ''}
             ${isAdmin && !r.verified ? `<button class="btn sm" style="background:#E1F5EE;color:#085041;border-color:#9FE1CB" onclick="verifyRound('${r.id}')">Verify</button>` : ''}
+            ${isAdmin ? `<button class="btn sm danger" onclick="deleteRound('${r.id}')">Delete</button>` : ''}
           </td>
         </tr>`;
       }).join('')}</tbody>
@@ -1593,17 +1614,19 @@ async function saveEditedRound(rid) {
   const newHcp = calcNewHcp(hcpIdx, totalPts);
   try {
     await patch(`rounds?id=eq.${rid}`, { hole_scores:scores, stableford_points:totalPts, gross_score:gross, course_handicap:courseHcp, handicap_after:newHcp, verified:false });
-    await patch(`players?id=eq.${pl.id}`, { handicap_index:newHcp });
-    toast(`Round updated! ${totalPts} pts · Hcp → ${newHcp}`, 'success');
+    toast(`Round updated! ${totalPts} pts · Needs re-verification`, 'success');
     closeModal();
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
 async function verifyRound(rid) {
+  const r = db.rounds.find(x=>x.id===rid);
+  if (!r) return;
   try {
     await patch(`rounds?id=eq.${rid}`, { verified: true });
-    toast('Round verified!', 'success');
+    await patch(`players?id=eq.${r.player_id}`, { handicap_index: parseFloat(r.handicap_after) });
+    toast(`Round verified! Hcp updated to ${parseFloat(r.handicap_after).toFixed(1)}`, 'success');
     await loadAll(); renderAll();
     closeModal();
   } catch(e) { toast('Error: '+e.message, 'error'); }
