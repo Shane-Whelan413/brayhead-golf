@@ -672,7 +672,7 @@ function fmtDate(d) {
 }
 
 function calcStableford(score, par, allowance) { return Math.max(0, par - (score - allowance) + 2); }
-function calcCourseHcp(idx, slope, cr, par) { return Math.round(idx * (slope/113) + (cr - par)); }
+function calcCourseHcp(idx, slope, cr, par) { return Math.round(idx); }
 function calcNewHcp(hcpIdx, totalPts) {
   if (totalPts >= 18) {
     return Math.max(0, Math.round(hcpIdx) - 1);
