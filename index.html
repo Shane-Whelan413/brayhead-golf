@@ -2296,7 +2296,22 @@ function logout() {
   clearSession();
   currentUser = null;
   isAdmin = false;
-  updateUIForRole();
+  // Reset FAB
+  const fab = document.getElementById('fab-add-btn');
+  if (fab) fab.classList.add('disabled');
+  // Reset add-round visibility
+  const addRoundSection = document.getElementById('add-round');
+  if (addRoundSection) addRoundSection.style.display = 'none';
+  // Hide admin cards
+  const addPlayerCard = document.getElementById('add-player-card');
+  if (addPlayerCard) addPlayerCard.style.display = 'none';
+  const createEventCard = document.getElementById('create-event-card');
+  if (createEventCard) createEventCard.style.display = 'none';
+  const adminLinks = document.getElementById('admin-quick-links');
+  if (adminLinks) adminLinks.style.display = 'none';
+  // Hide change pin button
+  const pinBtn = document.getElementById('btn-change-pin');
+  if (pinBtn) pinBtn.style.display = 'none';
   showLoginScreen();
 }
 
