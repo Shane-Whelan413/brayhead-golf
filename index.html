@@ -2222,7 +2222,7 @@ function updateUIForRole() {
   if (createEventCard) createEventCard.style.display = isAdmin ? '' : 'none';
   if (pinBtn) pinBtn.style.display = (role === 'member' || role === 'admin') && currentUser.playerId ? '' : 'none';
 
-  // FAB — grey out for viewers
+  // FAB — grey out for viewers only
   const fab = document.getElementById('fab-add-btn');
   if (fab) {
     if (role === 'viewer' || !currentUser) {
@@ -2243,7 +2243,7 @@ function updateUIForRole() {
   });
   // Hide add-round section entirely for viewers
   const addRoundSection = document.getElementById('add-round');
-  if (addRoundSection) addRoundSection.style.display = (role === 'viewer' || !role) ? 'none' : '';
+  if (addRoundSection) addRoundSection.style.display = (role === 'viewer' || !currentUser) ? 'none' : '';
   showTab('home');
   renderAll();
 }
