@@ -2204,16 +2204,16 @@ async function init() {
           currentUser = { role, playerId: p.id, name: p.name };
           isAdmin = role === 'admin';
           hideLoginScreen(); updateUIForRole();
-        } else { showLoginScreen(); }
+        } else { showLoginScreen(); renderAll(); }
       } else {
         currentUser = session; hideLoginScreen(); updateUIForRole();
       }
     } else {
-      showLoginScreen();
+      showLoginScreen(); renderAll();
     }
   } catch(e) {
     console.error('init session failed:', e);
-    showLoginScreen();
+    showLoginScreen(); renderAll();
   }
 }
 
