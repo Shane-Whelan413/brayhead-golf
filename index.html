@@ -59,23 +59,6 @@
   }
   .topbar .site-title { color: #ffffff; font-size: 18px; font-weight: 500; }
   .topbar .site-sub { color: rgba(255,255,255,0.6); }
-  .nav {
-    padding: 0 1.5rem;
-    display: flex;
-    gap: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-    position: sticky;
-    top: calc(60px + env(safe-area-inset-top, 0px));
-    z-index: 49;
-    background: rgba(10, 40, 20, 0.72);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-  }
-  .nav-btn { color: rgba(255,255,255,0.55); }
-  .nav-btn:hover { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.08); border-radius: var(--radius); }
-  .nav-btn.active { color: #ffffff; border-bottom-color: var(--amber); }
 
   .topbar {
     padding: env(safe-area-inset-top, 0px) 1.5rem 0;
@@ -89,11 +72,6 @@
     position: sticky;
     top: 0;
     z-index: 50;
-  }
-  .nav {
-    position: sticky;
-    top: calc(60px + env(safe-area-inset-top, 0px));
-    z-index: 49;
   }
   .conn-pill {
     margin-left: auto;
@@ -110,28 +88,57 @@
   .site-sub { font-size: 12px; margin-left: 2px; display: none; }
   @media(min-width:500px){ .site-sub { display: inline; } }
 
-  .nav-css-layout {
-    padding: 0 1.5rem;
+  /* ── Bottom tab bar ── */
+  .nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 49;
+    background: rgba(10,40,20,0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(255,255,255,0.12);
     display: flex;
-    gap: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    overflow: visible;
   }
   .nav::-webkit-scrollbar { display: none; }
   .nav-btn {
-    padding: 14px 16px;
-    font-size: 13px;
-    font-weight: 500;
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    gap: 3px; padding: 10px 2px 8px;
+    font-size: 10px; font-weight: 500;
     font-family: 'DM Sans', sans-serif;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: all 0.15s;
-    white-space: nowrap;
+    border: none; background: transparent; cursor: pointer;
+    color: rgba(255,255,255,0.45);
+    border-bottom: none; white-space: nowrap;
+    transition: color 0.15s;
+    min-width: 0;
   }
+  .nav-btn .tab-icon {
+    width: 24px; height: 24px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .nav-btn.active { color: #FAC775; }
+  .nav-btn.active .tab-icon { background: rgba(250,199,117,0.18); }
+  .nav-btn:hover { color: rgba(255,255,255,0.8); }
 
-  .content { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+  /* Add round FAB */
+  .nav-btn.fab-btn { flex: 1; }
+  .nav-btn.fab-btn .tab-icon {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--green); margin-top: -18px;
+    border: 3px solid rgba(10,40,20,0.96);
+    box-shadow: 0 2px 12px rgba(29,158,117,0.4);
+  }
+  .nav-btn.fab-btn.active .tab-icon { background: var(--green-mid); }
+  .nav-btn.fab-btn svg { stroke: white !important; }
+
+  /* Content padding for bottom nav */
+  .content { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem calc(80px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Toasts above bottom nav */
+  .toasts { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 
   .section { display: none; }
   .section.active { display: block; }
@@ -276,7 +283,57 @@
   }
   .hole-grid input:focus { border-color: var(--green); }
 
-  .summary-bar {
+  /* ── Card-style leaderboard ── */
+  .lb-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .lb-card .rank { width: 28px; height: 28px; flex-shrink: 0; font-size: 12px; }
+  .lb-card .avatar { width: 34px; height: 34px; font-size: 12px; flex-shrink: 0; }
+  .lb-card-info { flex: 1; min-width: 0; }
+  .lb-card-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb-card-sub  { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+  .lb-card-pts  { font-size: 20px; font-weight: 600; color: var(--green-mid); flex-shrink: 0; }
+
+  /* ── Larger hole inputs ── */
+  .hole-scroll-wrap { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .hole-scroll-wrap::-webkit-scrollbar { display: none; }
+  .hole-card-inp { flex-shrink: 0; width: 52px; text-align: center; }
+  .hole-card-inp .hole-lbl { font-size: 10px; color: var(--text-3); margin-bottom: 4px; }
+  .hole-card-inp input {
+    width: 52px; height: 52px; text-align: center; font-size: 20px; font-weight: 600;
+    border-radius: var(--radius); border: 1.5px solid var(--border-strong);
+    background: var(--bg); color: var(--text);
+    font-family: 'DM Sans', sans-serif; outline: none;
+    -webkit-appearance: none; appearance: none;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .hole-card-inp input:focus { border-color: var(--green); background: var(--green-light); }
+  .hole-card-inp input:not(:placeholder-shown) { background: var(--green-light); border-color: var(--green); color: var(--green-dark); }
+
+  /* ── Bottom sheet modals ── */
+  @media (max-width: 600px) {
+    .modal-overlay {
+      align-items: flex-end;
+      padding: 0;
+    }
+    .modal {
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      width: 100%;
+      max-width: 100%;
+      max-height: 90vh;
+      padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+    }
+    .modal::before {
+      content: '';
+      display: block;
+      width: 36px; height: 4px;
+      background: var(--border-strong);
+      border-radius: 2px;
+      margin: 0 auto 1rem;
+    }
+  }
     margin-top: 1rem; padding: 10px 14px;
     background: var(--green-light); border-radius: var(--radius);
     font-size: 13px; color: var(--green-dark); font-weight: 500;
@@ -380,13 +437,26 @@
 </div>
 
 <nav class="nav">
-  <button class="nav-btn active" onclick="showTab('home')">Home</button>
-  <button class="nav-btn" onclick="showTab('leaderboard')">Leaderboard</button>
-  <button class="nav-btn" onclick="showTab('profile')">Profile</button>
-  <button class="nav-btn" onclick="showTab('players')">Players</button>
-  <button class="nav-btn" onclick="showTab('events')">Events</button>
-  <button class="nav-btn" onclick="showTab('add-round')">+ Add round</button>
-  <button class="nav-btn" onclick="showTab('schedule')">Schedule</button>
+  <button class="nav-btn active" onclick="showTab('home')">
+    <div class="tab-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5L9 2l7 5.5V16a1 1 0 01-1 1H3a1 1 0 01-1-1V7.5z"/><path d="M6 17V10h6v7"/></svg></div>
+    Home
+  </button>
+  <button class="nav-btn" onclick="showTab('leaderboard')">
+    <div class="tab-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="9" width="4" height="8" rx="1"/><rect x="7" y="5" width="4" height="12" rx="1"/><rect x="13" y="1" width="4" height="16" rx="1"/></svg></div>
+    Board
+  </button>
+  <button class="nav-btn fab-btn" onclick="showTab('add-round')">
+    <div class="tab-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg></div>
+    Add
+  </button>
+  <button class="nav-btn" onclick="showTab('profile')">
+    <div class="tab-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="3.5"/><path d="M2 16c0-3.3 3.1-6 7-6s7 2.7 7 6"/></svg></div>
+    Profile
+  </button>
+  <button class="nav-btn" onclick="showTab('schedule')">
+    <div class="tab-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="14" height="13" rx="2"/><line x1="2" y1="7" x2="16" y2="7"/><line x1="6" y1="1" x2="6" y2="5"/><line x1="12" y1="1" x2="12" y2="5"/></svg></div>
+    Schedule
+  </button>
 </nav>
 
 <div class="content">
@@ -394,6 +464,18 @@
   <!-- HOME / NOTICEBOARD -->
   <div id="home" class="section active">
     <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--text);margin-bottom:1rem">Bray Head Golf Society</div>
+    <div id="admin-quick-links" style="display:none;margin-bottom:1rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="btn" onclick="showTab('players')" style="padding:14px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="6" cy="5" r="2.5"/><path d="M1 14c0-2.8 2.2-5 5-5s5 2.2 5 5"/><path d="M11 8c1.7 0 3 1.3 3 3v3"/><circle cx="11" cy="4" r="2"/></svg>
+          Players
+        </button>
+        <button class="btn" onclick="showTab('events')" style="padding:14px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1" y="3" width="14" height="11" rx="2"/><line x1="1" y1="7" x2="15" y2="7"/><line x1="5" y1="1" x2="5" y2="5"/><line x1="11" y1="1" x2="11" y2="5"/></svg>
+          Events
+        </button>
+      </div>
+    </div>
     <div id="noticeboard-feed"><div class="empty" style="padding:3rem">Loading updates…</div></div>
   </div>
 
@@ -503,8 +585,7 @@
       </div>
       <div id="holes-section">
         <div class="hole-section-label" id="holes-title">Hole scores — 9 holes</div>
-        <div class="hole-grid" id="hole-labels"></div>
-        <div class="hole-grid" id="hole-inputs"></div>
+        <div class="hole-scroll-wrap" id="hole-inputs"></div>
       </div>
       <div id="round-summary" class="summary-bar"></div>
       <div style="margin-top:1rem">
@@ -811,18 +892,19 @@ function renderLeaderboard() {
     ).join('') + `<span class="pts-pip">rest = 6</span>`;
 
   if (!rows.length) { document.getElementById('lb-table').innerHTML='<div class="empty">No players yet — add some in the Players tab</div>'; return; }
-  document.getElementById('lb-table').innerHTML = `<table>
-    <thead><tr><th>Pos</th><th>Player</th><th>Hcp index</th><th>Rounds (counted)</th><th>League pts</th><th>Best stableford</th><th>Avg stableford</th></tr></thead>
-    <tbody>${rows.map((p,i)=>`<tr>
-      <td><div class="rank ${i===0?'r1':i===1?'r2':i===2?'r3':'rn'}">${i+1}</div></td>
-      <td><div class="player-cell"><div class="avatar">${initials(p.name)}</div>${p.name}</div></td>
-      <td><span class="badge gray">${parseFloat(p.handicap_index).toFixed(1)}</span></td>
-      <td>${p.rounds > p.counted ? `${p.rounds} <span style="color:var(--text-3);font-size:11px">(best ${p.counted})</span>` : p.rounds}</td>
-      <td><strong>${p.lp}</strong></td>
-      <td>${p.best || '—'}</td>
-      <td>${p.avg}</td>
-    </tr>`).join('')}</tbody>
-  </table>`;
+  document.getElementById('lb-table').innerHTML = rows.map((p,i)=>{
+    const rankClass = i===0?'r1':i===1?'r2':i===2?'r3':'rn';
+    const posStr = i===0?'1st':i===1?'2nd':i===2?'3rd':(i+1)+'th';
+    return `<div class="lb-card">
+      <div class="rank ${rankClass}">${posStr}</div>
+      <div class="avatar">${initials(p.name)}</div>
+      <div class="lb-card-info">
+        <div class="lb-card-name">${p.name}</div>
+        <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)} · ${p.rounds} round${p.rounds!==1?'s':''} · Best ${p.best||'—'} · Avg ${p.avg}</div>
+      </div>
+      <div class="lb-card-pts">${p.lp}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderPlayers() {
@@ -906,15 +988,21 @@ function renderAddRound() {
 
 function buildHoleInputs(n) {
   document.getElementById('holes-title').textContent = `Hole scores — ${n} holes`;
-  ['hole-labels','hole-inputs'].forEach(id=>{
-    const el = document.getElementById(id); if(el) el.innerHTML='';
-  });
+  const wrap = document.getElementById('hole-inputs');
+  wrap.innerHTML = '';
   for (let i=1; i<=n; i++) {
-    const lbl = document.createElement('div'); lbl.className='hole-lbl'; lbl.textContent=i;
-    document.getElementById('hole-labels').appendChild(lbl);
-    const hi = document.createElement('input'); hi.type='number'; hi.min=1; hi.max=15; hi.id='h'+i; hi.placeholder='—';
-    hi.addEventListener('input', updateRoundSummary);
-    document.getElementById('hole-inputs').appendChild(hi);
+    const card = document.createElement('div');
+    card.className = 'hole-card-inp';
+    const lbl = document.createElement('div');
+    lbl.className = 'hole-lbl';
+    lbl.textContent = 'H' + i;
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.min = 1; inp.max = 15;
+    inp.id = 'h' + i; inp.placeholder = '—';
+    inp.addEventListener('input', updateRoundSummary);
+    card.appendChild(lbl);
+    card.appendChild(inp);
+    wrap.appendChild(card);
   }
 }
 
@@ -1901,7 +1989,7 @@ function showTab(name) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(name).classList.add('active');
-  const tabs = ['home','leaderboard','profile','players','events','add-round','schedule'];
+  const tabs = ['home','leaderboard','add-round','profile','schedule'];
   const i = tabs.indexOf(name);
   if (i>=0) document.querySelectorAll('.nav-btn')[i].classList.add('active');
 }
@@ -2029,14 +2117,15 @@ function updateUIForRole() {
     else if (role === 'member') userLabel.textContent = currentUser.name.split(' ')[0];
     else userLabel.textContent = 'Viewing';
   }
-  const pinBtn = document.getElementById('btn-change-pin');
+  const adminLinks = document.getElementById('admin-quick-links');
+  if (adminLinks) adminLinks.style.display = isAdmin ? '' : 'none';
   if (pinBtn) pinBtn.style.display = (role === 'member' || role === 'admin') && currentUser.playerId ? '' : 'none';
-  const tabs = ['home','leaderboard','profile','players','events','add-round','schedule'];
+  const tabs = ['home','leaderboard','add-round','profile','schedule'];
   const visibleTabs = role === 'admin'
     ? tabs
     : role === 'member'
-      ? ['home','leaderboard','profile','schedule','add-round']
-      : ['home','leaderboard','schedule'];
+      ? tabs
+      : ['home','leaderboard','profile','schedule'];
   document.querySelectorAll('.nav-btn').forEach((btn, i) => {
     btn.style.display = visibleTabs.includes(tabs[i]) ? '' : 'none';
   });
