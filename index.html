@@ -1834,11 +1834,20 @@ async function verifyRound(rid) {
 function renderProfile() {
   const el = document.getElementById('profile-content');
   if (!el) return;
-  if (!currentUser || !currentUser.playerId) {
+  if (!currentUser) {
     el.innerHTML = '<div class="empty" style="padding:3rem">Log in to view your profile</div>';
     return;
   }
-  const pid = currentUser.playerId;
+  // Admins logged in via password won't have a playerId — find them by is_admin flag or name
+  let pid = currentUser.playerId;
+  if (!pid && currentUser.role === 'admin') {
+    const adminPlayer = db.players.find(p => p.is_admin);
+    if (adminPlayer) pid = adminPlayer.id;
+  }
+  if (!pid) {
+    el.innerHTML = '<div class="empty" style="padding:3rem">Log in as a member to view your profile</div>';
+    return;
+  }
   const player = db.players.find(p=>p.id===pid);
   if (!player) { el.innerHTML = '<div class="empty">Player not found</div>'; return; }
 
