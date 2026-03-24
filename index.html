@@ -532,9 +532,13 @@
       <div class="card-title">Create event</div>
       <div class="form-group" style="margin-bottom:12px">
         <label>Load saved course</label>
-        <select id="e-saved-course" onchange="loadSavedCourse()">
-          <option value="">— select a saved course —</option>
-        </select>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="e-saved-course" onchange="loadSavedCourse()" style="flex:1">
+            <option value="">— select a saved course —</option>
+          </select>
+          <button class="btn sm" onclick="editSavedCourse()" style="flex-shrink:0">Edit</button>
+          <button class="btn sm danger" onclick="deleteSavedCourse()" style="flex-shrink:0">Delete</button>
+        </div>
       </div>
       <div class="form-row c3">
         <div class="form-group"><label>Date</label><input id="e-date" type="date" onchange="onEventDateChange()" /></div>
@@ -854,7 +858,8 @@ function renderLeaderboard() {
   const filter = document.getElementById('lb-filter').value;
   const evs = filter === 'all' ? db.events : db.events.filter(e=>e.event_type===filter);
   const eids = new Set(evs.map(e=>e.id));
-  const filteredRounds = db.rounds.filter(r=>eids.has(r.event_id) && r.verified);
+  const publishedEids = new Set(evs.filter(e=>e.published).map(e=>e.id));
+  const filteredRounds = db.rounds.filter(r=>publishedEids.has(r.event_id) && r.verified);
 
   const byEvent = {};
   for (const r of filteredRounds) {
@@ -963,15 +968,20 @@ function renderEvents() {
   if (!db.events.length) { el.innerHTML='<div class="empty">No events created yet</div>'; return; }
   el.innerHTML = [...db.events].reverse().map(e => {
     const count = db.rounds.filter(r=>r.event_id===e.id).length;
+    const verified = db.rounds.filter(r=>r.event_id===e.id && r.verified).length;
     const isOuting = e.event_type==='outing_18';
     const badgeClass = isOuting ? 'purple' : 'blue';
     const typeLabel = isOuting ? '18-hole outing' : 'Sunday 9';
     const parLabel = e.par + (e.womens_par ? ` / ${e.womens_par}W` : '');
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    const pubBadge = e.published
+      ? `<span class="badge green" style="font-size:10px">✓ Published</span>`
+      : `<span class="badge gray" style="font-size:10px">Unpublished</span>`;
+    return `<div style="background:var(--surface);border:1px solid ${e.published?'var(--green)':'var(--border)'};border-radius:var(--radius);padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:8px">
         <div>
           <div style="font-weight:600;font-size:15px;color:var(--text)">${e.course_name}</div>
-          <div style="font-size:12px;color:var(--text-3);margin-top:2px">${fmtDate(e.event_date)} · Par ${parLabel} · ${count} entr${count===1?'y':'ies'}</div>
+          <div style="font-size:12px;color:var(--text-3);margin-top:2px">${fmtDate(e.event_date)} · Par ${parLabel} · ${verified}/${count} verified</div>
+          <div style="margin-top:4px">${pubBadge}</div>
         </div>
         <span class="badge ${badgeClass}" style="flex-shrink:0">${typeLabel}</span>
       </div>
@@ -979,6 +989,7 @@ function renderEvents() {
         <button class="btn sm" onclick="viewEventResults('${e.id}')">Results</button>
         ${isAdmin ? `<button class="btn sm" onclick="editEvent('${e.id}')">Edit</button>` : ''}
         ${isAdmin ? `<button class="btn sm" style="background:#E1F5EE;color:#085041;border-color:#9FE1CB" onclick="showPostUpdate('${e.id}')">Post update</button>` : ''}
+        ${isAdmin ? `<button class="btn sm" style="background:${e.published?'#FCEBEB':'#E1F5EE'};color:${e.published?'#A32D2D':'#085041'};border-color:${e.published?'#F7C1C1':'#9FE1CB'}" onclick="togglePublishEvent('${e.id}',${!!e.published})">${e.published?'Unpublish':'Publish results'}</button>` : ''}
         ${isAdmin ? `<button class="btn sm danger" onclick="deleteEvent('${e.id}')">Delete</button>` : ''}
       </div>
     </div>`;
@@ -1092,6 +1103,33 @@ function loadSavedCourse() {
   toast(`Loaded ${c.name}`, 'success');
 }
 
+function editSavedCourse() {
+  const sel = document.getElementById('e-saved-course');
+  if (!sel || sel.value === '') { toast('Select a saved course to edit', 'error'); return; }
+  // Load the course into the form
+  loadSavedCourse();
+  // Change save button to "Update course"
+  const saveBtn = document.querySelector('button[onclick="saveCourse()"]');
+  if (saveBtn) {
+    saveBtn.textContent = 'Update course';
+    saveBtn.setAttribute('data-editing-index', sel.value);
+  }
+  toast('Edit the details below then tap Update course', 'success');
+}
+
+function deleteSavedCourse() {
+  const sel = document.getElementById('e-saved-course');
+  if (!sel || sel.value === '') { toast('Select a saved course to delete', 'error'); return; }
+  const courses = getSavedCourses();
+  const idx = parseInt(sel.value);
+  const name = courses[idx]?.name || 'this course';
+  if (!confirm(`Delete "${name}" from saved courses?`)) return;
+  courses.splice(idx, 1);
+  setSavedCourses(courses);
+  renderSavedCourseDropdown();
+  toast(`"${name}" deleted`, 'success');
+}
+
 function saveCourse() {
   const n = document.getElementById('e-type').value === 'outing_18' ? 18 : 9;
   const name = document.getElementById('e-course').value.trim();
@@ -1114,16 +1152,25 @@ function saveCourse() {
     pars, wpars, si, wsi
   };
   const courses = getSavedCourses();
-  const existing = courses.findIndex(c => c.name.toLowerCase() === name.toLowerCase());
-  if (existing >= 0) {
-    if (!confirm(`Update saved course "${name}"?`)) return;
-    courses[existing] = course;
+  // Check if we're updating an existing course
+  const saveBtn = document.querySelector('button[onclick="saveCourse()"]');
+  const editingIndex = saveBtn ? saveBtn.getAttribute('data-editing-index') : null;
+  if (editingIndex !== null && editingIndex !== '') {
+    courses[parseInt(editingIndex)] = course;
+    if (saveBtn) { saveBtn.textContent = 'Save this course'; saveBtn.removeAttribute('data-editing-index'); }
+    toast(`"${name}" updated!`, 'success');
   } else {
-    courses.push(course);
+    const existing = courses.findIndex(c => c.name.toLowerCase() === name.toLowerCase());
+    if (existing >= 0) {
+      if (!confirm(`Update saved course "${name}"?`)) return;
+      courses[existing] = course;
+    } else {
+      courses.push(course);
+    }
+    toast(`"${name}" saved!`, 'success');
   }
   setSavedCourses(courses);
   renderSavedCourseDropdown();
-  toast(`"${name}" saved!`, 'success');
 }
 
 function onEventTypeChange() {
@@ -1448,6 +1495,24 @@ async function saveEditedEvent(eid) {
     });
     toast('Event updated!', 'success');
     closeModal();
+    await loadAll(); renderAll();
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+async function togglePublishEvent(eid, currentlyPublished) {
+  const ev = db.events.find(e=>e.id===eid);
+  if (!ev) return;
+  if (!currentlyPublished) {
+    const verified = db.rounds.filter(r=>r.event_id===eid && r.verified).length;
+    const total = db.rounds.filter(r=>r.event_id===eid).length;
+    if (total === 0) { toast('No rounds submitted for this event yet', 'error'); return; }
+    if (verified < total) {
+      if (!confirm(`${verified} of ${total} rounds are verified. Publish anyway?`)) return;
+    }
+  }
+  try {
+    await patch(`events?id=eq.${eid}`, { published: !currentlyPublished });
+    toast(currentlyPublished ? 'Results unpublished' : 'Results published to leaderboard!', 'success');
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
@@ -1859,8 +1924,9 @@ function renderProfile() {
   const attendance = totalEvents > 0 ? Math.round((totalRounds/totalEvents)*100) : 0;
 
   // Leaderboard position
+  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
   const byEvent = {};
-  for (const r of db.rounds.filter(x=>x.verified)) { if(!byEvent[r.event_id]) byEvent[r.event_id]=[]; byEvent[r.event_id].push({...r}); }
+  for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) { if(!byEvent[r.event_id]) byEvent[r.event_id]=[]; byEvent[r.event_id].push({...r}); }
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
   const playerTotals = {};
   for (const eid in byEvent) {
