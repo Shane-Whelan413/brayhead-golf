@@ -134,8 +134,8 @@
   .nav-btn.fab-btn.disabled .tab-icon { background: rgba(255,255,255,0.2) !important; box-shadow: none; }
   .nav-btn.fab-btn.disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
-  /* Content padding for bottom nav */
-  .content { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem calc(80px + env(safe-area-inset-bottom, 0px)); }
+  /* Content padding for bottom nav and topbar */
+  .content { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem calc(80px + env(safe-area-inset-bottom, 0px)); padding-top: calc(1.5rem + 60px + env(safe-area-inset-top, 0px)); }
 
   /* Toasts above bottom nav */
   .toasts { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
