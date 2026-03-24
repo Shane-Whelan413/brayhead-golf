@@ -1864,10 +1864,10 @@ function renderProfile() {
   const lbPos  = sorted.findIndex(([id])=>id===pid) + 1;
   const myLeaguePts = playerTotals[pid] || 0;
 
-  // Count 1st, 2nd, 3rd finishes
+  // Count 1st, 2nd, 3rd finishes — use sorted ranked array
   let first=0, second=0, third=0;
   for (const eid in byEvent) {
-    const ranked = byEvent[eid];
+    const ranked = assignLeaguePts(byEvent[eid].map(r=>({...r})));
     const myRound = ranked.find(r=>r.player_id===pid);
     if (!myRound) continue;
     const pos = ranked.indexOf(myRound) + 1;
