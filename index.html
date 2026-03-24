@@ -2213,10 +2213,13 @@ function updateUIForRole() {
     ? tabs
     : role === 'member'
       ? tabs
-      : ['home','leaderboard','schedule'];
+      : ['home','leaderboard','profile','schedule'];
   document.querySelectorAll('.nav-btn').forEach((btn, i) => {
     btn.style.display = visibleTabs.includes(tabs[i]) ? '' : 'none';
   });
+  // Hide add-round section entirely for viewers
+  const addRoundSection = document.getElementById('add-round');
+  if (addRoundSection) addRoundSection.style.display = (role === 'viewer' || !role) ? 'none' : '';
   showTab('home');
   renderAll();
 }
