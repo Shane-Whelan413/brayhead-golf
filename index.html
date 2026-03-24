@@ -508,7 +508,7 @@
 
   <!-- PLAYERS -->
   <div id="players" class="section">
-    <div class="card">
+    <div class="card" id="add-player-card">
       <div class="card-title">Add player</div>
       <div class="form-row c2">
         <div class="form-group"><label>Name</label><input id="p-name" placeholder="Full name" /></div>
@@ -524,8 +524,14 @@
 
   <!-- EVENTS -->
   <div id="events" class="section">
-    <div class="card">
+    <div class="card" id="create-event-card">
       <div class="card-title">Create event</div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Load saved course</label>
+        <select id="e-saved-course" onchange="loadSavedCourse()">
+          <option value="">— select a saved course —</option>
+        </select>
+      </div>
       <div class="form-row c3">
         <div class="form-group"><label>Date</label><input id="e-date" type="date" onchange="onEventDateChange()" /></div>
         <div class="form-group"><label>Type</label>
@@ -560,8 +566,9 @@
       <div class="hole-section-label" id="e-wsi-title">Women's stroke index <span style="font-weight:400;text-transform:none;letter-spacing:0">— leave blank if same as men's</span></div>
       <div class="hole-grid" id="e-wsi-labels"></div>
       <div class="hole-grid" id="e-wsi-inputs"></div>
-      <div style="margin-top:1rem">
+      <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn primary" id="btn-add-event" onclick="addEvent()">Create event</button>
+        <button class="btn" onclick="saveCourse()" style="background:#EEEDFE;color:#3C3489;border-color:#AFA9EC">Save this course</button>
       </div>
     </div>
     <div class="card">
@@ -1033,6 +1040,83 @@ function buildEventSIInputs(n) {
     const lwpar = document.createElement('div'); lwpar.className='hole-lbl'; lwpar.textContent=i; wparLbl.appendChild(lwpar);
     const wpar  = document.createElement('input'); wpar.type='number'; wpar.min=3; wpar.max=5; wpar.id='e-wpar-h'+i; wpar.placeholder='4'; wparInp.appendChild(wpar);
   }
+}
+
+// ── Saved courses (localStorage) ──
+function getSavedCourses() {
+  try { return JSON.parse(localStorage.getItem('bhgs_saved_courses') || '[]'); } catch(e) { return []; }
+}
+function setSavedCourses(courses) {
+  try { localStorage.setItem('bhgs_saved_courses', JSON.stringify(courses)); } catch(e) {}
+}
+
+function renderSavedCourseDropdown() {
+  const sel = document.getElementById('e-saved-course');
+  if (!sel) return;
+  const courses = getSavedCourses();
+  sel.innerHTML = '<option value="">— select a saved course —</option>' +
+    courses.map((c,i) => `<option value="${i}">${c.name}</option>`).join('');
+}
+
+function loadSavedCourse() {
+  const sel = document.getElementById('e-saved-course');
+  if (!sel || sel.value === '') return;
+  const courses = getSavedCourses();
+  const c = courses[parseInt(sel.value)];
+  if (!c) return;
+  const n = c.si ? c.si.length : 9;
+  // Set type first to build correct number of holes
+  const typeEl = document.getElementById('e-type');
+  typeEl.value = n === 18 ? 'outing_18' : 'sunday_9';
+  buildEventSIInputs(n);
+  document.getElementById('e-course').value  = c.name;
+  document.getElementById('e-cr').value      = c.cr || '';
+  document.getElementById('e-slope').value   = c.slope || '';
+  document.getElementById('e-par').value     = c.par || '';
+  document.getElementById('e-wcr').value     = c.wcr || '';
+  document.getElementById('e-wslope').value  = c.wslope || '';
+  document.getElementById('e-wpar').value    = c.wpar || '';
+  for (let i=1; i<=n; i++) {
+    const ph = document.getElementById('e-par-h'+i); if(ph && c.pars) ph.value = c.pars[i-1] || '';
+    const wp = document.getElementById('e-wpar-h'+i); if(wp && c.wpars) wp.value = c.wpars[i-1] || '';
+    const si = document.getElementById('e-si'+i); if(si && c.si) si.value = c.si[i-1] || '';
+    const ws = document.getElementById('e-wsi'+i); if(ws && c.wsi) ws.value = c.wsi[i-1] || '';
+  }
+  toast(`Loaded ${c.name}`, 'success');
+}
+
+function saveCourse() {
+  const n = document.getElementById('e-type').value === 'outing_18' ? 18 : 9;
+  const name = document.getElementById('e-course').value.trim();
+  if (!name) { toast('Enter a course name first', 'error'); return; }
+  const pars=[], wpars=[], si=[], wsi=[];
+  for (let i=1; i<=n; i++) {
+    pars.push(parseInt(document.getElementById('e-par-h'+i)?.value) || 4);
+    wpars.push(parseInt(document.getElementById('e-wpar-h'+i)?.value) || pars[i-1]);
+    si.push(parseInt(document.getElementById('e-si'+i)?.value) || i);
+    wsi.push(parseInt(document.getElementById('e-wsi'+i)?.value) || si[i-1]);
+  }
+  const course = {
+    name,
+    cr:    parseFloat(document.getElementById('e-cr').value)    || null,
+    slope: parseInt(document.getElementById('e-slope').value)   || null,
+    par:   parseInt(document.getElementById('e-par').value)     || null,
+    wcr:   parseFloat(document.getElementById('e-wcr').value)   || null,
+    wslope:parseInt(document.getElementById('e-wslope').value)  || null,
+    wpar:  parseInt(document.getElementById('e-wpar').value)    || null,
+    pars, wpars, si, wsi
+  };
+  const courses = getSavedCourses();
+  const existing = courses.findIndex(c => c.name.toLowerCase() === name.toLowerCase());
+  if (existing >= 0) {
+    if (!confirm(`Update saved course "${name}"?`)) return;
+    courses[existing] = course;
+  } else {
+    courses.push(course);
+  }
+  setSavedCourses(courses);
+  renderSavedCourseDropdown();
+  toast(`"${name}" saved!`, 'success');
 }
 
 function onEventTypeChange() {
@@ -1973,15 +2057,9 @@ function renderProfile() {
   }
 }
 
-function safeRender(fn) {
-  try { fn(); } catch(e) {
-    console.error('Render error in', fn.name, ':', e.message, e.stack);
-    toast('Render error in ' + fn.name + ': ' + e.message, 'error');
-  }
-}
+function safeRender(fn) { try { fn(); } catch(e) { console.error('Render error in', fn.name, ':', e.message); } }
 
 function renderAll() {
-  console.log('renderAll called — players:', db.players.length, 'events:', db.events.length, 'rounds:', db.rounds.length);
   safeRender(renderHome);
   safeRender(renderLeaderboard);
   safeRender(renderProfile);
@@ -2125,13 +2203,17 @@ function updateUIForRole() {
   }
   const adminLinks = document.getElementById('admin-quick-links');
   if (adminLinks) adminLinks.style.display = isAdmin ? '' : 'none';
+  const addPlayerCard = document.getElementById('add-player-card');
+  if (addPlayerCard) addPlayerCard.style.display = isAdmin ? '' : 'none';
+  const createEventCard = document.getElementById('create-event-card');
+  if (createEventCard) createEventCard.style.display = isAdmin ? '' : 'none';
   if (pinBtn) pinBtn.style.display = (role === 'member' || role === 'admin') && currentUser.playerId ? '' : 'none';
   const tabs = ['home','leaderboard','add-round','profile','schedule'];
   const visibleTabs = role === 'admin'
     ? tabs
     : role === 'member'
       ? tabs
-      : ['home','leaderboard','profile','schedule'];
+      : ['home','leaderboard','schedule'];
   document.querySelectorAll('.nav-btn').forEach((btn, i) => {
     btn.style.display = visibleTabs.includes(tabs[i]) ? '' : 'none';
   });
@@ -2224,6 +2306,20 @@ async function init() {
 }
 
 buildEventSIInputs(9);
+
+// Pre-load Stepaside if no courses saved yet
+if (getSavedCourses().length === 0) {
+  setSavedCourses([{
+    name: 'Stepaside',
+    cr: 35, slope: 113, par: 35,
+    wcr: 35, wslope: 113, wpar: 36,
+    pars:  [4,5,4,4,4,4,3,3,4],
+    wpars: [4,5,4,4,5,4,3,3,4],
+    si:    [1,2,3,4,5,6,7,8,9],
+    wsi:   [4,1,8,7,5,2,6,9,3]
+  }]);
+}
+renderSavedCourseDropdown();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/brayhead-golf/sw.js', { scope: '/brayhead-golf/' }).catch(()=>{});
