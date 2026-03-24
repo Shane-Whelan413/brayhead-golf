@@ -1514,7 +1514,7 @@ async function togglePublishEvent(eid, currentlyPublished) {
     await patch(`events?id=eq.${eid}`, { published: !currentlyPublished });
     toast(currentlyPublished ? 'Results unpublished' : 'Results published to leaderboard!', 'success');
     await loadAll(); renderAll();
-  } catch(e) { toast('Error: '+e.message, 'error'); }
+  } catch(e) { toast('Publish error: '+e.message, 'error'); console.error(e); }
 }
 
 async function deleteEvent(id) {
