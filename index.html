@@ -1973,9 +1973,15 @@ function renderProfile() {
   }
 }
 
-function safeRender(fn) { try { fn(); } catch(e) { console.error('Render error in', fn.name, e); } }
+function safeRender(fn) {
+  try { fn(); } catch(e) {
+    console.error('Render error in', fn.name, ':', e.message, e.stack);
+    toast('Render error in ' + fn.name + ': ' + e.message, 'error');
+  }
+}
 
 function renderAll() {
+  console.log('renderAll called — players:', db.players.length, 'events:', db.events.length, 'rounds:', db.rounds.length);
   safeRender(renderHome);
   safeRender(renderLeaderboard);
   safeRender(renderProfile);
