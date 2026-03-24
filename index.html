@@ -854,7 +854,7 @@ function renderLeaderboard() {
   const filter = document.getElementById('lb-filter').value;
   const evs = filter === 'all' ? db.events : db.events.filter(e=>e.event_type===filter);
   const eids = new Set(evs.map(e=>e.id));
-  const filteredRounds = db.rounds.filter(r=>eids.has(r.event_id));
+  const filteredRounds = db.rounds.filter(r=>eids.has(r.event_id) && r.verified);
 
   const byEvent = {};
   for (const r of filteredRounds) {
@@ -1860,7 +1860,7 @@ function renderProfile() {
 
   // Leaderboard position
   const byEvent = {};
-  for (const r of db.rounds) { if(!byEvent[r.event_id]) byEvent[r.event_id]=[]; byEvent[r.event_id].push({...r}); }
+  for (const r of db.rounds.filter(x=>x.verified)) { if(!byEvent[r.event_id]) byEvent[r.event_id]=[]; byEvent[r.event_id].push({...r}); }
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
   const playerTotals = {};
   for (const eid in byEvent) {
