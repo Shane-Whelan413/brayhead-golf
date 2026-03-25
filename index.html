@@ -703,7 +703,7 @@ const api = async (path, opts={}) => {
   const txt = await res.text();
   return txt ? JSON.parse(txt) : null;
 };
-const get  = p       => api(p, { method:'GET', prefer:'' });
+const get  = p       => api(p, { method:'GET', prefer:'', cache:'no-store' });
 const post = (p,b)   => api(p, { method:'POST', body:JSON.stringify(b) });
 const patch= (p,b)   => api(p, { method:'PATCH', body:JSON.stringify(b), prefer:'return=representation' });
 const del  = p       => api(p, { method:'DELETE', prefer:'return=minimal' });

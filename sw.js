@@ -1,4 +1,4 @@
-const CACHE = 'brayhead-gs-v4';
+const CACHE = 'brayhead-gs-v5';
 const ASSETS = [
   '/brayhead-golf/index.html',
   '/brayhead-golf/manifest.json',
@@ -23,7 +23,9 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.url.includes('supabase.co')) return;
+  // Never cache API or Supabase requests — always go to network
+  if (e.request.url.includes('supabase.co') || e.request.url.includes('/rest/v1/')) return;
+  // For app assets, try network first then fall back to cache
   e.respondWith(
     fetch(e.request)
       .then(res => {
