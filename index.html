@@ -1003,13 +1003,18 @@ function renderEvents() {
 function renderAddRound() {
   const rp = document.getElementById('r-player');
   const re = document.getElementById('r-event');
-  const isMember = currentUser && currentUser.role === 'member';
-  if (isMember) {
+  const role = currentUser ? currentUser.role : 'viewer';
+  const isMember = role === 'member';
+  const isAdminUser = role === 'admin';
+  if (isMember && currentUser.playerId) {
     rp.innerHTML = db.players.filter(p=>p.id===currentUser.playerId).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     rp.disabled = true;
-  } else {
+  } else if (isAdminUser) {
     rp.disabled = false;
     rp.innerHTML = '<option value="">Select player…</option>' + db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  } else {
+    rp.disabled = true;
+    rp.innerHTML = '<option value="">Not available</option>';
   }
   re.innerHTML = '<option value="">Select event…</option>' + [...db.events].reverse().map(e=>`<option value="${e.id}">${fmtDate(e.event_date)} — ${e.course_name} (${e.event_type==='outing_18'?'18h':'9h'})</option>`).join('');
   buildHoleInputs(9);
@@ -2258,8 +2263,9 @@ function showTab(name) {
   const tabs = ['home','leaderboard','add-round','profile','schedule'];
   const i = tabs.indexOf(name);
   if (i>=0) document.querySelectorAll('.nav-btn')[i].classList.add('active');
-  // Re-render profile fresh every time it's opened
+  // Re-render fresh every time these tabs are opened
   if (name === 'profile') safeRender(renderProfile);
+  if (name === 'add-round') safeRender(renderAddRound);
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
