@@ -2469,7 +2469,7 @@ async function saveNewPin() {
   } catch(e) { errEl.textContent = 'Error: '+e.message; errEl.style.display = 'block'; }
 }
 
-function logout() {
+async function logout() {
   clearSession();
   currentUser = null;
   isAdmin = false;
@@ -2489,9 +2489,10 @@ function logout() {
   // Hide change pin button
   const pinBtn = document.getElementById('btn-change-pin');
   if (pinBtn) pinBtn.style.display = 'none';
+  // Always reload data first, then show login screen with names
+  try { await loadAll(); } catch(e) { console.error('reload on logout failed:', e); }
   renderAll();
-  // Reload data then show login so names are always fresh
-  loadAll().then(() => { renderAll(); showLoginScreen(); });
+  showLoginScreen();
 }
 
 async function init() {
