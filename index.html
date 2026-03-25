@@ -897,10 +897,11 @@ function renderLeaderboard() {
   }).sort((a,b) => b.lp - a.lp);
 
   const sundays = getSundays();
-  const eventsPlayed = db.events.length;
+  const eventsPlayed = db.events.filter(e=>e.published).length;
+  const verifiedRounds = db.rounds.filter(r=>r.verified).length;
   document.getElementById('s-members').textContent   = db.players.length;
   document.getElementById('s-events').textContent    = eventsPlayed;
-  document.getElementById('s-rounds').textContent    = db.rounds.length;
+  document.getElementById('s-rounds').textContent    = verifiedRounds;
   document.getElementById('s-remaining').textContent = Math.max(0, sundays.length - eventsPlayed);
 
   document.getElementById('pts-bar').innerHTML =
@@ -930,40 +931,40 @@ function renderPlayers() {
   const el = document.getElementById('players-table');
   if (!db.players.length) { el.innerHTML='<div class="empty">No players yet</div>'; return; }
 
+  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
   const byEvent = {};
-  for (const r of db.rounds) { if (!byEvent[r.event_id]) byEvent[r.event_id]=[]; byEvent[r.event_id].push({...r}); }
+  for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) {
+    if (!byEvent[r.event_id]) byEvent[r.event_id]=[];
+    byEvent[r.event_id].push({...r});
+  }
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
 
-  el.innerHTML = `<table>
-    <thead><tr><th>Player</th><th>Handicap index</th><th>Rounds played</th><th>League pts</th><th></th></tr></thead>
-    <tbody>${db.players.map(p=>{
-      const rounds = db.rounds.filter(r=>r.player_id===p.id);
-      let lp = 0;
-      for (const eid in byEvent) { const r=byEvent[eid].find(x=>x.player_id===p.id); if(r) lp+=r._lp; }
-      return `<tr>
-        <td>
-          <div class="player-cell"><div class="avatar">${initials(p.name)}</div>
-            <div>
-              <div>${p.name}</div>
-              ${p.plays_womens_index ? `<span class="badge purple" style="font-size:10px">Women's index</span>` : ''}
-            </div>
+  el.innerHTML = db.players.map(p=>{
+    const rounds = db.rounds.filter(r=>r.player_id===p.id);
+    let lp = 0;
+    for (const eid in byEvent) { const ranked=byEvent[eid]; const r=ranked.find(x=>x.player_id===p.id); if(r) lp+=r._lp; }
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:${isAdmin?'10px':'0'}">
+        <div class="avatar" style="flex-shrink:0">${initials(p.name)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:15px;color:var(--text)">${p.name}</div>
+          <div style="font-size:12px;color:var(--text-3);margin-top:2px">
+            Hcp <strong>${parseFloat(p.handicap_index).toFixed(1)}</strong>
+            · ${rounds.length} round${rounds.length!==1?'s':''}
+            · ${lp} pts
+            ${p.plays_womens_index ? `· <span style="color:#3C3489;font-weight:500">W</span>` : ''}
           </div>
-        </td>
-        <td>
-          <span class="badge green">${parseFloat(p.handicap_index).toFixed(1)}</span>
-          ${isAdmin ? `<button class="btn sm" style="margin-left:6px" onclick="editHandicap('${p.id}','${p.name.replace(/'/g,"\\'")}',${p.handicap_index})">Edit</button>` : ''}
-        </td>
-        <td>${rounds.length}</td>
-        <td><strong>${lp}</strong></td>
-        <td style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn sm" onclick="viewPlayerRounds('${p.id}','${p.name.replace(/'/g,"\\'")}')">Rounds</button>
-          ${isAdmin ? `<button class="btn sm" style="background:#EEEDFE;color:#3C3489;border-color:#AFA9EC" onclick="toggleWomensIndex('${p.id}',${!!p.plays_womens_index})">${p.plays_womens_index?'Set men\'s':'Set women\'s'}</button>` : ''}
-          ${isAdmin ? `<button class="btn sm" onclick="adminResetPin('${p.id}','${p.name.replace(/'/g,"\\'")}')">Reset PIN</button>` : ''}
-          ${isAdmin ? `<button class="btn sm danger" onclick="deletePlayer('${p.id}','${p.name.replace(/'/g,"\\'")}')">Remove</button>` : ''}
-        </td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table>`;
+        </div>
+        <button class="btn sm" onclick="viewPlayerRounds('${p.id}','${p.name.replace(/'/g,"\\'")}')">Rounds</button>
+      </div>
+      ${isAdmin ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn sm" onclick="editHandicap('${p.id}','${p.name.replace(/'/g,"\\'")}',${p.handicap_index})">Edit hcp</button>
+        <button class="btn sm" style="background:#EEEDFE;color:#3C3489;border-color:#AFA9EC" onclick="toggleWomensIndex('${p.id}',${!!p.plays_womens_index})">${p.plays_womens_index?'Set men\'s':'Set women\'s'}</button>
+        <button class="btn sm" onclick="adminResetPin('${p.id}','${p.name.replace(/'/g,"\\'")}')">Reset PIN</button>
+        <button class="btn sm danger" onclick="deletePlayer('${p.id}','${p.name.replace(/'/g,"\\'")}')">Remove</button>
+      </div>` : ''}
+    </div>`;
+  }).join('');
 }
 
 function renderEvents() {
@@ -1989,22 +1990,22 @@ async function verifyRound(rid) {
 function renderProfile() {
   const el = document.getElementById('profile-content');
   if (!el) return;
-  if (!currentUser) {
-    el.innerHTML = '<div class="empty" style="padding:3rem">Log in to view your profile</div>';
+  if (!currentUser || currentUser.role === 'viewer') {
+    el.innerHTML = '<div class="empty" style="padding:3rem">Log in as a member to view your profile</div>';
     return;
   }
-  // Admins logged in via password won't have a playerId — find them by is_admin flag or name
+  // Admins logged in via password won't have a playerId — find them by is_admin flag
   let pid = currentUser.playerId;
   if (!pid && currentUser.role === 'admin') {
     const adminPlayer = db.players.find(p => p.is_admin);
     if (adminPlayer) pid = adminPlayer.id;
   }
   if (!pid) {
-    el.innerHTML = '<div class="empty" style="padding:3rem">Log in as a member to view your profile</div>';
+    el.innerHTML = '<div class="empty" style="padding:3rem">Profile not available — log in as a member</div>';
     return;
   }
   const player = db.players.find(p=>p.id===pid);
-  if (!player) { el.innerHTML = '<div class="empty">Player not found</div>'; return; }
+  if (!player) { el.innerHTML = '<div class="empty">Player not found — try logging out and back in</div>'; return; }
 
   const myRounds = db.rounds.filter(r=>r.player_id===pid);
   const totalRounds = myRounds.length;
@@ -2257,6 +2258,8 @@ function showTab(name) {
   const tabs = ['home','leaderboard','add-round','profile','schedule'];
   const i = tabs.indexOf(name);
   if (i>=0) document.querySelectorAll('.nav-btn')[i].classList.add('active');
+  // Re-render profile fresh every time it's opened
+  if (name === 'profile') safeRender(renderProfile);
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
@@ -2481,7 +2484,8 @@ function logout() {
   const pinBtn = document.getElementById('btn-change-pin');
   if (pinBtn) pinBtn.style.display = 'none';
   renderAll();
-  showLoginScreen();
+  // Reload data then show login so names are always fresh
+  loadAll().then(() => { renderAll(); showLoginScreen(); });
 }
 
 async function init() {
