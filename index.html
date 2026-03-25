@@ -914,11 +914,13 @@ function renderLeaderboard() {
     const posStr = i===0?'1st':i===1?'2nd':i===2?'3rd':(i+1)+'th';
     return `<div class="lb-card">
       <div class="rank ${rankClass}">${posStr}</div>
-      <div class="avatar">${initials(p.name)}</div>
-      <div class="lb-card-info">
-        <div class="lb-card-name">${p.name}</div>
-        <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)} · ${p.rounds} round${p.rounds!==1?'s':''} · Best ${p.best||'—'} · Avg ${p.avg}</div>
-      </div>
+      <button onclick="showPlayerProfile('${p.id}')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;background:none;border:none;cursor:pointer;padding:0;text-align:left">
+        <div class="avatar">${initials(p.name)}</div>
+        <div class="lb-card-info">
+          <div class="lb-card-name" style="color:var(--text)">${p.name}</div>
+          <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)} · ${p.rounds} round${p.rounds!==1?'s':''} · Best ${p.best||'—'} · Avg ${p.avg}</div>
+        </div>
+      </button>
       <div class="lb-card-pts">${p.lp}</div>
     </div>`;
   }).join('');
@@ -1788,6 +1790,93 @@ async function toggleWomensIndex(pid, currentVal) {
     toast(`${p?p.name:'Player'} set to ${!currentVal?"women's":"men's"} index`, 'success');
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+function showPlayerProfile(pid) {
+  const player = db.players.find(p=>p.id===pid);
+  if (!player) return;
+
+  const myRounds = db.rounds.filter(r=>r.player_id===pid && r.verified);
+  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+  const countedRounds = myRounds.filter(r=>publishedEids.has(r.event_id));
+  const totalEvents = db.events.length;
+  const bestScore = countedRounds.length ? Math.max(...countedRounds.map(r=>r.stableford_points)) : 0;
+  const avgScore  = countedRounds.length ? (countedRounds.reduce((a,r)=>a+r.stableford_points,0)/countedRounds.length).toFixed(1) : '—';
+  const attendance = totalEvents > 0 ? Math.round((myRounds.length/totalEvents)*100) : 0;
+
+  // Leaderboard position
+  const byEvent = {};
+  for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) {
+    if (!byEvent[r.event_id]) byEvent[r.event_id]=[];
+    byEvent[r.event_id].push({...r});
+  }
+  const playerTotals = {};
+  for (const eid in byEvent) {
+    const ranked = assignLeaguePts(byEvent[eid].map(r=>({...r})));
+    for (const r of ranked) {
+      if (!playerTotals[r.player_id]) playerTotals[r.player_id]=0;
+      playerTotals[r.player_id]+=r._lp;
+    }
+  }
+  const sorted = Object.entries(playerTotals).sort((a,b)=>b[1]-a[1]);
+  const lbPos = sorted.findIndex(([id])=>id===pid) + 1;
+  const myLeaguePts = playerTotals[pid] || 0;
+  const posLabel = lbPos===0?'—':lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos+'th';
+  const posColor = lbPos===1?'#FAC775':lbPos===2?'#D3D1C7':lbPos===3?'#F0997B':'var(--green-light)';
+  const posText  = lbPos===1?'#633806':lbPos===2?'#444441':lbPos===3?'#4A1B0C':'var(--green-dark)';
+
+  // Podium finishes
+  let first=0, second=0, third=0;
+  for (const eid in byEvent) {
+    const ranked = assignLeaguePts(byEvent[eid].map(r=>({...r})));
+    const myRound = ranked.find(r=>r.player_id===pid);
+    if (!myRound) continue;
+    const pos = ranked.indexOf(myRound)+1;
+    if (pos===1) first++;
+    else if (pos===2) second++;
+    else if (pos===3) third++;
+  }
+
+  document.getElementById('modal-title').textContent = player.name;
+  document.getElementById('modal-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:1rem">
+      <div class="stat" style="background:${posColor};border-radius:var(--radius)">
+        <div class="stat-label" style="color:${posText}">Leaderboard</div>
+        <div class="stat-value" style="color:${posText}">${posLabel}</div>
+        <div style="font-size:11px;color:${posText};margin-top:2px">${myLeaguePts} pts</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Handicap</div>
+        <div class="stat-value">${parseFloat(player.handicap_index).toFixed(1)}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Rounds played</div>
+        <div class="stat-value">${myRounds.length}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${attendance}% attendance</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Best score</div>
+        <div class="stat-value">${bestScore||'—'}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">Avg: ${avgScore}</div>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Podium finishes</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">
+      <div style="background:#FAEEDA;border-radius:var(--radius);padding:1rem">
+        <div style="font-size:28px;font-weight:600;color:#633806">${first}</div>
+        <div style="font-size:12px;color:#BA7517;margin-top:2px">1st place</div>
+      </div>
+      <div style="background:#F1EFE8;border-radius:var(--radius);padding:1rem">
+        <div style="font-size:28px;font-weight:600;color:#444441">${second}</div>
+        <div style="font-size:12px;color:#5F5E5A;margin-top:2px">2nd place</div>
+      </div>
+      <div style="background:#FAECE7;border-radius:var(--radius);padding:1rem">
+        <div style="font-size:28px;font-weight:600;color:#4A1B0C">${third}</div>
+        <div style="font-size:12px;color:#993C1D;margin-top:2px">3rd place</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
 }
 
 function viewPlayerRounds(pid, name) {
