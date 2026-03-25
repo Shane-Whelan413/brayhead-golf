@@ -2308,6 +2308,14 @@ function renderLoginNames() {
   document.getElementById('login-pin-section').style.display = 'none';
   document.getElementById('login-subtitle').textContent = 'Select your name to continue';
   const grid = document.getElementById('login-name-grid');
+  if (!db.players.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-3);font-size:13px">Loading players…</div>';
+    // Retry after data loads
+    setTimeout(() => {
+      if (db.players.length) renderLoginNames();
+    }, 1500);
+    return;
+  }
   const viewBtn = `<button class="login-name-btn" style="grid-column:1/-1;text-align:center;background:var(--green-light);color:var(--green-dark);border-color:var(--green)" onclick="loginAsViewer()">View only (no login)</button>`;
   grid.innerHTML = viewBtn + db.players.map(p=>
     `<button class="login-name-btn" onclick="selectPlayer('${p.id}')">${p.name}</button>`
