@@ -2390,6 +2390,7 @@ function logout() {
   // Hide change pin button
   const pinBtn = document.getElementById('btn-change-pin');
   if (pinBtn) pinBtn.style.display = 'none';
+  renderAll();
   showLoginScreen();
 }
 
