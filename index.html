@@ -135,10 +135,10 @@
   .nav-btn.fab-btn.disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
   /* Content padding for bottom nav and topbar */
-  .content { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem calc(120px + env(safe-area-inset-bottom, 0px)); padding-top: calc(1.5rem + 60px + env(safe-area-inset-top, 0px)); }
+  .content { max-width: 960px; margin: 0 auto; padding: 100px 1.5rem 140px; }
 
   /* Toasts above bottom nav */
-  .toasts { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+  .toasts { bottom: 100px; }
 
   .section { display: none; }
   .section.active { display: block; }
@@ -396,7 +396,7 @@
   .locked-tab svg { margin-bottom: 1rem; opacity: 0.4; }
 
   @media(max-width:480px){
-    .content { padding: 1rem; }
+    .content { padding: 100px 1rem 140px; }
     .card { padding: 1rem; }
     .hole-grid { gap: 3px; }
     .hole-grid input { height: 32px; font-size: 13px; }
@@ -617,6 +617,7 @@
     </div>
   </div>
 
+  <div style="height:80px;flex-shrink:0"></div>
 </div>
 
 <!-- MAIN MODAL -->
