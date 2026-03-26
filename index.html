@@ -1035,8 +1035,12 @@ function buildHoleInputs(n) {
     inp.type = 'number'; inp.min = 1; inp.max = 15;
     inp.id = 'h' + i; inp.placeholder = '—';
     inp.addEventListener('input', updateRoundSummary);
+    const pts = document.createElement('div');
+    pts.id = 'hpts' + i;
+    pts.style.cssText = 'font-size:11px;font-weight:600;text-align:center;margin-top:3px;height:16px;border-radius:4px;line-height:16px';
     card.appendChild(lbl);
     card.appendChild(inp);
+    card.appendChild(pts);
     wrap.appendChild(card);
   }
 }
@@ -1286,7 +1290,20 @@ function updateRoundSummary() {
   let pts=0, holes=0;
   for (let i=1; i<=n; i++) {
     const v = parseInt(document.getElementById('h'+i)?.value);
-    if (!isNaN(v)) { pts += calcStableford(v, parVals[i-1], getStrokeAllowance(courseHcp, siVals[i-1], n)); holes++; }
+    const ptsEl = document.getElementById('hpts'+i);
+    if (!isNaN(v)) {
+      const holePts = calcStableford(v, parVals[i-1], getStrokeAllowance(courseHcp, siVals[i-1], n));
+      pts += holePts; holes++;
+      if (ptsEl) {
+        const bg  = holePts >= 3 ? '#FAEEDA' : holePts === 2 ? '#E1F5EE' : holePts === 1 ? '#F1EFE8' : '#FCEBEB';
+        const col = holePts >= 3 ? '#633806' : holePts === 2 ? '#085041' : holePts === 1 ? '#5F5E5A' : '#A32D2D';
+        ptsEl.textContent = holePts + 'pt' + (holePts !== 1 ? 's' : '');
+        ptsEl.style.background = bg;
+        ptsEl.style.color = col;
+      }
+    } else {
+      if (ptsEl) { ptsEl.textContent = ''; ptsEl.style.background = 'transparent'; }
+    }
   }
   if (holes > 0) {
     const eventRounds = db.rounds.filter(r=>r.event_id===eid);
@@ -1299,7 +1316,7 @@ function updateRoundSummary() {
         ? ` · Hcp: ${hcp} (top 3 — no change)`
         : ` · Hcp: ${hcp} → ${newH} (+0.2)`;
     const outingNote = ev.event_type==='outing_18' ? ` · Course hcp doubled (${courseHcp})${indexLabel}` : ` · Course hcp: ${courseHcp}${indexLabel}`;
-    sb.textContent = `${holes} holes · ${pts} stableford pts${outingNote}${hcpNote}`;
+    sb.textContent = `${holes}/${n} holes · ${pts} pts${outingNote}${hcpNote}`;
     sb.classList.add('show');
   } else { sb.classList.remove('show'); }
 }
