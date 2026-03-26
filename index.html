@@ -992,6 +992,7 @@ function renderEvents() {
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn sm" onclick="viewEventResults('${e.id}')">Results</button>
         ${isAdmin ? `<button class="btn sm" onclick="editEvent('${e.id}')">Edit</button>` : ''}
+        ${isAdmin && verified < count ? `<button class="btn sm" style="background:#E1F5EE;color:#085041;border-color:#9FE1CB" onclick="verifyAllRounds('${e.id}')">Verify all (${count - verified})</button>` : ''}
         ${isAdmin ? `<button class="btn sm" style="background:#E1F5EE;color:#085041;border-color:#9FE1CB" onclick="showPostUpdate('${e.id}')">Post update</button>` : ''}
         ${isAdmin ? `<button class="btn sm" style="background:${e.published?'#FCEBEB':'#E1F5EE'};color:${e.published?'#A32D2D':'#085041'};border-color:${e.published?'#F7C1C1':'#9FE1CB'}" onclick="togglePublishEvent('${e.id}',${!!e.published})">${e.published?'Unpublish':'Publish results'}</button>` : ''}
         ${isAdmin ? `<button class="btn sm danger" onclick="deleteEvent('${e.id}')">Delete</button>` : ''}
@@ -1506,6 +1507,22 @@ async function saveEditedEvent(eid) {
     closeModal();
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+async function verifyAllRounds(eid) {
+  const unverified = db.rounds.filter(r=>r.event_id===eid && !r.verified);
+  if (!unverified.length) { toast('All rounds already verified', 'success'); return; }
+  if (!confirm(`Verify all ${unverified.length} unverified round${unverified.length!==1?'s':''} for this event? This will update all player handicaps.`)) return;
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  try {
+    for (const r of unverified) {
+      await patch(`rounds?id=eq.${r.id}`, { verified: true });
+      await patch(`players?id=eq.${r.player_id}`, { handicap_index: parseFloat(r.handicap_after) });
+    }
+    toast(`${unverified.length} round${unverified.length!==1?'s':''} verified — handicaps updated!`, 'success');
+    await loadAll(); renderAll();
+  } catch(e) { toast('Error: '+e.message, 'error'); btn.disabled = false; }
 }
 
 async function togglePublishEvent(eid, currentlyPublished) {
