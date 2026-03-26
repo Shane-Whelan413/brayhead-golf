@@ -2308,12 +2308,11 @@ function renderLoginNames() {
   document.getElementById('login-pin-section').style.display = 'none';
   document.getElementById('login-subtitle').textContent = 'Select your name to continue';
   const grid = document.getElementById('login-name-grid');
+  // Debug — show player count
+  console.log('renderLoginNames called, db.players.length =', db.players.length);
   if (!db.players.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-3);font-size:13px">Loading players…</div>';
-    // Retry after data loads
-    setTimeout(() => {
-      if (db.players.length) renderLoginNames();
-    }, 1500);
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:1rem;color:#A32D2D;font-size:13px;background:#FCEBEB;border-radius:8px">No players loaded (db empty) — tap below to retry</div>
+    <button class="login-name-btn" style="grid-column:1/-1;text-align:center" onclick="loadAll().then(renderLoginNames)">Retry</button>`;
     return;
   }
   const viewBtn = `<button class="login-name-btn" style="grid-column:1/-1;text-align:center;background:var(--green-light);color:var(--green-dark);border-color:var(--green)" onclick="loginAsViewer()">View only (no login)</button>`;
