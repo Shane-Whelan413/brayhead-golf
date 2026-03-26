@@ -2481,26 +2481,16 @@ async function logout() {
   clearSession();
   currentUser = null;
   isAdmin = false;
-  // Reset FAB
-  const fab = document.getElementById('fab-add-btn');
-  if (fab) fab.classList.add('disabled');
-  // Reset add-round visibility
-  const addRoundSection = document.getElementById('add-round');
-  if (addRoundSection) addRoundSection.style.display = 'none';
-  // Hide admin cards
-  const addPlayerCard = document.getElementById('add-player-card');
-  if (addPlayerCard) addPlayerCard.style.display = 'none';
-  const createEventCard = document.getElementById('create-event-card');
-  if (createEventCard) createEventCard.style.display = 'none';
-  const adminLinks = document.getElementById('admin-quick-links');
-  if (adminLinks) adminLinks.style.display = 'none';
-  // Hide change pin button
-  const pinBtn = document.getElementById('btn-change-pin');
-  if (pinBtn) pinBtn.style.display = 'none';
-  // Always reload data first, then show login screen with names
-  try { await loadAll(); } catch(e) { console.error('reload on logout failed:', e); }
-  renderAll();
+  // Show login screen immediately with whatever data we have
   showLoginScreen();
+  // Then reload fresh data in background and refresh the name grid
+  try {
+    await loadAll();
+    renderLoginNames();
+  } catch(e) {
+    console.error('reload on logout failed:', e);
+    renderLoginNames();
+  }
 }
 
 async function init() {
