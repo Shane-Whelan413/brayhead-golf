@@ -1872,10 +1872,10 @@ function showPlayerProfile(pid) {
   const myRounds = db.rounds.filter(r=>r.player_id===pid && r.verified);
   const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
   const countedRounds = myRounds.filter(r=>publishedEids.has(r.event_id));
-  const totalEvents = db.events.length;
+  const totalEvents = publishedEids.size;
   const bestScore = countedRounds.length ? Math.max(...countedRounds.map(r=>r.stableford_points)) : 0;
   const avgScore  = countedRounds.length ? (countedRounds.reduce((a,r)=>a+r.stableford_points,0)/countedRounds.length).toFixed(1) : '—';
-  const attendance = totalEvents > 0 ? Math.round((myRounds.length/totalEvents)*100) : 0;
+  const attendance = totalEvents > 0 ? Math.round((countedRounds.length/totalEvents)*100) : 0;
 
   // Leaderboard position
   const byEvent = {};
@@ -2079,15 +2079,13 @@ function renderProfile() {
   const player = db.players.find(p=>p.id===pid);
   if (!player) { el.innerHTML = '<div class="empty">Player not found — try logging out and back in</div>'; return; }
 
-  const myRounds = db.rounds.filter(r=>r.player_id===pid);
+  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+  const myRounds = db.rounds.filter(r=>r.player_id===pid && r.verified && publishedEids.has(r.event_id));
   const totalRounds = myRounds.length;
-  const totalEvents = db.events.length;
+  const totalEvents = publishedEids.size;
   const bestScore = myRounds.length ? Math.max(...myRounds.map(r=>r.stableford_points)) : 0;
   const avgScore  = myRounds.length ? (myRounds.reduce((a,r)=>a+r.stableford_points,0)/myRounds.length).toFixed(1) : '—';
   const attendance = totalEvents > 0 ? Math.round((totalRounds/totalEvents)*100) : 0;
-
-  // Leaderboard position
-  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
   const byEvent = {};
   for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) { if(!byEvent[r.event_id]) byEvent[r.event_id]=[]; byEvent[r.event_id].push({...r}); }
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
