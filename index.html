@@ -1900,6 +1900,95 @@ async function toggleWomensIndex(pid, currentVal) {
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
+function buildScorecardRows(r, ev, n, compareR) {
+  const pl  = db.players.find(x=>x.id===r.player_id);
+  const pl2 = compareR ? db.players.find(x=>x.id===compareR.player_id) : null;
+  const parVals  = getParValues(n, ev, pl);
+  const siVals   = getSIValues(n, ev, pl);
+  const parVals2 = compareR ? getParValues(n, ev, pl2) : null;
+  const siVals2  = compareR ? getSIValues(n, ev, pl2) : null;
+  const chcp  = r.course_handicap || 0;
+  const chcp2 = compareR ? (compareR.course_handicap || 0) : 0;
+
+  const chip = (pts, winner) => {
+    let bg, col;
+    if (pts === null) { bg='#F1EFE8'; col='#888780'; }
+    else if (!compareR) {
+      bg = pts>=3?'#FAEEDA':pts>=2?'#E1F5EE':pts===1?'#F1EFE8':'#FCEBEB';
+      col= pts>=3?'#633806':pts>=2?'#085041':pts===1?'#5F5E5A':'#A32D2D';
+    } else if (winner === 'you') { bg='#E1F5EE'; col='#085041'; }
+    else if (winner === 'them')  { bg='#EEEDFE'; col='#3C3489'; }
+    else if (pts === 0)          { bg='#FCEBEB'; col='#A32D2D'; }
+    else                         { bg='#F1EFE8'; col='#5F5E5A'; }
+    return `<span style="display:inline-block;padding:1px 6px;border-radius:5px;font-size:11px;font-weight:500;background:${bg};color:${col}">${pts!==null?pts:'—'}</span>`;
+  };
+
+  const totalPar   = parVals.slice(0,n).reduce((a,b)=>a+b,0);
+  const totalGross = r.hole_scores.slice(0,n).reduce((a,b)=>a+(b||0),0);
+
+  const header = compareR
+    ? `<tr style="border-bottom:1px solid var(--border)">
+        <th style="font-size:10px;color:var(--text-3);padding:4px;text-align:left">H</th>
+        <th style="font-size:10px;color:var(--text-3);padding:4px;text-align:left">Par</th>
+        <th style="font-size:10px;color:#085041;padding:4px;text-align:left">${pl?pl.name.split(' ')[0]:'You'}</th>
+        <th style="font-size:10px;color:#3C3489;padding:4px;text-align:left">${pl2?pl2.name.split(' ')[0]:'Them'}</th>
+      </tr>`
+    : `<tr style="border-bottom:1px solid var(--border)">
+        <th style="font-size:10px;color:var(--text-3);padding:4px;text-align:left">Hole</th>
+        <th style="font-size:10px;color:var(--text-3);padding:4px;text-align:left">Par</th>
+        <th style="font-size:10px;color:var(--text-3);padding:4px;text-align:left">Score</th>
+        <th style="font-size:10px;color:var(--text-3);padding:4px;text-align:left">Allow</th>
+        <th style="font-size:10px;color:var(--text-3);padding:4px;text-align:left">Pts</th>
+      </tr>`;
+
+  const rows = Array.from({length:n},(_,i)=>{
+    const score  = r.hole_scores[i];
+    const par    = parVals[i]||4;
+    const allow  = getStrokeAllowance(chcp, siVals[i]||(i+1), n);
+    const pts    = score!=null ? calcStableford(score, par, allow) : null;
+    if (!compareR) {
+      const ptsBg  = pts===null?'#F1EFE8':pts>=3?'#FAEEDA':pts>=2?'#E1F5EE':pts===1?'#F1EFE8':'#FCEBEB';
+      const ptsCol = pts===null?'#888780':pts>=3?'#633806':pts>=2?'#085041':pts===1?'#5F5E5A':'#A32D2D';
+      return `<tr style="border-bottom:0.5px solid var(--border)">
+        <td style="color:var(--text-3);font-size:12px;padding:5px 4px">${i+1}</td>
+        <td style="padding:5px 4px;font-size:12px">${par}</td>
+        <td style="padding:5px 4px;font-size:12px">${score!=null?score:'—'}</td>
+        <td style="padding:5px 4px;font-size:11px">+${allow}</td>
+        <td style="padding:5px 4px"><span style="display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:500;background:${ptsBg};color:${ptsCol}">${pts!==null?pts:'—'}</span></td>
+      </tr>`;
+    }
+    const score2 = compareR.hole_scores[i];
+    const par2   = parVals2[i]||4;
+    const allow2 = getStrokeAllowance(chcp2, siVals2[i]||(i+1), n);
+    const pts2   = score2!=null ? calcStableford(score2, par2, allow2) : null;
+    const w1 = pts!==null && pts2!==null ? (pts>pts2?'you':pts<pts2?'them':'draw') : 'draw';
+    const w2 = w1==='you'?'them':w1==='them'?'you':'draw';
+    return `<tr style="border-bottom:0.5px solid var(--border)">
+      <td style="color:var(--text-3);font-size:12px;padding:5px 4px">${i+1}</td>
+      <td style="padding:5px 4px;font-size:12px">${par}</td>
+      <td style="padding:5px 4px">${chip(pts, w1)}</td>
+      <td style="padding:5px 4px">${chip(pts2, w2)}</td>
+    </tr>`;
+  }).join('');
+
+  const footer = compareR
+    ? `<tr style="border-top:1px solid var(--border);font-weight:600">
+        <td style="padding:5px 4px;font-size:12px">Total</td>
+        <td style="padding:5px 4px;font-size:12px">${totalPar}</td>
+        <td style="padding:5px 4px">${chip(r.stableford_points, r.stableford_points>=compareR.stableford_points?'you':'them')}</td>
+        <td style="padding:5px 4px">${chip(compareR.stableford_points, compareR.stableford_points>=r.stableford_points?'you':'them')}</td>
+      </tr>`
+    : `<tr style="border-top:1px solid var(--border);font-weight:600">
+        <td style="padding:5px 4px;font-size:12px">Total</td>
+        <td style="padding:5px 4px;font-size:12px">${totalPar}</td>
+        <td style="padding:5px 4px;font-size:12px">${totalGross}</td>
+        <td></td>
+        <td style="padding:5px 4px"><span style="display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:500;background:#E1F5EE;color:#085041">${r.stableford_points}</span></td>
+      </tr>`;
+
+  return { header, rows, footer };
+}
+
 function showRoundScorecard(rid) {
   const r  = db.rounds.find(x=>x.id===rid);
   if (!r) return;
@@ -1907,64 +1996,70 @@ function showRoundScorecard(rid) {
   const pl = db.players.find(x=>x.id===r.player_id);
   if (!ev || !r.hole_scores) { toast('No hole scores recorded for this round', 'error'); return; }
   const n = ev.event_type==='outing_18' ? 18 : 9;
-  const parVals = getParValues(n, ev, pl);
-  const siVals  = getSIValues(n, ev, pl);
-  const courseHcp = r.course_handicap || 0;
 
-  const rows = Array.from({length:n},(_,i)=>{
-    const score = r.hole_scores[i];
-    const par   = parVals[i] || 4;
-    const si    = siVals[i] || (i+1);
-    const allow = getStrokeAllowance(courseHcp, si, n);
-    const pts   = score != null ? calcStableford(score, par, allow) : null;
-    const ptsBg  = pts === null ? '#F1EFE8' : pts >= 3 ? '#FAEEDA' : pts >= 2 ? '#E1F5EE' : pts === 1 ? '#F1EFE8' : '#FCEBEB';
-    const ptsCol = pts === null ? '#888780' : pts >= 3 ? '#633806' : pts >= 2 ? '#085041' : pts === 1 ? '#5F5E5A' : '#A32D2D';
-    return `<tr>
-      <td style="color:var(--text-3);font-size:12px;padding:5px 4px">${i+1}</td>
-      <td style="padding:5px 4px;font-size:12px">${par}</td>
-      <td style="padding:5px 4px;font-size:12px">${score != null ? score : '—'}</td>
-      <td style="padding:5px 4px;font-size:11px">+${allow}</td>
-      <td style="padding:5px 4px">
-        <span style="display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:500;background:${ptsBg};color:${ptsCol}">${pts !== null ? pts : '—'}</span>
-      </td>
-    </tr>`;
+  // Other players who played the same event
+  const others = db.rounds.filter(x=>x.event_id===r.event_id && x.player_id!==r.player_id && x.hole_scores);
+  const compareOptions = others.map(x=>{
+    const p2 = db.players.find(p=>p.id===x.player_id);
+    return `<option value="${x.id}">${p2?p2.name:'?'} — ${x.stableford_points} pts</option>`;
   }).join('');
 
-  const totalPar   = parVals.slice(0,n).reduce((a,b)=>a+b,0);
+  const { header, rows, footer } = buildScorecardRows(r, ev, n, null);
+  const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
   const totalGross = r.hole_scores.slice(0,n).reduce((a,b)=>a+(b||0),0);
 
   document.getElementById('modal-title').textContent = `${ev.course_name} · ${fmtDate(ev.event_date)}`;
   document.getElementById('modal-body').innerHTML = `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-      <span class="badge green">${r.stableford_points} stableford pts</span>
-      <span class="badge gray">Course hcp ${courseHcp}</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <span class="badge green">${r.stableford_points} pts</span>
+      <span class="badge gray">Hcp ${r.course_handicap}</span>
       <span class="badge gray">Gross ${totalGross}</span>
       ${r.verified?'<span class="badge green">✓ Verified</span>':'<span class="badge gray">Pending</span>'}
     </div>
-    <div style="overflow-x:auto">
+    ${others.length ? `
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <select id="compare-select" onchange="loadComparison('${rid}',this.value)" style="flex:1;height:36px;font-size:12px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);padding:0 10px;font-family:'DM Sans',sans-serif">
+        <option value="">Compare with...</option>
+        ${compareOptions}
+      </select>
+    </div>` : ''}
+    <div id="scorecard-table" style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse">
-        <thead>
-          <tr style="border-bottom:1px solid var(--border)">
-            <th style="font-size:10px;color:var(--text-3);padding:4px;text-align:left">Hole</th>
-            <th style="font-size:10px;color:var(--text-3);padding:4px;text-align:left">Par</th>
-            <th style="font-size:10px;color:var(--text-3);padding:4px;text-align:left">Score</th>
-            <th style="font-size:10px;color:var(--text-3);padding:4px;text-align:left">Allow</th>
-            <th style="font-size:10px;color:var(--text-3);padding:4px;text-align:left">Pts</th>
-          </tr>
-        </thead>
+        <thead>${header}</thead>
         <tbody>${rows}</tbody>
-        <tfoot>
-          <tr style="border-top:1px solid var(--border);font-weight:600">
-            <td style="padding:5px 4px;font-size:12px">Total</td>
-            <td style="padding:5px 4px;font-size:12px">${totalPar}</td>
-            <td style="padding:5px 4px;font-size:12px">${totalGross}</td>
-            <td></td>
-            <td style="padding:5px 4px"><span style="display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:500;background:#E1F5EE;color:#085041">${r.stableford_points}</span></td>
-          </tr>
-        </tfoot>
+        <tfoot>${footer}</tfoot>
       </table>
     </div>`;
   document.getElementById('modal-overlay').classList.add('open');
+}
+
+function loadComparison(rid, compareRid) {
+  const r  = db.rounds.find(x=>x.id===rid);
+  const r2 = compareRid ? db.rounds.find(x=>x.id===compareRid) : null;
+  if (!r) return;
+  const ev = db.events.find(e=>e.id===r.event_id);
+  if (!ev) return;
+  const n  = ev.event_type==='outing_18' ? 18 : 9;
+  const { header, rows, footer } = buildScorecardRows(r, ev, n, r2||null);
+  const pl  = db.players.find(x=>x.id===r.player_id);
+  const pl2 = r2 ? db.players.find(x=>x.id===r2.player_id) : null;
+  const totalGross = r.hole_scores.slice(0,n).reduce((a,b)=>a+(b||0),0);
+
+  // Update badges
+  const badges = document.querySelector('#modal-body .badges-wrap');
+
+  // Update table
+  document.getElementById('scorecard-table').innerHTML = `
+    ${r2 ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      <span class="badge green">${pl?pl.name.split(' ')[0]:'You'}: ${r.stableford_points} pts</span>
+      <span class="badge" style="background:#EEEDFE;color:#3C3489">${pl2?pl2.name.split(' ')[0]:'Them'}: ${r2.stableford_points} pts</span>
+      <span class="badge gray">${r.stableford_points===r2.stableford_points?'Tied':r.stableford_points>r2.stableford_points?(pl?pl.name.split(' ')[0]:'You')+' wins':(pl2?pl2.name.split(' ')[0]:'Them')+' wins'}</span>
+    </div>` : ''}
+    <table style="width:100%;border-collapse:collapse">
+      <thead>${header}</thead>
+      <tbody>${rows}</tbody>
+      <tfoot>${footer}</tfoot>
+    </table>`;
 }
 
 function showPlayerProfile(pid) {
