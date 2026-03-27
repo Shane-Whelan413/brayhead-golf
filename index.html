@@ -283,7 +283,44 @@
   }
   .hole-grid input:focus { border-color: var(--green); }
 
-  /* ── Card-style leaderboard ── */
+  /* ── Vertical scorecard ── */
+  .scorecard-row {
+    display: grid;
+    grid-template-columns: 40px 40px 1fr auto auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .scorecard-row:last-child { border-bottom: none; }
+  .sc-hole { font-size: 13px; font-weight: 600; color: var(--text-3); text-align: center; }
+  .sc-par  { font-size: 12px; color: var(--text-3); text-align: center; }
+  .sc-pts  { font-size: 11px; font-weight: 600; text-align: center; min-width: 36px; height: 22px; border-radius: 6px; line-height: 22px; }
+  .sc-btn  {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    background: var(--bg); color: var(--text);
+    font-size: 20px; font-weight: 300;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; line-height: 1;
+    font-family: 'DM Sans', sans-serif;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .sc-btn:active { background: var(--green-light); border-color: var(--green); }
+  .sc-score {
+    font-size: 22px; font-weight: 600; color: var(--text);
+    text-align: center; min-width: 36px;
+  }
+  .sc-score.empty { color: var(--text-3); font-size: 18px; }
+  .scorecard-header {
+    display: grid;
+    grid-template-columns: 40px 40px 1fr auto auto auto;
+    gap: 8px;
+    padding: 6px 0 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .scorecard-header span { font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; text-align: center; }
   .lb-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 10px 12px;
@@ -610,7 +647,7 @@
       </div>
       <div id="holes-section">
         <div class="hole-section-label" id="holes-title">Hole scores — 9 holes</div>
-        <div class="hole-scroll-wrap" id="hole-inputs"></div>
+        <div id="hole-inputs"></div>
       </div>
       <div id="round-summary" class="summary-bar"></div>
       <div style="margin-top:1rem">
@@ -1036,24 +1073,50 @@ function renderAddRound() {
 function buildHoleInputs(n) {
   document.getElementById('holes-title').textContent = `Hole scores — ${n} holes`;
   const wrap = document.getElementById('hole-inputs');
-  wrap.innerHTML = '';
+  wrap.innerHTML = `
+    <div class="scorecard-header">
+      <span>Hole</span><span>Par</span><span></span><span style="min-width:36px">Score</span><span style="min-width:36px"></span><span style="min-width:36px">Pts</span>
+    </div>`;
   for (let i=1; i<=n; i++) {
-    const card = document.createElement('div');
-    card.className = 'hole-card-inp';
-    const lbl = document.createElement('div');
-    lbl.className = 'hole-lbl';
-    lbl.textContent = 'H' + i;
+    const row = document.createElement('div');
+    row.className = 'scorecard-row';
+    row.id = 'sc-row-' + i;
+    row.innerHTML = `
+      <div class="sc-hole">H${i}</div>
+      <div class="sc-par" id="sc-par${i}">—</div>
+      <button class="sc-btn" onclick="adjustScore(${i},-1)">−</button>
+      <div class="sc-score empty" id="sc-score${i}">—</div>
+      <button class="sc-btn" onclick="adjustScore(${i},1)">+</button>
+      <div class="sc-pts" id="hpts${i}"></div>
+    `;
+    wrap.appendChild(row);
+    // Hidden input to store value (used by saveRound)
     const inp = document.createElement('input');
-    inp.type = 'number'; inp.min = 1; inp.max = 15;
-    inp.id = 'h' + i; inp.placeholder = '—';
-    inp.addEventListener('input', updateRoundSummary);
-    const pts = document.createElement('div');
-    pts.id = 'hpts' + i;
-    pts.style.cssText = 'font-size:11px;font-weight:600;text-align:center;margin-top:3px;height:16px;border-radius:4px;line-height:16px';
-    card.appendChild(lbl);
-    card.appendChild(inp);
-    card.appendChild(pts);
-    wrap.appendChild(card);
+    inp.type = 'hidden'; inp.id = 'h' + i;
+    wrap.appendChild(inp);
+  }
+}
+
+function adjustScore(hole, delta) {
+  const inp = document.getElementById('h' + hole);
+  const display = document.getElementById('sc-score' + hole);
+  const current = parseInt(inp.value) || 0;
+  const newVal = Math.max(1, Math.min(15, current + delta));
+  if (current === 0 && delta < 0) return; // don't go below 1 on first tap
+  inp.value = (current === 0 && delta > 0) ? 1 : newVal;
+  display.textContent = inp.value;
+  display.classList.remove('empty');
+  updateRoundSummary();
+}
+
+function resetHoleInputs(n) {
+  for (let i=1; i<=n; i++) {
+    const inp = document.getElementById('h'+i);
+    const display = document.getElementById('sc-score'+i);
+    const pts = document.getElementById('hpts'+i);
+    if (inp) inp.value = '';
+    if (display) { display.textContent = '—'; display.classList.add('empty'); }
+    if (pts) { pts.textContent = ''; pts.style.background = 'transparent'; }
   }
 }
 
@@ -1299,7 +1362,11 @@ function updateRoundSummary() {
   const indexLabel = p && p.plays_womens_index ? ' (W)' : ' (M)';
   const siVals  = getSIValues(n, ev, p || null);
   const parVals = getParValues(n, ev, p || null);
-  let pts=0, holes=0;
+  // Update par column in scorecard
+  for (let i=1; i<=n; i++) {
+    const parEl = document.getElementById('sc-par'+i);
+    if (parEl) parEl.textContent = parVals[i-1] || '—';
+  }
   for (let i=1; i<=n; i++) {
     const v = parseInt(document.getElementById('h'+i)?.value);
     const ptsEl = document.getElementById('hpts'+i);
@@ -1375,7 +1442,7 @@ async function saveRound() {
   try {
     await post('rounds',{ event_id:eid, player_id:pid, hole_scores:scores, par_values:parVals, stableford_points:totalPts, gross_score:gross, course_handicap:courseHcp, handicap_before:hcpIdx, handicap_after:newHcp, league_points:0 });
     toast(`Saved! ${totalPts} stableford pts · Pending verification`, 'success');
-    for (let i=1; i<=n; i++) { const h=document.getElementById('h'+i); if(h)h.value=''; }
+    resetHoleInputs(n);
     document.getElementById('round-summary').classList.remove('show');
     await loadAll(); renderAll();
   } catch(e) { toast('Error saving: '+e.message, 'error'); }
