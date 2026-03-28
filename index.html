@@ -135,7 +135,7 @@
   .nav-btn.fab-btn.disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
   /* Content padding for bottom nav and topbar */
-  .content { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem 140px; }
+  .content { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem 140px; overflow-x: hidden; }
 
   /* Toasts above bottom nav */
   .toasts { bottom: 100px; }
@@ -297,8 +297,8 @@
   .sc-score-area { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 0; }
   .sc-score-val { font-size: 24px; font-weight: 700; color: var(--text); min-width: 32px; text-align: center; }
   .sc-score-val.sc-empty { color: var(--border-strong); font-size: 18px; font-weight: 400; }
-  .sc-adj { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text); font-size: 22px; font-weight: 300; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-family: 'DM Sans', sans-serif; line-height: 1; }
-  .sc-adj:active { background: #C9A84C; border-color: #C9A84C; color: #8a6a1a; }
+  .sc-adj { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text); font-size: 22px; font-weight: 300; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-family: 'DM Sans', sans-serif; line-height: 1; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  .sc-adj:active { background: #C9A84C; border-color: #C9A84C; color: #0a1628; transform: scale(0.93); }
   .sc-pts-chip { width: 44px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
   .sc-board { background: #0a1628; border-radius: var(--radius) var(--radius) 0 0; padding: 12px 14px; border: 1px solid var(--border); border-bottom: none; }
 
@@ -631,7 +631,7 @@
   </div>
 
   <!-- ADD ROUND -->
-  <div id="add-round" class="section" style="margin:-1.5rem;padding:0">
+  <div id="add-round" class="section" style="margin:-1.5rem -1.5rem 0;overflow-x:hidden">
     <div id="ar-header" style="background:#0a1628;padding:14px 16px 12px">
       <div id="ar-event-name" style="font-size:16px;font-weight:700;color:white"></div>
       <div id="ar-event-date" style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;margin-bottom:12px"></div>
@@ -1229,9 +1229,9 @@ function buildHoleInputs(n) {
       <div style="font-size:12px;font-weight:700;color:#9a9080;text-align:center;padding:10px 0">${i}</div>
       <div style="font-size:12px;color:#9a9080;text-align:center;font-weight:500" id="sc-par${i}">—</div>
       <div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 0">
-        <button class="sc-adj" onclick="event.stopPropagation();adjustScore(${i},-1)">−</button>
+        <button class="sc-adj" ontouchstart="event.preventDefault();event.stopPropagation();adjustScore(${i},-1)" onclick="event.stopPropagation();adjustScore(${i},-1)">−</button>
         <div class="sc-score-val sc-empty" id="sc-score${i}">—</div>
-        <button class="sc-adj" onclick="event.stopPropagation();adjustScore(${i},1)">+</button>
+        <button class="sc-adj" ontouchstart="event.preventDefault();event.stopPropagation();adjustScore(${i},1)" onclick="event.stopPropagation();adjustScore(${i},1)">+</button>
       </div>
       <div id="hpts${i}" style="height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700"></div>`;
     if (i===1) row.style.background = '#fef8e6';
