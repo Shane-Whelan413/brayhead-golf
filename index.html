@@ -36,9 +36,9 @@
     --radius-xl: 20px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
-  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; position: fixed; width: 100%; }
+  html { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  body { height: 100%; overflow: hidden; overscroll-behavior: none; position: relative; }
   html { min-height: 100vh; }
-  .content { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
   body {
     font-family: 'DM Sans', sans-serif;
     color: var(--text);
