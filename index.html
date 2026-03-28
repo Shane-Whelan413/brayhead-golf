@@ -1081,10 +1081,22 @@ function renderAddRound() {
 function buildHoleInputs(n) {
   const wrap = document.getElementById('hole-inputs');
   wrap.innerHTML = '';
+
+  // Header board — shows hcp, course hcp, holes, pts
+  const board = document.createElement('div');
+  board.id = 'sc-header-board';
+  board.style.cssText = 'margin-bottom:4px;border-radius:var(--radius) var(--radius) 0 0;overflow:hidden';
+  board.innerHTML = `<div style="background:var(--green-dark);padding:10px 12px;border-radius:var(--radius) var(--radius) 0 0">
+    <div style="font-size:12px;color:rgba(255,255,255,0.5);text-align:center">Select event and player to begin</div>
+  </div>`;
+  wrap.appendChild(board);
+
+  // Scorecard
   const card = document.createElement('div');
   card.className = 'sc-wrap';
+  card.style.borderRadius = '0 0 var(--radius) var(--radius)';
   card.innerHTML = `<div class="sc-thead">
-    <span>Hole</span><span>Par</span><span style="text-align:center">Score</span><span style="text-align:center">Pts</span>
+    <span>#</span><span>Par</span><span style="text-align:center">Score</span><span style="text-align:center">Pts</span>
   </div>`;
   for (let i=1; i<=n; i++) {
     const row = document.createElement('div');
@@ -1092,14 +1104,14 @@ function buildHoleInputs(n) {
     row.id = 'sc-row' + i;
     row.onclick = () => selectScorecardHole(i);
     row.innerHTML = `
-      <div class="sc-hole-num">H${i}</div>
+      <div class="sc-hole-num">${i}</div>
       <div class="sc-par-num" id="sc-par${i}">—</div>
       <div class="sc-score-area">
         <button class="sc-adj" onclick="event.stopPropagation();adjustScore(${i},-1)">−</button>
         <div class="sc-score-val sc-empty" id="sc-score${i}">—</div>
         <button class="sc-adj" onclick="event.stopPropagation();adjustScore(${i},1)">+</button>
       </div>
-      <div class="sc-pts-chip" id="hpts${i}"></div>`;
+      <div id="hpts${i}" style="width:44px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600"></div>`;
     card.appendChild(row);
     const inp = document.createElement('input');
     inp.type='hidden'; inp.id='h'+i;
@@ -1386,43 +1398,72 @@ function updateRoundSummary() {
   const { cr, slope, par } = getCourseIndexForPlayer(p, ev);
   let courseHcp = calcCourseHcp(hcp, slope, cr, par);
   if (ev.event_type === 'outing_18') courseHcp = courseHcp * 2;
-  const indexLabel = p && p.plays_womens_index ? ' (W)' : ' (M)';
+  const indexLabel = p && p.plays_womens_index ? 'W' : 'M';
   const siVals  = getSIValues(n, ev, p || null);
   const parVals = getParValues(n, ev, p || null);
+
   // Update par column in scorecard
   for (let i=1; i<=n; i++) {
     const parEl = document.getElementById('sc-par'+i);
     if (parEl) parEl.textContent = parVals[i-1] || '—';
   }
+
+  // Calculate points per hole
+  let pts = 0, holes = 0;
   for (let i=1; i<=n; i++) {
     const v = parseInt(document.getElementById('h'+i)?.value);
     const ptsEl = document.getElementById('hpts'+i);
-    if (!isNaN(v)) {
+    if (!isNaN(v) && v > 0) {
       const holePts = calcStableford(v, parVals[i-1], getStrokeAllowance(courseHcp, siVals[i-1], n));
       pts += holePts; holes++;
       if (ptsEl) {
         const bg  = holePts >= 3 ? '#FAEEDA' : holePts === 2 ? '#E1F5EE' : holePts === 1 ? '#F1EFE8' : '#FCEBEB';
         const col = holePts >= 3 ? '#633806' : holePts === 2 ? '#085041' : holePts === 1 ? '#5F5E5A' : '#A32D2D';
         ptsEl.textContent = holePts;
-        ptsEl.style.background = bg;
-        ptsEl.style.color = col;
+        ptsEl.style.cssText = `background:${bg};color:${col};width:44px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600`;
       }
     } else {
-      if (ptsEl) { ptsEl.textContent = ''; ptsEl.style.background = 'transparent'; ptsEl.style.color = ''; }
+      if (ptsEl) { ptsEl.textContent = ''; ptsEl.style.cssText = ''; }
     }
   }
+
+  // Update header board
+  const hdr = document.getElementById('sc-header-board');
+  if (hdr) {
+    const newH = calcNewHcp(hcp, pts, 99);
+    hdr.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;padding:10px 12px;background:var(--green-dark);border-radius:var(--radius) var(--radius) 0 0">
+        <div style="text-align:center">
+          <div style="font-size:10px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Hcp</div>
+          <div style="font-size:18px;font-weight:600;color:white">${hcp}</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Course hcp</div>
+          <div style="font-size:18px;font-weight:600;color:white">${courseHcp}${indexLabel==='W'?'<span style="font-size:11px;opacity:0.7"> W</span>':''}</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Holes</div>
+          <div style="font-size:18px;font-weight:600;color:white">${holes}/${n}</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Points</div>
+          <div style="font-size:18px;font-weight:600;color:#9FE1CB">${pts}</div>
+        </div>
+      </div>`;
+  }
+
+  // Update summary bar below
   if (holes > 0) {
     const eventRounds = db.rounds.filter(r=>r.event_id===eid);
     const allPts = [...eventRounds.map(r=>r.stableford_points), pts].sort((a,b)=>b-a);
     const pos = allPts.indexOf(pts) + 1;
     const newH = calcNewHcp(hcp, pts, pos);
     const hcpNote = pts >= 18
-      ? ` · Hcp: ${hcp} → ${newH} (-1)`
+      ? `Hcp ${hcp} → ${newH} (−1)`
       : pos <= 3
-        ? ` · Hcp: ${hcp} (top 3 — no change)`
-        : ` · Hcp: ${hcp} → ${newH} (+0.2)`;
-    const outingNote = ev.event_type==='outing_18' ? ` · Course hcp doubled (${courseHcp})${indexLabel}` : ` · Course hcp: ${courseHcp}${indexLabel}`;
-    sb.textContent = `${holes}/${n} holes · ${pts} pts${outingNote}${hcpNote}`;
+        ? `Hcp ${hcp} (top 3 — no change)`
+        : `Hcp ${hcp} → ${newH} (+0.2)`;
+    sb.innerHTML = `<span>${pts} pts · ${hcpNote} · Course hcp ${courseHcp}${indexLabel==='W'?' (W)':''}</span>`;
     sb.classList.add('show');
   } else { sb.classList.remove('show'); }
 }
