@@ -2061,7 +2061,10 @@ function renderHome() {
       </div>
       ${ranked.length ? `<div style="margin-bottom:4px">${podium}</div>` : ''}
       ${ctp}${birdies}${custom}
-      ${isAdmin ? `<div style="margin-top:12px;text-align:right"><button class="btn sm danger" onclick="deleteNotice('${n.id}')">Remove</button></div>` : ''}
+      <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between">
+        ${ev ? `<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C;font-weight:600">View full results →</button>` : '<span></span>'}
+        ${isAdmin ? `<button class="btn sm danger" onclick="deleteNotice('${n.id}')">Remove</button>` : ''}
+      </div>
     </div>`;
   }).join('');
 }
