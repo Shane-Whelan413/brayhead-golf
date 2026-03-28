@@ -1940,32 +1940,68 @@ function renderSchedule() {
       const isPast  = d < today;
       const isTdy   = d === today;
       const isNext  = nextOuting && d === nextOuting[0];
+      const isPlayed = ev && isPast;
+      const isPublished = ev && ev.published;
       let typeLabel, statusBadge, courseName;
       if (ev) {
         typeLabel   = ev.event_type==='outing_18' ? `<span class="badge purple" style="font-size:10px">18-hole outing</span>` : `<span class="badge blue" style="font-size:10px">Sunday 9</span>`;
-        statusBadge = isTdy ? `<span class="badge gold" style="font-size:10px">Today</span>` : isPast ? `<span class="badge ${ev.event_type==='outing_18'?'purple':'green'}" style="font-size:10px">Played</span>` : `<span class="badge gray" style="font-size:10px">Upcoming</span>`;
+        statusBadge = isTdy
+          ? `<span class="badge gold" style="font-size:10px">Today</span>`
+          : isPublished
+            ? `<span style="font-size:10px;font-weight:700;color:#8a6a1a;background:#fef8e6;padding:2px 8px;border-radius:99px">✓ Complete</span>`
+            : isPast
+              ? `<span style="font-size:10px;font-weight:600;color:#9a9080;background:#f0ece4;padding:2px 8px;border-radius:99px">Pending</span>`
+              : `<span class="badge gray" style="font-size:10px">Upcoming</span>`;
         courseName  = ev.course_name;
       } else if (isOuting) {
         typeLabel   = `<span class="badge purple" style="font-size:10px">18-hole outing</span>`;
-        statusBadge = isTdy ? `<span class="badge gold" style="font-size:10px">Today</span>` : isPast ? `<span class="badge gray" style="font-size:10px">Not logged</span>` : isNext ? `<span class="badge green" style="font-size:10px">Next outing</span>` : `<span class="badge gray" style="font-size:10px">Upcoming</span>`;
+        statusBadge = isTdy ? `<span class="badge gold" style="font-size:10px">Today</span>` : isPast ? `<span class="badge gray" style="font-size:10px">Not logged</span>` : isNext ? `<span style="font-size:10px;font-weight:700;color:#8a6a1a;background:#fef8e6;padding:2px 8px;border-radius:99px">Next outing</span>` : `<span class="badge gray" style="font-size:10px">Upcoming</span>`;
         courseName  = outingCourse;
       } else {
         typeLabel   = `<span class="badge blue" style="font-size:10px">Sunday 9</span>`;
         statusBadge = isTdy ? `<span class="badge gold" style="font-size:10px">Today</span>` : isPast ? `<span class="badge gray" style="font-size:10px">Not logged</span>` : `<span class="badge gray" style="font-size:10px">Upcoming</span>`;
         courseName  = null;
       }
-      const borderCol = isTdy ? 'var(--gold)' : isNext ? '#C9A84C' : isOuting ? '#AFA9EC' : 'var(--border)';
-      const rowBg = isNext ? 'background:#fef8e6;border-radius:8px;padding:10px;margin-bottom:4px' : isTdy ? 'background:var(--gold-light);border-radius:8px;padding:10px;margin-bottom:4px' : '';
-      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid ${borderCol};${rowBg}">
-        <div style="width:28px;font-size:12px;font-weight:600;color:var(--text-3);text-align:center;flex-shrink:0">${i+1}</div>
+
+      // Row styling — played events are muted, today/next pop
+      let rowStyle, numStyle, dateStyle, nameStyle;
+      if (isTdy) {
+        rowStyle = 'background:#fef8e6;border-radius:8px;padding:10px;margin-bottom:4px;border-bottom:none';
+        numStyle = 'color:#8a6a1a';
+        dateStyle = 'color:#8a6a1a';
+        nameStyle = 'color:#5a3a0a';
+      } else if (isPublished) {
+        rowStyle = 'padding:8px 0;border-bottom:0.5px solid var(--border);opacity:0.6';
+        numStyle = 'color:var(--text-3)';
+        dateStyle = 'color:var(--text-3)';
+        nameStyle = 'color:var(--text-2)';
+      } else if (isPast && !ev) {
+        rowStyle = 'padding:8px 0;border-bottom:0.5px solid var(--border);opacity:0.45';
+        numStyle = 'color:var(--text-3)';
+        dateStyle = 'color:var(--text-3)';
+        nameStyle = 'color:var(--text-3)';
+      } else if (isNext) {
+        rowStyle = 'background:#fef8e6;border-radius:8px;padding:10px;margin-bottom:4px;border-bottom:none;border:1px solid #C9A84C';
+        numStyle = 'color:#8a6a1a';
+        dateStyle = 'color:#8a6a1a';
+        nameStyle = 'color:#5a3a0a';
+      } else {
+        rowStyle = 'padding:10px 0;border-bottom:0.5px solid var(--border)';
+        numStyle = 'color:var(--text-3)';
+        dateStyle = 'color:var(--text-2)';
+        nameStyle = 'color:var(--text)';
+      }
+
+      return `<div style="display:flex;align-items:center;gap:10px;${rowStyle}">
+        <div style="width:28px;font-size:12px;font-weight:600;text-align:center;flex-shrink:0;${numStyle}">${i+1}</div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
             ${typeLabel}${statusBadge}
           </div>
-          <div style="font-size:13px;color:var(--text-2)">${fmtDate(d)}</div>
-          ${courseName ? `<div style="font-size:15px;font-weight:600;color:var(--text);margin-top:3px">${courseName}</div>` : ''}
+          <div style="font-size:13px;${dateStyle}">${fmtDate(d)}</div>
+          ${courseName ? `<div style="font-size:15px;font-weight:600;margin-top:3px;${nameStyle}">${courseName}</div>` : ''}
         </div>
-        ${ev ? `<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0">Results</button>` : ''}
+        ${ev && isPublished ? `<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0;opacity:0.7">Results</button>` : ev ? `<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0">Results</button>` : ''}
       </div>`;
     }).join('')}`;
 }
