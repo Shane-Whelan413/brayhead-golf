@@ -688,10 +688,9 @@
   <div id="add-round" class="section">
     <div class="card" style="margin-bottom:10px">
       <div class="card-title">Record a round</div>
-      <div class="form-row c2">
-        <div class="form-group"><label>Event</label><select id="r-event" onchange="onEventSelect()"><option value="">Select event…</option></select></div>
-        <div class="form-group"><label>Player</label><select id="r-player" onchange="updateRoundSummary()"><option value="">Select player…</option></select></div>
-      </div>
+      <div id="current-event-display" style="margin-bottom:12px"></div>
+      <input type="hidden" id="r-event" />
+      <div class="form-group"><label>Player</label><select id="r-player" onchange="updateRoundSummary()"><option value="">Select player…</option></select></div>
     </div>
     <div id="holes-section">
       <div id="hole-inputs"></div>
@@ -1197,6 +1196,41 @@ function renderAddRound() {
   const role = currentUser ? currentUser.role : 'viewer';
   const isMember = role === 'member';
   const isAdminUser = role === 'admin';
+
+  // Find next unpublished event (earliest by date)
+  const nextEvent = [...db.events]
+    .filter(e => !e.published)
+    .sort((a,b) => a.event_date.localeCompare(b.event_date))[0] || null;
+
+  // Show current event info
+  const evDisplay = document.getElementById('current-event-display');
+  const saveBtn = document.getElementById('btn-save-round');
+  const holesSection = document.getElementById('holes-section');
+  const summaryBar = document.getElementById('round-summary');
+
+  if (!nextEvent) {
+    evDisplay.innerHTML = `<div style="background:#f0ece4;border-radius:8px;padding:12px;text-align:center;color:#9a9080;font-size:13px">No upcoming events — check back after the next event is created</div>`;
+    re.value = '';
+    if (saveBtn) saveBtn.style.display = 'none';
+    if (holesSection) holesSection.style.display = 'none';
+    if (summaryBar) summaryBar.classList.remove('show');
+  } else {
+    const n = nextEvent.event_type === 'outing_18' ? 18 : 9;
+    const isOuting = nextEvent.event_type === 'outing_18';
+    evDisplay.innerHTML = `
+      <div style="background:#0a1628;border-radius:8px;padding:12px">
+        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${isOuting ? '18-hole outing' : 'Sunday 9'}</div>
+        <div style="font-size:16px;font-weight:700;color:white">${nextEvent.course_name}</div>
+        <div style="font-size:12px;color:#C9A84C;margin-top:2px">${fmtDate(nextEvent.event_date)}</div>
+      </div>`;
+    re.value = nextEvent.id;
+    if (saveBtn) saveBtn.style.display = '';
+    if (holesSection) holesSection.style.display = '';
+    buildHoleInputs(n);
+    updateRoundSummary();
+  }
+
+  // Player selector
   if (isMember && currentUser.playerId) {
     rp.innerHTML = db.players.filter(p=>p.id===currentUser.playerId).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     rp.disabled = true;
@@ -1207,8 +1241,6 @@ function renderAddRound() {
     rp.disabled = true;
     rp.innerHTML = '<option value="">Not available</option>';
   }
-  re.innerHTML = '<option value="">Select event…</option>' + [...db.events].reverse().map(e=>`<option value="${e.id}">${fmtDate(e.event_date)} — ${e.course_name} (${e.event_type==='outing_18'?'18h':'9h'})</option>`).join('');
-  buildHoleInputs(9);
 }
 
 function buildHoleInputs(n) {
@@ -1494,36 +1526,6 @@ function onEventSelect() {
   const ev  = db.events.find(e=>e.id===eid);
   const n   = ev ? (ev.event_type==='outing_18' ? 18 : 9) : 9;
   if (ev) buildHoleInputs(n);
-  const siDisplay  = document.getElementById('event-si-display');
-  const siReadout  = document.getElementById('event-si-readout');
-  const parReadout = document.getElementById('event-par-readout');
-  const hasSI  = ev && ev.stroke_index  && ev.stroke_index.length  > 0;
-  const hasPar = ev && ev.par_values    && ev.par_values.length    > 0;
-  if (hasSI || hasPar) {
-    if (hasPar) {
-      parReadout.innerHTML = '<span style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-right:6px">Par</span>' +
-        ev.par_values.map((p,i)=>
-          `<span style="display:inline-block;min-width:28px;text-align:center;margin:2px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 4px">
-            <span style="display:block;font-size:9px;color:var(--text-3)">H${i+1}</span>
-            <span style="font-weight:500">${p}</span>
-          </span>`
-        ).join('');
-      parReadout.style.display = 'block';
-    } else { parReadout.style.display = 'none'; }
-    if (hasSI) {
-      siReadout.innerHTML = '<span style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-right:6px">SI</span>' +
-        ev.stroke_index.map((si,i)=>
-          `<span style="display:inline-block;min-width:28px;text-align:center;margin:2px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 4px">
-            <span style="display:block;font-size:9px;color:var(--text-3)">H${i+1}</span>
-            <span style="font-weight:500">${si}</span>
-          </span>`
-        ).join('');
-      siReadout.style.display = 'block';
-    } else { siReadout.style.display = 'none'; }
-    siDisplay.style.display = 'block';
-  } else {
-    siDisplay.style.display = 'none';
-  }
   updateRoundSummary();
 }
 
