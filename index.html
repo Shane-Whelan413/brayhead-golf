@@ -36,7 +36,9 @@
     --radius-xl: 20px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; position: fixed; width: 100%; }
   html { min-height: 100vh; }
+  .content { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
   body {
     font-family: 'DM Sans', sans-serif;
     color: var(--text);
@@ -135,7 +137,7 @@
   .nav-btn.fab-btn.disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
   /* Content padding for bottom nav and topbar */
-  .content { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem 140px; overflow-x: hidden; }
+  .content { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem 140px; overflow-x: hidden; height: calc(100vh - 60px); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 
   /* Toasts above bottom nav */
   .toasts { bottom: 100px; }
