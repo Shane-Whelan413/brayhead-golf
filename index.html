@@ -1912,10 +1912,34 @@ function renderSchedule() {
   const seasonDates = getSeasonDates();
   const byDate  = {};
   db.events.forEach(e=>{ byDate[e.event_date]=e; });
-  const t = new Date(); const today = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  const t = new Date();
+  const today = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
   const outingsLogged = db.events.filter(e=>e.event_type==='outing_18').length;
   const sundaysLogged = db.events.filter(e=>e.event_type==='sunday_9').length;
+
+  // Find next upcoming outing
+  const nextOuting = Object.entries(OUTINGS)
+    .filter(([d]) => d >= today)
+    .sort(([a],[b]) => a.localeCompare(b))[0];
+
+  let countdownHtml = '';
+  if (nextOuting) {
+    const [outDate, outName] = nextOuting;
+    const [oy,om,od] = outDate.split('-').map(Number);
+    const target = new Date(oy, om-1, od);
+    const diff = Math.round((target - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 86400000);
+    const daysLabel = diff === 0 ? 'Today!' : diff === 1 ? '1 day to go' : `${diff} days to go`;
+    countdownHtml = `
+      <div style="background:#0a2814;border-radius:var(--radius);padding:16px;margin-bottom:1rem;text-align:center">
+        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Next outing</div>
+        <div style="font-size:18px;font-weight:700;color:white;margin-bottom:4px">${outName}</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:10px">${fmtDate(outDate)}</div>
+        <div style="display:inline-block;background:#9FE1CB;color:#0a2814;font-size:22px;font-weight:800;padding:8px 24px;border-radius:99px">${daysLabel}</div>
+      </div>`;
+  }
+
   document.getElementById('schedule-table').innerHTML = `
+    ${countdownHtml}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
       <span class="badge gray">${seasonDates.length} events in season</span>
       <span class="badge green">${sundaysLogged} Sundays logged</span>
@@ -1923,9 +1947,10 @@ function renderSchedule() {
     </div>
     ${seasonDates.map((entry,i)=>{
       const { date: d, isOuting, course: outingCourse } = entry;
-      const ev     = byDate[d];
-      const isPast = d < today;
-      const isTdy  = d === today;
+      const ev      = byDate[d];
+      const isPast  = d < today;
+      const isTdy   = d === today;
+      const isNext  = nextOuting && d === nextOuting[0];
       let typeLabel, statusBadge, courseName;
       if (ev) {
         typeLabel   = ev.event_type==='outing_18' ? `<span class="badge purple" style="font-size:10px">18-hole outing</span>` : `<span class="badge blue" style="font-size:10px">Sunday 9</span>`;
@@ -1933,22 +1958,23 @@ function renderSchedule() {
         courseName  = ev.course_name;
       } else if (isOuting) {
         typeLabel   = `<span class="badge purple" style="font-size:10px">18-hole outing</span>`;
-        statusBadge = isTdy ? `<span class="badge gold" style="font-size:10px">Today</span>` : isPast ? `<span class="badge gray" style="font-size:10px">Not logged</span>` : `<span class="badge gray" style="font-size:10px">Upcoming</span>`;
+        statusBadge = isTdy ? `<span class="badge gold" style="font-size:10px">Today</span>` : isPast ? `<span class="badge gray" style="font-size:10px">Not logged</span>` : isNext ? `<span class="badge green" style="font-size:10px">Next outing</span>` : `<span class="badge gray" style="font-size:10px">Upcoming</span>`;
         courseName  = outingCourse;
       } else {
         typeLabel   = `<span class="badge blue" style="font-size:10px">Sunday 9</span>`;
         statusBadge = isTdy ? `<span class="badge gold" style="font-size:10px">Today</span>` : isPast ? `<span class="badge gray" style="font-size:10px">Not logged</span>` : `<span class="badge gray" style="font-size:10px">Upcoming</span>`;
         courseName  = null;
       }
-      const borderCol = isTdy ? 'var(--gold)' : isOuting ? '#AFA9EC' : 'var(--border)';
-      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid ${borderCol};${isTdy?'background:var(--gold-light);border-radius:8px;padding:10px;margin-bottom:4px':''}">
+      const borderCol = isTdy ? 'var(--gold)' : isNext ? '#1D9E75' : isOuting ? '#AFA9EC' : 'var(--border)';
+      const rowBg = isNext ? 'background:#E1F5EE;border-radius:8px;padding:10px;margin-bottom:4px' : isTdy ? 'background:var(--gold-light);border-radius:8px;padding:10px;margin-bottom:4px' : '';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid ${borderCol};${rowBg}">
         <div style="width:28px;font-size:12px;font-weight:600;color:var(--text-3);text-align:center;flex-shrink:0">${i+1}</div>
         <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
             ${typeLabel}${statusBadge}
           </div>
-          <div style="font-size:13px;font-weight:500;color:var(--text)">${fmtDate(d)}</div>
-          ${courseName ? `<div style="font-size:11px;color:var(--text-3);margin-top:1px">${courseName}</div>` : ''}
+          <div style="font-size:13px;color:var(--text-2)">${fmtDate(d)}</div>
+          ${courseName ? `<div style="font-size:15px;font-weight:600;color:var(--text);margin-top:3px">${courseName}</div>` : ''}
         </div>
         ${ev ? `<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0">Results</button>` : ''}
       </div>`;
