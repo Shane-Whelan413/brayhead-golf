@@ -602,12 +602,12 @@
       <div id="create-event-form" style="display:none;margin-top:14px">
         <div class="form-group" style="margin-bottom:12px">
           <label>Load saved course</label>
-          <div style="display:flex;gap:8px;align-items:center">
-            <select id="e-saved-course" onchange="loadSavedCourse()" style="flex:1">
-              <option value="">— select a saved course —</option>
-            </select>
-            <button class="btn sm" onclick="editSavedCourse()" style="flex-shrink:0">Edit</button>
-            <button class="btn sm danger" onclick="deleteSavedCourse()" style="flex-shrink:0">Delete</button>
+          <select id="e-saved-course" onchange="loadSavedCourse()" style="width:100%;margin-bottom:8px">
+            <option value="">— select a saved course —</option>
+          </select>
+          <div style="display:flex;gap:8px">
+            <button class="btn sm" onclick="editSavedCourse()" style="flex:1">Edit</button>
+            <button class="btn sm danger" onclick="deleteSavedCourse()" style="flex:1">Delete</button>
           </div>
         </div>
         <div class="form-row c3">
