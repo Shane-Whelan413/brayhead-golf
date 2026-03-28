@@ -841,6 +841,36 @@ function calcNewHcp(hcpIdx, totalPts, position) {
   }
 }
 
+function calcNewHcpOuting(hcpIdx, totalPts) {
+  // Outing rule: broke par = 37+ pts → -1, otherwise +0.2
+  if (totalPts >= 37) {
+    return Math.max(0, parseFloat((hcpIdx - 1).toFixed(1)));
+  } else {
+    return Math.min(54, parseFloat((hcpIdx + 0.2).toFixed(1)));
+  }
+}
+
+function getPreviousOutingWinnerId() {
+  // Find the last published outing event
+  const outings = db.events
+    .filter(e => e.event_type === 'outing_18' && e.published)
+    .sort((a,b) => b.event_date.localeCompare(a.event_date));
+  if (!outings.length) return null;
+  const lastOuting = outings[0];
+  const outingRounds = db.rounds.filter(r => r.event_id === lastOuting.id && r.verified);
+  if (!outingRounds.length) return null;
+  const sorted = assignLeaguePts(outingRounds.map(r=>({...r})));
+  return sorted[0]?.player_id || null;
+}
+
+function calcOutingCourseHcp(hcpIdx, slope, cr, par, playerId) {
+  const base = calcCourseHcp(hcpIdx, slope, cr, par) * 2;
+  const prevWinner = getPreviousOutingWinnerId();
+  // Previous outing winner skips the +2
+  if (prevWinner && prevWinner === playerId) return base;
+  return base + 2;
+}
+
 function calcHolePts(r, holeIndex) {
   try {
     if (!r.hole_scores || !r.hole_scores[holeIndex]) return 0;
@@ -1396,8 +1426,13 @@ function updateRoundSummary() {
   const p   = db.players.find(x=>x.id===pid);
   const hcp = p ? parseFloat(p.handicap_index) : 18;
   const { cr, slope, par } = getCourseIndexForPlayer(p, ev);
-  let courseHcp = calcCourseHcp(hcp, slope, cr, par);
-  if (ev.event_type === 'outing_18') courseHcp = courseHcp * 2;
+  const isOuting = ev.event_type === 'outing_18';
+  let courseHcp;
+  if (isOuting) {
+    courseHcp = calcOutingCourseHcp(hcp, slope, cr, par, p ? p.id : null);
+  } else {
+    courseHcp = calcCourseHcp(hcp, slope, cr, par);
+  }
   const indexLabel = p && p.plays_womens_index ? 'W' : 'M';
   const siVals  = getSIValues(n, ev, p || null);
   const parVals = getParValues(n, ev, p || null);
@@ -1491,19 +1526,28 @@ async function saveRound() {
   const parVals = getParValues(n, ev, pl);
   const hcpIdx = parseFloat(pl.handicap_index) || 18;
   const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
-  let courseHcp = calcCourseHcp(hcpIdx, slope, cr, par);
-  if (ev.event_type === 'outing_18') courseHcp = courseHcp * 2;
+  const isOuting = ev.event_type === 'outing_18';
+  let courseHcp;
+  if (isOuting) {
+    courseHcp = calcOutingCourseHcp(hcpIdx, slope, cr, par, pl.id);
+  } else {
+    courseHcp = calcCourseHcp(hcpIdx, slope, cr, par);
+  }
   const siVals = getSIValues(n, ev, pl);
   let totalPts=0;
   for (let i=0; i<n; i++) {
     if (scores[i]!==null) totalPts += calcStableford(scores[i], parVals[i], getStrokeAllowance(courseHcp, siVals[i], n));
   }
   const gross = scores.reduce((a,b)=>a+(b||0),0);
-  // Work out position among all rounds for this event including this new one
-  const eventRounds = db.rounds.filter(r=>r.event_id===eid);
-  const allPts = [...eventRounds.map(r=>r.stableford_points), totalPts].sort((a,b)=>b-a);
-  const position = allPts.indexOf(totalPts) + 1;
-  const newHcp = calcNewHcp(hcpIdx, totalPts, position);
+  let newHcp;
+  if (isOuting) {
+    newHcp = calcNewHcpOuting(hcpIdx, totalPts);
+  } else {
+    const eventRounds = db.rounds.filter(r=>r.event_id===eid);
+    const allPts = [...eventRounds.map(r=>r.stableford_points), totalPts].sort((a,b)=>b-a);
+    const position = allPts.indexOf(totalPts) + 1;
+    newHcp = calcNewHcp(hcpIdx, totalPts, position);
+  }
 
   const btn = document.getElementById('btn-save-round');
   btn.disabled=true; btn.textContent='Saving…';
@@ -1679,10 +1723,22 @@ async function verifyAllRounds(eid) {
   if (!confirm(`Verify all ${unverified.length} unverified round${unverified.length!==1?'s':''} for this event? This will update all player handicaps.`)) return;
   const btn = event.target;
   btn.disabled = true; btn.textContent = 'Verifying…';
+  const ev = db.events.find(e=>e.id===eid);
+  const isOuting = ev && ev.event_type === 'outing_18';
   try {
+    // For weekly events, need all pts sorted to determine position for handicap calc
+    const eventRounds = db.rounds.filter(r=>r.event_id===eid && r.verified);
     for (const r of unverified) {
-      await patch(`rounds?id=eq.${r.id}`, { verified: true });
-      await patch(`players?id=eq.${r.player_id}`, { handicap_index: parseFloat(r.handicap_after) });
+      let newHcp;
+      if (isOuting) {
+        newHcp = calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points);
+      } else {
+        const allPts = [...eventRounds.map(x=>x.stableford_points), r.stableford_points].sort((a,b)=>b-a);
+        const pos = allPts.indexOf(r.stableford_points) + 1;
+        newHcp = calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos);
+      }
+      await patch(`rounds?id=eq.${r.id}`, { verified: true, handicap_after: newHcp });
+      await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp });
     }
     toast(`${unverified.length} round${unverified.length!==1?'s':''} verified — handicaps updated!`, 'success');
     await loadAll(); renderAll();
@@ -2386,17 +2442,27 @@ async function saveEditedRound(rid) {
   const siVals  = getSIValues(n, ev, pl);
   const hcpIdx = parseFloat(r.handicap_before);
   const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
-  let courseHcp = calcCourseHcp(hcpIdx, slope, cr, par);
-  if (ev.event_type==='outing_18') courseHcp = courseHcp * 2;
+  const isOuting = ev.event_type === 'outing_18';
+  let courseHcp;
+  if (isOuting) {
+    courseHcp = calcOutingCourseHcp(hcpIdx, slope, cr, par, pl.id);
+  } else {
+    courseHcp = calcCourseHcp(hcpIdx, slope, cr, par);
+  }
   let totalPts=0;
   for (let i=0;i<n;i++) {
     if (scores[i]!==null) totalPts += calcStableford(scores[i], parVals[i], getStrokeAllowance(courseHcp, siVals[i], n));
   }
   const gross = scores.reduce((a,b)=>a+(b||0),0);
-  const eventRounds = db.rounds.filter(x=>x.event_id===r.event_id && x.id!==rid);
-  const allPts = [...eventRounds.map(x=>x.stableford_points), totalPts].sort((a,b)=>b-a);
-  const position = allPts.indexOf(totalPts) + 1;
-  const newHcp = calcNewHcp(hcpIdx, totalPts, position);
+  let newHcp;
+  if (isOuting) {
+    newHcp = calcNewHcpOuting(hcpIdx, totalPts);
+  } else {
+    const eventRounds = db.rounds.filter(x=>x.event_id===r.event_id && x.id!==rid);
+    const allPts = [...eventRounds.map(x=>x.stableford_points), totalPts].sort((a,b)=>b-a);
+    const position = allPts.indexOf(totalPts) + 1;
+    newHcp = calcNewHcp(hcpIdx, totalPts, position);
+  }
   try {
     await patch(`rounds?id=eq.${rid}`, { hole_scores:scores, stableford_points:totalPts, gross_score:gross, course_handicap:courseHcp, handicap_after:newHcp, verified:false });
     toast(`Round updated! ${totalPts} pts · Needs re-verification`, 'success');
