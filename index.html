@@ -433,21 +433,37 @@
 
   .login-screen {
     position: fixed; inset: 0; z-index: 500;
-    background: linear-gradient(to bottom, rgba(10,40,20,0.92) 0%, rgba(10,40,20,0.75) 100%),
-      url('https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=1400&q=80&fit=crop') center / cover no-repeat;
-    display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+    background: #0a1628;
+    display: flex; flex-direction: column; align-items: stretch; overflow: hidden;
   }
-  .login-box {
-    background: rgba(255,255,255,0.97); border-radius: var(--radius-xl);
-    padding: 2rem 1.75rem; width: 100%; max-width: 360px;
-    text-align: center;
+  .login-hero {
+    background: #0a1628; padding: 36px 24px 20px; text-align: center; flex-shrink: 0;
   }
-  .login-box img { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin-bottom: 1rem; border: 3px solid var(--green-light); }
-  .login-box h2 { font-family: 'DM Serif Display', serif; font-size: 22px; margin-bottom: 4px; }
-  .login-box p { font-size: 13px; color: var(--text-2); margin-bottom: 1.5rem; }
-  .login-name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; max-height: 280px; overflow-y: auto; }
-  .login-name-btn { padding: 10px 8px; border-radius: var(--radius); border: 1px solid var(--border-strong); background: var(--bg); font-size: 13px; font-family: 'DM Sans',sans-serif; cursor: pointer; text-align: left; transition: all 0.15s; }
-  .login-name-btn:hover, .login-name-btn.selected { background: var(--green-light); border-color: var(--green); color: var(--green-dark); }
+  .login-hero-logo {
+    width: 64px; height: 64px; border-radius: 50%; background: #C9A84C;
+    margin: 0 auto 12px; display: flex; align-items: center; justify-content: center;
+  }
+  .login-hero-logo img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
+  .login-hero h2 { font-family: 'DM Serif Display', serif; font-size: 20px; color: white; margin-bottom: 3px; }
+  .login-hero p { font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.08em; }
+  .login-body {
+    background: #f8f5ee; border-radius: 20px 20px 0 0; flex: 1;
+    padding: 16px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto;
+  }
+  .login-search-wrap { position: relative; margin-bottom: 4px; }
+  .login-search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9a9080; pointer-events: none; }
+  .login-search-wrap input { width: 100%; height: 40px; border-radius: 10px; border: 1px solid #e0d8c8; background: white; padding: 0 12px 0 36px; font-size: 14px; color: #1a1510; font-family: 'DM Sans', sans-serif; }
+  .login-search-wrap input:focus { outline: none; border-color: #C9A84C; }
+  .login-section-lbl { font-size: 10px; font-weight: 700; color: #C9A84C; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 2px 2px; }
+  .login-player-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: white; border-radius: 10px; border: 1px solid #e0d8c8; cursor: pointer; transition: border-color 0.1s, background 0.1s; margin-bottom: 4px; }
+  .login-player-row:active { border-color: #C9A84C; background: #fef8e6; }
+  .login-player-avatar { width: 36px; height: 36px; border-radius: 50%; background: #0a1628; color: #C9A84C; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .login-player-name { font-size: 14px; font-weight: 600; color: #1a1510; }
+  .login-view-btn { width: 100%; padding: 11px; border-radius: 10px; border: 1px solid #e0d8c8; background: white; font-size: 13px; color: #9a9080; font-family: 'DM Sans', sans-serif; cursor: pointer; text-align: center; }
+  .login-admin-btn { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid rgba(201,168,76,0.3); background: rgba(201,168,76,0.08); font-size: 13px; color: #8a6a1a; font-family: 'DM Sans', sans-serif; cursor: pointer; text-align: center; font-weight: 500; }
+  .login-pin-avatar { width: 60px; height: 60px; border-radius: 50%; background: #0a1628; color: #C9A84C; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 8px auto 12px; }
+  .login-pin-greeting { font-size: 18px; font-weight: 700; color: #1a1510; text-align: center; margin-bottom: 3px; }
+  .login-pin-sub { font-size: 12px; color: #9a9080; text-align: center; margin-bottom: 16px; }
   .locked-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; text-align: center; color: var(--text-2); }
   .locked-tab svg { margin-bottom: 1rem; opacity: 0.4; }
 
@@ -463,22 +479,34 @@
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen" class="login-screen" style="display:none">
-  <div class="login-box">
-    <img id="login-logo" src="" alt="Bray Head Golf Society" />
-    <h2>Bray Head Golf Society</h2>
-    <p id="login-subtitle">Select your name to continue</p>
-    <div class="login-name-grid" id="login-name-grid"></div>
-    <div id="login-pin-section" style="display:none">
-      <div class="form-group" style="margin-bottom:12px;text-align:left">
-        <label id="login-pin-label">Enter your PIN</label>
-        <input type="password" id="login-pin-input" placeholder="PIN" onkeydown="if(event.key==='Enter')submitPin()" style="text-align:center;letter-spacing:4px;font-size:18px" />
-      </div>
-      <button class="btn primary" onclick="submitPin()" style="width:100%;margin-bottom:8px">Login</button>
-      <button class="btn" onclick="backToNames()" style="width:100%;font-size:12px;margin-bottom:8px">Back</button>
-      <div id="login-pin-error" style="color:#A32D2D;font-size:12px;margin-top:4px;display:none">Incorrect PIN — try your first name if you haven't set one yet</div>
+  <div class="login-hero">
+    <div class="login-hero-logo">
+      <img id="login-logo" src="" alt="BHGS" />
     </div>
-    <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem">
-      <button class="btn" onclick="showAdminLoginFromScreen()" style="width:100%;font-size:12px;color:var(--text-3)">Admin login</button>
+    <h2>Bray Head Golf Society</h2>
+    <p>2026 Season</p>
+  </div>
+  <div class="login-body">
+    <!-- Name list -->
+    <div id="login-name-section">
+      <div class="login-search-wrap">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4.5"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
+        <input type="text" id="login-search" placeholder="Search your name…" oninput="filterLoginNames(this.value)" autocomplete="off" />
+      </div>
+      <div id="login-name-grid"></div>
+      <button class="login-view-btn" onclick="loginAsViewer()">View only (no login)</button>
+      <div style="height:8px"></div>
+      <button class="login-admin-btn" onclick="showAdminLoginFromScreen()">Admin login</button>
+    </div>
+    <!-- PIN section -->
+    <div id="login-pin-section" style="display:none">
+      <div class="login-pin-avatar" id="login-pin-avatar">??</div>
+      <div class="login-pin-greeting" id="login-pin-greeting">Welcome!</div>
+      <div class="login-pin-sub">Enter your PIN to continue</div>
+      <input type="password" id="login-pin-input" placeholder="PIN" onkeydown="if(event.key==='Enter')submitPin()" style="width:100%;height:52px;border-radius:12px;border:2px solid #e0d8c8;background:white;text-align:center;letter-spacing:6px;font-size:24px;font-family:'DM Sans',sans-serif;margin-bottom:10px;color:#1a1510" />
+      <div id="login-pin-error" style="color:#A32D2D;font-size:12px;text-align:center;margin-bottom:8px;display:none">Incorrect PIN — try your first name if you haven't set one</div>
+      <button class="btn primary" onclick="submitPin()" style="width:100%;padding:13px;font-size:14px;margin-bottom:8px">Login</button>
+      <button class="login-view-btn" onclick="backToNames()">Back to players</button>
     </div>
   </div>
 </div>
@@ -3471,7 +3499,7 @@ function showLoginScreen() {
   const ls = document.getElementById('login-screen');
   ls.style.display = 'flex';
   const img = document.getElementById('login-logo');
-  img.src = 'icon-192.png';
+  if (img) img.src = 'icon-192.png';
   renderLoginNames();
 }
 function hideLoginScreen() {
@@ -3480,18 +3508,51 @@ function hideLoginScreen() {
 
 function renderLoginNames() {
   document.getElementById('login-pin-section').style.display = 'none';
-  document.getElementById('login-subtitle').textContent = 'Select your name to continue';
+  document.getElementById('login-name-section').style.display = 'block';
+  const searchEl = document.getElementById('login-search');
+  if (searchEl) searchEl.value = '';
   const grid = document.getElementById('login-name-grid');
-  grid.style.display = 'grid';
+  grid.style.display = 'block';
   if (!db.players.length) {
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:1rem;color:#A32D2D;font-size:13px;background:#FCEBEB;border-radius:8px">No players loaded — tap to retry</div>
-    <button class="login-name-btn" style="grid-column:1/-1;text-align:center" onclick="loadAll().then(renderLoginNames)">Retry</button>`;
+    grid.innerHTML = `<div style="text-align:center;padding:1rem;color:#A32D2D;font-size:13px;background:#FCEBEB;border-radius:8px;margin-bottom:8px">No players loaded — tap to retry</div>
+    <button class="login-view-btn" onclick="loadAll().then(renderLoginNames)">Retry</button>`;
     return;
   }
-  const viewBtn = `<button class="login-name-btn" style="grid-column:1/-1;text-align:center;background:var(--green-light);color:var(--green-dark);border-color:var(--green)" onclick="loginAsViewer()">View only (no login)</button>`;
-  grid.innerHTML = viewBtn + db.players.map(p=>
-    `<button class="login-name-btn" onclick="selectPlayer('${p.id}')">${p.name}</button>`
-  ).join('');
+  buildLoginNameList(db.players);
+}
+
+function buildLoginNameList(players) {
+  const grid = document.getElementById('login-name-grid');
+  const sorted = [...players].sort((a,b)=>a.name.localeCompare(b.name));
+  let html = '';
+  let lastLetter = '';
+  for (const p of sorted) {
+    const letter = p.name[0].toUpperCase();
+    if (letter !== lastLetter) {
+      html += `<div class="login-section-lbl">${letter}</div>`;
+      lastLetter = letter;
+    }
+    html += `<div class="login-player-row" onclick="selectPlayer('${p.id}')">
+      <div class="login-player-avatar">${initials(p.name)}</div>
+      <div class="login-player-name">${p.name}</div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function filterLoginNames(val) {
+  const query = val.trim().toLowerCase();
+  if (!query) { buildLoginNameList(db.players); return; }
+  const filtered = db.players.filter(p => p.name.toLowerCase().includes(query));
+  const grid = document.getElementById('login-name-grid');
+  if (!filtered.length) {
+    grid.innerHTML = `<div style="text-align:center;padding:12px;color:#9a9080;font-size:13px">No players found</div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map(p=>`<div class="login-player-row" onclick="selectPlayer('${p.id}')">
+    <div class="login-player-avatar">${initials(p.name)}</div>
+    <div class="login-player-name">${p.name}</div>
+  </div>`).join('');
 }
 
 function loginAsViewer() {
@@ -3505,11 +3566,12 @@ let selectedPlayerId = null;
 function selectPlayer(pid) {
   selectedPlayerId = pid;
   const p = db.players.find(x=>x.id===pid);
-  const hasPin = p && p.pin;
-  document.getElementById('login-subtitle').textContent = `Hi ${p.name.split(' ')[0]}! Enter your PIN`;
-  document.getElementById('login-pin-label').textContent = hasPin ? 'Enter your PIN' : 'Enter your PIN (first name until you set one)';
+  if (!p) return;
+  // Switch to PIN section
+  document.getElementById('login-name-section').style.display = 'none';
   document.getElementById('login-pin-section').style.display = 'block';
-  document.getElementById('login-name-grid').style.display = 'none';
+  document.getElementById('login-pin-avatar').textContent = initials(p.name);
+  document.getElementById('login-pin-greeting').textContent = `Welcome, ${p.name.split(' ')[0]}`;
   document.getElementById('login-pin-input').value = '';
   document.getElementById('login-pin-error').style.display = 'none';
   setTimeout(()=>document.getElementById('login-pin-input').focus(), 100);
@@ -3517,8 +3579,7 @@ function selectPlayer(pid) {
 
 function backToNames() {
   document.getElementById('login-pin-section').style.display = 'none';
-  document.getElementById('login-name-grid').style.display = 'grid';
-  document.getElementById('login-subtitle').textContent = 'Select your name to continue';
+  document.getElementById('login-name-section').style.display = 'block';
 }
 
 function submitPin() {
