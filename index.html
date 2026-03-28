@@ -631,18 +631,28 @@
   </div>
 
   <!-- ADD ROUND -->
-  <div id="add-round" class="section">
-    <div class="card" style="margin-bottom:10px">
-      <div class="card-title">Record a round</div>
-      <div id="current-event-display" style="margin-bottom:12px"></div>
-      <input type="hidden" id="r-event" />
-      <div class="form-group"><label>Player</label><select id="r-player" onchange="updateRoundSummary()"><option value="">Select player…</option></select></div>
+  <div id="add-round" class="section" style="margin:-1.5rem;padding:0">
+    <div id="ar-header" style="background:#0a1628;padding:14px 16px 12px">
+      <div id="ar-event-name" style="font-size:16px;font-weight:700;color:white"></div>
+      <div id="ar-event-date" style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;margin-bottom:12px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px">
+        <div style="text-align:center"><div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Hcp</div><div style="font-size:18px;font-weight:700;color:white" id="sb-hcp">—</div></div>
+        <div style="text-align:center"><div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Course hcp</div><div style="font-size:18px;font-weight:700;color:white" id="sb-chcp">—</div></div>
+        <div style="text-align:center"><div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Holes</div><div style="font-size:18px;font-weight:700;color:white" id="sb-holes">0/9</div></div>
+        <div style="text-align:center"><div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Points</div><div style="font-size:18px;font-weight:700;color:#C9A84C" id="sb-pts">0</div></div>
+      </div>
     </div>
-    <div id="holes-section">
-      <div id="hole-inputs"></div>
+    <div id="ar-player-bar" style="display:none;background:white;border-bottom:1px solid #e0d8c8;padding:8px 16px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:11px;color:#9a9080;flex-shrink:0">Player</span>
+      <select id="r-player" onchange="updateRoundSummary()" style="flex:1;border:none;background:transparent;font-size:14px;font-weight:600;color:#1a1510;font-family:'DM Sans',sans-serif;-webkit-appearance:none"></select>
     </div>
-    <div id="round-summary" class="summary-bar" style="margin-bottom:10px"></div>
-    <button class="btn primary" id="btn-save-round" onclick="saveRound()" style="width:100%;padding:14px;font-size:15px;border-radius:var(--radius)">Save round</button>
+    <input type="hidden" id="r-event" />
+    <div id="hole-inputs"></div>
+    <div id="ar-no-event" style="display:none;padding:2rem;text-align:center;color:#9a9080;font-size:13px;background:#f8f5ee"></div>
+    <div style="padding:12px 16px;background:#f8f5ee">
+      <div id="round-summary" class="summary-bar" style="margin-bottom:8px"></div>
+      <button class="btn primary" id="btn-save-round" onclick="saveRound()" style="width:100%;padding:14px;font-size:15px;border-radius:10px">Save round</button>
+    </div>
   </div>
 
   <!-- SCHEDULE -->
@@ -1143,114 +1153,103 @@ function renderAddRound() {
   const isMember = role === 'member';
   const isAdminUser = role === 'admin';
 
-  // Find next unpublished event (earliest by date)
+  // Find next unpublished event
   const nextEvent = [...db.events]
     .filter(e => !e.published)
     .sort((a,b) => a.event_date.localeCompare(b.event_date))[0] || null;
 
-  // Show current event info
-  const evDisplay = document.getElementById('current-event-display');
-  const saveBtn = document.getElementById('btn-save-round');
-  const holesSection = document.getElementById('holes-section');
-  const summaryBar = document.getElementById('round-summary');
+  const noEventEl = document.getElementById('ar-no-event');
+  const saveBtn   = document.getElementById('btn-save-round');
+  const holeWrap  = document.getElementById('hole-inputs');
+  const playerBar = document.getElementById('ar-player-bar');
+  const summaryBar= document.getElementById('round-summary');
 
   if (!nextEvent) {
-    evDisplay.innerHTML = `<div style="background:#f0ece4;border-radius:8px;padding:12px;text-align:center;color:#9a9080;font-size:13px">No upcoming events — check back after the next event is created</div>`;
-    re.value = '';
-    if (saveBtn) saveBtn.style.display = 'none';
-    if (holesSection) holesSection.style.display = 'none';
-    if (summaryBar) summaryBar.classList.remove('show');
-  } else {
-    const n = nextEvent.event_type === 'outing_18' ? 18 : 9;
-    const isOuting = nextEvent.event_type === 'outing_18';
-    evDisplay.innerHTML = `
-      <div style="background:#0a1628;border-radius:8px;padding:12px">
-        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${isOuting ? '18-hole outing' : 'Sunday 9'}</div>
-        <div style="font-size:16px;font-weight:700;color:white">${nextEvent.course_name}</div>
-        <div style="font-size:12px;color:#C9A84C;margin-top:2px">${fmtDate(nextEvent.event_date)}</div>
-      </div>`;
-    re.value = nextEvent.id;
-    if (saveBtn) saveBtn.style.display = '';
-    if (holesSection) holesSection.style.display = '';
-    buildHoleInputs(n);
-    updateRoundSummary();
+    if (noEventEl) { noEventEl.style.display='block'; noEventEl.textContent='No upcoming event yet — check back soon!'; }
+    if (holeWrap)  holeWrap.innerHTML = '';
+    if (saveBtn)   saveBtn.style.display = 'none';
+    if (playerBar) playerBar.style.display = 'none';
+    // Clear header
+    const evName = document.getElementById('ar-event-name');
+    const evDate = document.getElementById('ar-event-date');
+    if (evName) evName.textContent = 'No upcoming event';
+    if (evDate) evDate.textContent = '';
+    return;
   }
+
+  if (noEventEl) noEventEl.style.display = 'none';
+  if (saveBtn)   saveBtn.style.display = '';
+
+  const n = nextEvent.event_type === 'outing_18' ? 18 : 9;
+  re.value = nextEvent.id;
+
+  // Update header
+  const evName = document.getElementById('ar-event-name');
+  const evDate = document.getElementById('ar-event-date');
+  const sbHoles= document.getElementById('sb-holes');
+  if (evName) evName.textContent = nextEvent.course_name;
+  if (evDate) evDate.textContent = `${fmtDate(nextEvent.event_date)} · ${nextEvent.event_type==='outing_18'?'18-hole outing':'Sunday 9'}`;
+  if (sbHoles) sbHoles.textContent = `0/${n}`;
 
   // Player selector
   if (isMember && currentUser.playerId) {
+    if (playerBar) playerBar.style.display = 'none';
     rp.innerHTML = db.players.filter(p=>p.id===currentUser.playerId).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     rp.disabled = true;
   } else if (isAdminUser) {
+    if (playerBar) playerBar.style.display = 'flex';
     rp.disabled = false;
     rp.innerHTML = '<option value="">Select player…</option>' + db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   } else {
+    if (playerBar) playerBar.style.display = 'none';
     rp.disabled = true;
     rp.innerHTML = '<option value="">Not available</option>';
   }
+
+  buildHoleInputs(n);
+  updateRoundSummary();
 }
 
 function buildHoleInputs(n) {
   const wrap = document.getElementById('hole-inputs');
   wrap.innerHTML = '';
 
-  // Header board
-  const board = document.createElement('div');
-  board.id = 'sc-header-board';
-  board.className = 'sc-board';
-  board.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
-    <div style="text-align:center">
-      <div style="font-size:9px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Hcp</div>
-      <div style="font-size:20px;font-weight:700;color:white" id="sb-hcp">—</div>
-    </div>
-    <div style="text-align:center">
-      <div style="font-size:9px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Course hcp</div>
-      <div style="font-size:20px;font-weight:700;color:white" id="sb-chcp">—</div>
-    </div>
-    <div style="text-align:center">
-      <div style="font-size:9px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Holes</div>
-      <div style="font-size:20px;font-weight:700;color:white" id="sb-holes">0/${n}</div>
-    </div>
-    <div style="text-align:center">
-      <div style="font-size:9px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Points</div>
-      <div style="font-size:20px;font-weight:700;color:#C9A84C" id="sb-pts">0</div>
-    </div>
-  </div>`;
-  wrap.appendChild(board);
+  // Scorecard header
+  const head = document.createElement('div');
+  head.style.cssText = 'display:grid;grid-template-columns:32px 32px 1fr 42px;background:#162338;padding:7px 16px;gap:4px';
+  head.innerHTML = ['#','Par','Score','Pts'].map(t=>`<span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.06em;text-align:center">${t}</span>`).join('');
+  wrap.appendChild(head);
 
-  // Scorecard
-  const card = document.createElement('div');
-  card.className = 'sc-wrap';
-  card.innerHTML = `<div class="sc-thead">
-    <span>#</span><span>Par</span><span style="text-align:center">Score</span><span style="text-align:center">Pts</span>
-  </div>`;
   for (let i=1; i<=n; i++) {
     const row = document.createElement('div');
-    row.className = 'sc-row' + (i===1?' sc-active':'');
     row.id = 'sc-row' + i;
+    row.style.cssText = `display:grid;grid-template-columns:32px 32px 1fr 42px;align-items:center;gap:4px;padding:0 16px;border-bottom:0.5px solid #e0d8c8;background:${i%2===0?'#fdfcf9':'white'};cursor:pointer`;
     row.onclick = () => selectScorecardHole(i);
     row.innerHTML = `
-      <div class="sc-hole-num">${i}</div>
-      <div class="sc-par-num" id="sc-par${i}">—</div>
-      <div class="sc-score-area">
+      <div style="font-size:12px;font-weight:700;color:#9a9080;text-align:center;padding:10px 0">${i}</div>
+      <div style="font-size:12px;color:#9a9080;text-align:center;font-weight:500" id="sc-par${i}">—</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 0">
         <button class="sc-adj" onclick="event.stopPropagation();adjustScore(${i},-1)">−</button>
         <div class="sc-score-val sc-empty" id="sc-score${i}">—</div>
         <button class="sc-adj" onclick="event.stopPropagation();adjustScore(${i},1)">+</button>
       </div>
-      <div class="sc-pts-chip" id="hpts${i}"></div>`;
-    card.appendChild(row);
+      <div id="hpts${i}" style="height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700"></div>`;
+    if (i===1) row.style.background = '#fef8e6';
+    wrap.appendChild(row);
     const inp = document.createElement('input');
     inp.type='hidden'; inp.id='h'+i;
-    card.appendChild(inp);
+    wrap.appendChild(inp);
   }
-  wrap.appendChild(card);
 }
 
 let activeScorecardHole = 1;
 function selectScorecardHole(hole) {
   activeScorecardHole = hole;
-  document.querySelectorAll('.sc-row').forEach((r,i)=>{
-    r.classList.toggle('sc-active', i+1===hole);
-  });
+  for (let i=1; i<=18; i++) {
+    const r = document.getElementById('sc-row'+i);
+    if (!r) break;
+    r.style.background = i===hole ? '#fef8e6' : i%2===0 ? '#fdfcf9' : 'white';
+  }
 }
 
 function adjustScore(hole, delta) {
@@ -1274,14 +1273,16 @@ function adjustScore(hole, delta) {
 
 function resetHoleInputs(n) {
   for (let i=1; i<=n; i++) {
-    const inp     = document.getElementById('h'+i);
-    const display = document.getElementById('sc-score'+i);
-    const pts     = document.getElementById('hpts'+i);
-    if (inp) inp.value = '';
-    if (display) { display.textContent = '—'; display.classList.add('sc-empty'); }
-    if (pts) { pts.textContent=''; pts.style.background='transparent'; pts.style.color=''; }
+    const inp  = document.getElementById('h'+i);
+    const disp = document.getElementById('sc-score'+i);
+    const pts  = document.getElementById('hpts'+i);
+    const row  = document.getElementById('sc-row'+i);
+    if (inp)  inp.value = '';
+    if (disp) { disp.textContent = '—'; disp.classList.add('sc-empty'); }
+    if (pts)  { pts.textContent=''; pts.style.background=''; pts.style.color=''; }
+    if (row)  row.style.background = i===1 ? '#fef8e6' : i%2===0 ? '#fdfcf9' : 'white';
   }
-  selectScorecardHole(1);
+  activeScorecardHole = 1;
 }
 
 function buildEventSIInputs(n) {
@@ -1544,8 +1545,8 @@ function updateRoundSummary() {
       const holePts = calcStableford(v, parVals[i-1], getStrokeAllowance(courseHcp, siVals[i-1], n));
       pts += holePts; holes++;
       if (ptsEl) {
-        const bg  = holePts >= 3 ? '#FAEEDA' : holePts === 2 ? '#fef8e6' : holePts === 1 ? '#F1EFE8' : '#FCEBEB';
-        const col = holePts >= 3 ? '#633806' : holePts === 2 ? '#8a6a1a' : holePts === 1 ? '#5F5E5A' : '#A32D2D';
+        const bg  = holePts >= 3 ? '#C9A84C' : holePts === 2 ? '#2a6b1a' : holePts === 1 ? '#9a9080' : '#A32D2D';
+        const col = '#ffffff';
         ptsEl.textContent = holePts;
         ptsEl.style.background = bg;
         ptsEl.style.color = col;
