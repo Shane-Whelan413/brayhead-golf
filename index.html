@@ -1799,20 +1799,21 @@ function viewEventResults(eid) {
   document.getElementById('modal-title').textContent = `${ev.course_name} · ${fmtDate(ev.event_date)}`;
   document.getElementById('modal-body').innerHTML = !ranked.length
     ? '<div class="empty">No rounds recorded yet</div>'
-    : `<table>
-        <thead><tr><th>Pos</th><th>Player</th><th>Stableford</th><th>Gross</th><th>Course hcp</th><th>League pts</th></tr></thead>
-        <tbody>${ranked.map((r,i)=>{
-          const p = db.players.find(x=>x.id===r.player_id);
-          return `<tr>
-            <td><div class="rank ${i===0?'r1':i===1?'r2':i===2?'r3':'rn'}">${i+1}</div></td>
-            <td>${p?p.name:'Unknown'}</td>
-            <td><strong>${r.stableford_points}</strong></td>
-            <td>${r.gross_score}</td>
-            <td>${r.course_handicap}</td>
-            <td><span class="badge ${r._lp>=18?'gold':r._lp>=12?'green':'gray'}">${r._lp} pts</span></td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table>`;
+    : ranked.map((r,i)=>{
+        const p = db.players.find(x=>x.id===r.player_id);
+        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+        const rankBg = i===0?'#FAEEDA':i===1?'#F1EFE8':i===2?'#FAECE7':'var(--bg)';
+        const rankCol = i===0?'#633806':i===1?'#444441':i===2?'#712B13':'var(--text-3)';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">
+          <div style="width:28px;height:28px;border-radius:50%;background:${rankBg};color:${rankCol};font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${medal||i+1}</div>
+          <div class="avatar" style="flex-shrink:0">${p?initials(p.name):'?'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">${p?p.name:'Unknown'}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:2px">${r.stableford_points} pts · Gross ${r.gross_score} · Hcp ${r.course_handicap}</div>
+          </div>
+          <span class="badge ${r._lp>=18?'gold':r._lp>=12?'green':'gray'}" style="font-size:10px;flex-shrink:0">${r._lp} lp</span>
+        </div>`;
+      }).join('');
   document.getElementById('modal-overlay').classList.add('open');
 }
 
@@ -1829,51 +1830,38 @@ function renderSchedule() {
       <span class="badge green">${sundaysLogged} Sundays logged</span>
       <span class="badge purple">${outingsLogged} / 7 outings logged</span>
     </div>
-    <div class="tbl-wrap"><table>
-      <thead><tr><th>#</th><th>Date</th><th>Type</th><th>Status</th><th>Course</th><th></th></tr></thead>
-      <tbody>${seasonDates.map((entry,i)=>{
-        const { date: d, isOuting, course: outingCourse } = entry;
-        const ev     = byDate[d];
-        const isPast = d < today;
-        const isTdy  = d === today;
-        let typeLabel, status, courseName;
-        if (ev) {
-          typeLabel  = ev.event_type==='outing_18'
-            ? '<span class="badge purple">18-hole outing</span>'
-            : '<span class="badge blue">Sunday 9</span>';
-          status     = isTdy
-            ? '<span class="badge gold">Today</span>'
-            : isPast
-              ? `<span class="badge ${ev.event_type==='outing_18'?'purple':'green'}">Played</span>`
-              : '<span class="badge gray">Upcoming</span>';
-          courseName = ev.course_name;
-        } else if (isOuting) {
-          typeLabel  = '<span class="badge purple">18-hole outing</span>';
-          status     = isTdy
-            ? '<span class="badge gold">Today</span>'
-            : isPast
-              ? '<span class="badge gray">Not logged</span>'
-              : '<span class="badge gray">Upcoming</span>';
-          courseName = outingCourse;
-        } else {
-          typeLabel  = '<span class="badge blue">Sunday 9</span>';
-          status     = isTdy
-            ? '<span class="badge gold">Today</span>'
-            : isPast
-              ? '<span class="badge gray">Not logged</span>'
-              : '<span class="badge gray">Upcoming</span>';
-          courseName = '—';
-        }
-        return `<tr>
-          <td style="color:var(--text-3);font-size:12px">${i+1}</td>
-          <td>${fmtDate(d)}</td>
-          <td>${typeLabel}</td>
-          <td>${status}</td>
-          <td style="color:var(--text-2)">${courseName}</td>
-          <td>${ev ? `<button class="btn sm" onclick="viewEventResults('${ev.id}')">Results</button>` : ''}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table></div>`;
+    ${seasonDates.map((entry,i)=>{
+      const { date: d, isOuting, course: outingCourse } = entry;
+      const ev     = byDate[d];
+      const isPast = d < today;
+      const isTdy  = d === today;
+      let typeLabel, statusBadge, courseName;
+      if (ev) {
+        typeLabel   = ev.event_type==='outing_18' ? `<span class="badge purple" style="font-size:10px">18-hole outing</span>` : `<span class="badge blue" style="font-size:10px">Sunday 9</span>`;
+        statusBadge = isTdy ? `<span class="badge gold" style="font-size:10px">Today</span>` : isPast ? `<span class="badge ${ev.event_type==='outing_18'?'purple':'green'}" style="font-size:10px">Played</span>` : `<span class="badge gray" style="font-size:10px">Upcoming</span>`;
+        courseName  = ev.course_name;
+      } else if (isOuting) {
+        typeLabel   = `<span class="badge purple" style="font-size:10px">18-hole outing</span>`;
+        statusBadge = isTdy ? `<span class="badge gold" style="font-size:10px">Today</span>` : isPast ? `<span class="badge gray" style="font-size:10px">Not logged</span>` : `<span class="badge gray" style="font-size:10px">Upcoming</span>`;
+        courseName  = outingCourse;
+      } else {
+        typeLabel   = `<span class="badge blue" style="font-size:10px">Sunday 9</span>`;
+        statusBadge = isTdy ? `<span class="badge gold" style="font-size:10px">Today</span>` : isPast ? `<span class="badge gray" style="font-size:10px">Not logged</span>` : `<span class="badge gray" style="font-size:10px">Upcoming</span>`;
+        courseName  = null;
+      }
+      const borderCol = isTdy ? 'var(--gold)' : isOuting ? '#AFA9EC' : 'var(--border)';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid ${borderCol};${isTdy?'background:var(--gold-light);border-radius:8px;padding:10px;margin-bottom:4px':''}">
+        <div style="width:28px;font-size:12px;font-weight:600;color:var(--text-3);text-align:center;flex-shrink:0">${i+1}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">
+            ${typeLabel}${statusBadge}
+          </div>
+          <div style="font-size:13px;font-weight:500;color:var(--text)">${fmtDate(d)}</div>
+          ${courseName ? `<div style="font-size:11px;color:var(--text-3);margin-top:1px">${courseName}</div>` : ''}
+        </div>
+        ${ev ? `<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0">Results</button>` : ''}
+      </div>`;
+    }).join('')}`;
 }
 
 function renderHome() {
@@ -2373,24 +2361,28 @@ function viewPlayerRounds(pid, name) {
   if (!rounds.length) {
     document.getElementById('modal-body').innerHTML = '<div class="empty">No rounds yet</div>';
   } else {
-    document.getElementById('modal-body').innerHTML = `<table>
-      <thead><tr><th>Event</th><th>Stableford</th><th>Course hcp</th><th>Hcp after</th><th>Status</th><th></th></tr></thead>
-      <tbody>${rounds.map(r=>{
-        const ev = db.events.find(e=>e.id===r.event_id);
-        return `<tr>
-          <td style="font-size:12px">${ev ? fmtDate(ev.event_date)+'<br>'+ev.course_name : '—'}</td>
-          <td><strong>${r.stableford_points}</strong></td>
-          <td>${r.course_handicap}</td>
-          <td>${parseFloat(r.handicap_before).toFixed(1)} → ${parseFloat(r.handicap_after).toFixed(1)}</td>
-          <td>${r.verified ? '<span class="badge green">✓ Verified</span>' : '<span class="badge gray">Unverified</span>'}</td>
-          <td style="display:flex;gap:4px;flex-wrap:wrap">
-            ${canEdit ? `<button class="btn sm" onclick="editRound('${r.id}')">Edit</button>` : ''}
-            ${isAdmin && !r.verified ? `<button class="btn sm" style="background:#E1F5EE;color:#085041;border-color:#9FE1CB" onclick="verifyRound('${r.id}')">Verify</button>` : ''}
-            ${isAdmin ? `<button class="btn sm danger" onclick="deleteRound('${r.id}')">Delete</button>` : ''}
-          </td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>`;
+    document.getElementById('modal-body').innerHTML = rounds.map(r=>{
+      const ev = db.events.find(e=>e.id===r.event_id);
+      return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+          <div style="min-width:0">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">${ev?ev.course_name:'Unknown'}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:1px">${ev?fmtDate(ev.event_date):''}</div>
+          </div>
+          ${r.verified?'<span class="badge green" style="font-size:10px;flex-shrink:0">✓ Verified</span>':'<span class="badge gray" style="font-size:10px;flex-shrink:0">Pending</span>'}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <span class="badge green" style="font-size:10px">${r.stableford_points} pts</span>
+          <span class="badge gray" style="font-size:10px">Gross ${r.gross_score}</span>
+          <span class="badge gray" style="font-size:10px">Hcp ${parseFloat(r.handicap_before).toFixed(1)} → ${parseFloat(r.handicap_after).toFixed(1)}</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${canEdit ? `<button class="btn sm" onclick="editRound('${r.id}')">Edit</button>` : ''}
+          ${isAdmin && !r.verified ? `<button class="btn sm" style="background:#E1F5EE;color:#085041;border-color:#9FE1CB" onclick="verifyRound('${r.id}')">Verify</button>` : ''}
+          ${isAdmin ? `<button class="btn sm danger" onclick="deleteRound('${r.id}')">Delete</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
   }
   document.getElementById('modal-overlay').classList.add('open');
 }
