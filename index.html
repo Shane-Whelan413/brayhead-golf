@@ -772,13 +772,72 @@ const SEASON_START = new Date('2026-03-22');
 const SEASON_END   = new Date('2026-11-29');
 
 const OUTINGS = {
-  '2026-04-18': 'Silloge',
+  '2026-04-18': 'Silloge Park',
   '2026-05-16': 'Coolattin',
   '2026-06-13': 'Courtown',
   '2026-07-11': 'Grange Castle',
-  '2026-08-09': 'Captains Day',
+  '2026-08-09': 'Knightsbrook (Captains Day)',
   '2026-09-06': 'Moyvalley',
   '2026-10-24': 'Arklow',
+};
+
+const OUTING_COURSES = {
+  'Silloge Park': {
+    cr:35.2, slope:117, par:70,
+    wcr:36.0, wslope:120, wpar:70,
+    pars: [4,3,4,4,4,5,3,4,4, 4,3,4,4,4,5,3,4,4],
+    wpars:[4,3,4,4,4,5,3,4,4, 4,3,4,4,4,5,3,4,4],
+    si:   [3,17,7,11,1,9,15,5,13, 4,18,8,12,2,10,16,6,14],
+    wsi:  [3,17,7,11,1,9,15,5,13, 4,18,8,12,2,10,16,6,14],
+  },
+  'Coolattin': {
+    cr:71.4, slope:130, par:72,
+    wcr:73.0, wslope:133, wpar:72,
+    pars: [4,4,3,4,5,4,3,4,4, 4,4,3,5,4,4,3,5,4],
+    wpars:[4,4,3,4,5,4,3,4,4, 4,4,3,5,4,4,3,5,4],
+    si:   [5,13,17,1,11,3,15,9,7, 6,14,18,2,12,4,16,10,8],
+    wsi:  [5,13,17,1,11,3,15,9,7, 6,14,18,2,12,4,16,10,8],
+  },
+  'Courtown': {
+    cr:70.8, slope:125, par:72,
+    wcr:72.0, wslope:128, wpar:72,
+    pars: [5,4,3,4,4,4,3,4,5, 4,4,3,4,5,4,3,4,4],
+    wpars:[5,4,3,4,4,4,3,4,5, 4,4,3,4,5,4,3,4,4],
+    si:   [9,3,17,5,11,1,15,7,13, 8,4,18,6,12,2,16,10,14],
+    wsi:  [9,3,17,5,11,1,15,7,13, 8,4,18,6,12,2,16,10,14],
+  },
+  'Grange Castle': {
+    cr:70.0, slope:122, par:72,
+    wcr:71.5, wslope:125, wpar:72,
+    pars: [4,4,4,3,5,4,3,4,5, 4,3,5,4,4,5,3,4,4],
+    wpars:[4,4,4,3,5,4,3,4,5, 4,3,5,4,4,5,3,4,4],
+    si:   [7,3,11,17,1,13,15,5,9, 8,18,2,12,6,4,16,10,14],
+    wsi:  [7,3,11,17,1,13,15,5,9, 8,18,2,12,6,4,16,10,14],
+  },
+  'Knightsbrook (Captains Day)': {
+    cr:71.2, slope:130, par:72,
+    wcr:72.5, wslope:133, wpar:72,
+    pars: [4,4,3,5,4,4,3,4,5, 4,3,4,4,5,4,3,5,4],
+    wpars:[4,4,3,5,4,4,3,4,5, 4,3,4,4,5,4,3,5,4],
+    si:   [7,3,17,1,13,5,15,9,11, 8,18,4,12,2,6,16,10,14],
+    wsi:  [7,3,17,1,13,5,15,9,11, 8,18,4,12,2,6,16,10,14],
+  },
+  'Moyvalley': {
+    cr:71.0, slope:128, par:72,
+    wcr:72.5, wslope:131, wpar:72,
+    pars: [4,5,3,4,4,4,3,5,4, 4,4,3,4,5,4,3,5,4],
+    wpars:[4,5,3,4,4,4,3,5,4, 4,4,3,4,5,4,3,5,4],
+    si:   [11,1,17,5,9,3,15,7,13, 10,2,18,6,8,4,16,12,14],
+    wsi:  [11,1,17,5,9,3,15,7,13, 10,2,18,6,8,4,16,12,14],
+  },
+  'Arklow': {
+    cr:70.5, slope:124, par:72,
+    wcr:72.0, wslope:127, wpar:72,
+    pars: [4,3,4,5,4,4,3,4,5, 4,4,3,5,4,4,3,4,5],
+    wpars:[4,3,4,5,4,4,3,4,5, 4,4,3,5,4,4,3,4,5],
+    si:   [9,17,5,1,13,3,15,7,11, 10,6,18,2,14,4,16,8,12],
+    wsi:  [9,17,5,1,13,3,15,7,11, 10,6,18,2,14,4,16,8,12],
+  },
 };
 
 function getSeasonDates() {
@@ -1247,18 +1306,39 @@ function renderSavedCourseDropdown() {
   const sel = document.getElementById('e-saved-course');
   if (!sel) return;
   const courses = getSavedCourses();
-  sel.innerHTML = '<option value="">— select a saved course —</option>' +
-    courses.map((c,i) => `<option value="${i}">${c.name}</option>`).join('');
+
+  // Outing courses not yet played
+  const playedCourseNames = new Set(db.events.filter(e=>e.event_type==='outing_18').map(e=>e.course_name));
+  const upcomingOutings = Object.entries(OUTING_COURSES)
+    .filter(([name]) => !playedCourseNames.has(name))
+    .map(([name]) => name);
+
+  sel.innerHTML = '<option value="">— select a saved course —</option>';
+  if (upcomingOutings.length) {
+    sel.innerHTML += `<optgroup label="Upcoming outings">` +
+      upcomingOutings.map(name => `<option value="outing:${name}">${name}</option>`).join('') +
+      `</optgroup>`;
+  }
+  if (courses.length) {
+    sel.innerHTML += `<optgroup label="Saved courses">` +
+      courses.map((c,i) => `<option value="${i}">${c.name}</option>`).join('') +
+      `</optgroup>`;
+  }
 }
 
 function loadSavedCourse() {
   const sel = document.getElementById('e-saved-course');
   if (!sel || sel.value === '') return;
-  const courses = getSavedCourses();
-  const c = courses[parseInt(sel.value)];
+  let c;
+  if (sel.value.startsWith('outing:')) {
+    const name = sel.value.replace('outing:', '');
+    c = { ...OUTING_COURSES[name], name };
+  } else {
+    const courses = getSavedCourses();
+    c = courses[parseInt(sel.value)];
+  }
   if (!c) return;
   const n = c.si ? c.si.length : 9;
-  // Set type first to build correct number of holes
   const typeEl = document.getElementById('e-type');
   typeEl.value = n === 18 ? 'outing_18' : 'sunday_9';
   buildEventSIInputs(n);
@@ -1274,6 +1354,12 @@ function loadSavedCourse() {
     const wp = document.getElementById('e-wpar-h'+i); if(wp && c.wpars) wp.value = c.wpars[i-1] || '';
     const si = document.getElementById('e-si'+i); if(si && c.si) si.value = c.si[i-1] || '';
     const ws = document.getElementById('e-wsi'+i); if(ws && c.wsi) ws.value = c.wsi[i-1] || '';
+  }
+  // Auto-fill the event date if it matches an upcoming outing
+  const outingDate = Object.entries(OUTINGS).find(([,name])=>name===c.name)?.[0];
+  if (outingDate) {
+    const dateEl = document.getElementById('e-date');
+    if (dateEl && !dateEl.value) dateEl.value = outingDate;
   }
   toast(`Loaded ${c.name}`, 'success');
 }
@@ -3314,6 +3400,7 @@ function showTab(name) {
   if (name === 'profile') safeRender(renderProfile);
   if (name === 'add-round') safeRender(renderAddRound);
   if (name === 'knockout') safeRender(renderKnockout);
+  if (name === 'events') renderSavedCourseDropdown();
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
