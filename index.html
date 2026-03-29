@@ -992,16 +992,11 @@ async function loadAll() {
   }
 }
 
-function renderLeaderboard() {
-  const filter = document.getElementById('lb-filter').value;
-  const evs = filter === 'all' ? db.events : db.events.filter(e=>e.event_type===filter);
-  const eids = new Set(evs.map(e=>e.id));
-  const publishedEids = new Set(evs.filter(e=>e.published).map(e=>e.id));
-  const filteredRounds = db.rounds.filter(r=>publishedEids.has(r.event_id) && r.verified);
-
+function getLeaderboardPositions() {
+  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
   const byEvent = {};
-  for (const r of filteredRounds) {
-    if (!byEvent[r.event_id]) byEvent[r.event_id] = [];
+  for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) {
+    if (!byEvent[r.event_id]) byEvent[r.event_id]=[];
     byEvent[r.event_id].push({...r});
   }
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
@@ -1009,29 +1004,46 @@ function renderLeaderboard() {
   const allPlayerRounds = {};
   for (const eid in byEvent) {
     for (const r of byEvent[eid]) {
-      if (!allPlayerRounds[r.player_id]) allPlayerRounds[r.player_id] = [];
+      if (!allPlayerRounds[r.player_id]) allPlayerRounds[r.player_id]=[];
       allPlayerRounds[r.player_id].push(r);
     }
   }
-  const BEST_WEEKS = 33;
   const totals = {};
   for (const pid in allPlayerRounds) {
-    const rounds = allPlayerRounds[pid].sort((a,b) => b._lp - a._lp).slice(0, BEST_WEEKS);
-    totals[pid] = { lp:0, rounds: allPlayerRounds[pid].length, counted: rounds.length, stab:0, best:0 };
-    for (const r of rounds) {
-      totals[pid].lp   += r._lp;
-      totals[pid].stab += r.stableford_points;
-      if (r.stableford_points > totals[pid].best) totals[pid].best = r.stableford_points;
-    }
+    const rounds = allPlayerRounds[pid].sort((a,b)=>b._lp-a._lp).slice(0,33);
+    totals[pid] = rounds.reduce((s,r)=>s+r._lp, 0);
   }
+  // Sort all players by total lp — include all players even those with 0
+  const sorted = db.players
+    .map(p => ({ id: p.id, lp: totals[p.id] || 0 }))
+    .sort((a,b) => b.lp - a.lp);
+
+  // Assign positions (handle ties — same lp = same position)
+  const positions = {};
+  let pos = 1;
+  for (let i=0; i<sorted.length; i++) {
+    if (i > 0 && sorted[i].lp < sorted[i-1].lp) pos = i + 1;
+    positions[sorted[i].id] = { pos, lp: sorted[i].lp };
+  }
+  return positions;
+}
+
+function renderLeaderboard() {
+  const filter = document.getElementById('lb-filter').value;
+  const evs = filter === 'all' ? db.events : db.events.filter(e=>e.event_type===filter);
+  const publishedEids = new Set(evs.filter(e=>e.published).map(e=>e.id));
+
+  const lbPositions = getLeaderboardPositions();
 
   const rows = db.players.map(p => {
-    const t = totals[p.id] || { lp:0, rounds:0, counted:0, stab:0, best:0 };
-    return {
-      ...p, ...t,
-      avg: t.counted > 0 ? (t.stab / t.counted).toFixed(1) : '—'
-    };
-  }).sort((a,b) => b.lp - a.lp);
+    const pos = lbPositions[p.id]?.pos || 0;
+    const lp  = lbPositions[p.id]?.lp  || 0;
+    const playerRounds = db.rounds.filter(r=>r.player_id===p.id && r.verified && publishedEids.has(r.event_id));
+    const stab = playerRounds.reduce((s,r)=>s+r.stableford_points,0);
+    const best = playerRounds.length ? Math.max(...playerRounds.map(r=>r.stableford_points)) : 0;
+    const avg  = playerRounds.length ? (stab/playerRounds.length).toFixed(1) : '—';
+    return { ...p, lp, pos, rounds: playerRounds.length, best, avg };
+  }).sort((a,b) => a.pos - b.pos || b.lp - a.lp);
 
   const sundays = getSundays();
   const eventsPlayed = db.events.filter(e=>e.published).length;
@@ -1047,9 +1059,10 @@ function renderLeaderboard() {
     ).join('') + `<span class="pts-pip">rest = 6</span>`;
 
   if (!rows.length) { document.getElementById('lb-table').innerHTML='<div class="empty">No players yet — add some in the Players tab</div>'; return; }
-  document.getElementById('lb-table').innerHTML = rows.map((p,i)=>{
-    const rankClass = i===0?'r1':i===1?'r2':i===2?'r3':'rn';
-    const posStr = i===0?'1st':i===1?'2nd':i===2?'3rd':(i+1)+'th';
+  document.getElementById('lb-table').innerHTML = rows.map((p)=>{
+    const pos = p.pos || 0;
+    const rankClass = pos===1?'r1':pos===2?'r2':pos===3?'r3':'rn';
+    const posStr = pos===1?'1st':pos===2?'2nd':pos===3?'3rd':pos+'th';
     return `<div class="lb-card">
       <div class="rank ${rankClass}">${posStr}</div>
       <button onclick="showPlayerProfile('${p.id}')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;background:none;border:none;cursor:pointer;padding:0;text-align:left">
@@ -2417,30 +2430,16 @@ function showPlayerProfile(pid) {
   const avgScore  = countedRounds.length ? (countedRounds.reduce((a,r)=>a+r.stableford_points,0)/countedRounds.length).toFixed(1) : '—';
   const attendance = totalEvents > 0 ? Math.round((countedRounds.length/totalEvents)*100) : 0;
 
-  // Leaderboard position — must match renderLeaderboard exactly
+  // Leaderboard position — shared function guarantees match with leaderboard
+  const lbPositions = getLeaderboardPositions();
+  const lbPos = lbPositions[pid]?.pos || 0;
+  const myLeaguePts = lbPositions[pid]?.lp || 0;
   const byEvent = {};
   for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) {
     if (!byEvent[r.event_id]) byEvent[r.event_id]=[];
     byEvent[r.event_id].push({...r});
   }
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
-
-  const allPlayerRounds = {};
-  for (const eid in byEvent) {
-    for (const r of byEvent[eid]) {
-      if (!allPlayerRounds[r.player_id]) allPlayerRounds[r.player_id]=[];
-      allPlayerRounds[r.player_id].push(r);
-    }
-  }
-  const BEST_WEEKS = 33;
-  const playerTotals = {};
-  for (const pid2 in allPlayerRounds) {
-    const rounds2 = allPlayerRounds[pid2].sort((a,b)=>b._lp-a._lp).slice(0,BEST_WEEKS);
-    playerTotals[pid2] = rounds2.reduce((s,r)=>s+r._lp, 0);
-  }
-  const sorted = Object.entries(playerTotals).sort((a,b)=>b[1]-a[1]);
-  const lbPos = sorted.findIndex(([id])=>id===pid) + 1;
-  const myLeaguePts = playerTotals[pid] || 0;
   const posLabel = lbPos===0?'—':lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos+'th';
   const posColor = lbPos===1?'#FAC775':lbPos===2?'#D3D1C7':lbPos===3?'#F0997B':'var(--green-light)';
   const posText  = lbPos===1?'#633806':lbPos===2?'#444441':lbPos===3?'#4A1B0C':'var(--green-dark)';
@@ -2682,21 +2681,9 @@ function renderProfile() {
   for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) { if(!byEvent[r.event_id]) byEvent[r.event_id]=[]; byEvent[r.event_id].push({...r}); }
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
 
-  const allPlayerRounds2 = {};
-  for (const eid in byEvent) {
-    for (const r of byEvent[eid]) {
-      if(!allPlayerRounds2[r.player_id]) allPlayerRounds2[r.player_id]=[];
-      allPlayerRounds2[r.player_id].push(r);
-    }
-  }
-  const playerTotals = {};
-  for (const pid2 in allPlayerRounds2) {
-    const rounds2 = allPlayerRounds2[pid2].sort((a,b)=>b._lp-a._lp).slice(0,33);
-    playerTotals[pid2] = rounds2.reduce((s,r)=>s+r._lp,0);
-  }
-  const sorted = Object.entries(playerTotals).sort((a,b)=>b[1]-a[1]);
-  const lbPos  = sorted.findIndex(([id])=>id===pid) + 1;
-  const myLeaguePts = playerTotals[pid] || 0;
+  const lbPositions = getLeaderboardPositions();
+  const lbPos  = lbPositions[pid]?.pos || 0;
+  const myLeaguePts = lbPositions[pid]?.lp || 0;
 
   // Count 1st, 2nd, 3rd finishes — use sorted ranked array
   let first=0, second=0, third=0;
