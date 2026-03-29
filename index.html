@@ -3745,11 +3745,12 @@ function triggerAvatarUpload(pid) {
 async function uploadAvatar(input, pid) {
   const file = input.files[0];
   if (!file) return;
-  if (file.size > 51200) { toast('Photo too large — please choose one under 50KB', 'error'); input.value=''; return; }
   if (!file.type.startsWith('image/')) { toast('Please choose an image file', 'error'); input.value=''; return; }
-  toast('Uploading photo…', 'success');
+  toast('Processing photo…', 'success');
   try {
-    const ext = file.name.split('.').pop() || 'jpg';
+    // Compress client-side using canvas before uploading
+    const compressed = await compressImage(file, 200, 0.7);
+    const ext = 'jpg';
     const path = `${pid}.${ext}`;
     await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
       method: 'DELETE',
@@ -3757,8 +3758,8 @@ async function uploadAvatar(input, pid) {
     });
     const res = await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
       method: 'POST',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': file.type },
-      body: file
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'image/jpeg' },
+      body: compressed
     });
     if (!res.ok) throw new Error('Upload failed');
     const avatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}?t=${Date.now()}`;
@@ -3766,9 +3767,34 @@ async function uploadAvatar(input, pid) {
     toast('Photo updated!', 'success');
     await loadAll(); renderAll();
   } catch(e) {
-    toast('Upload failed — check file size is under 50KB', 'error');
+    toast('Upload failed — please try again', 'error');
   }
   input.value = '';
+}
+
+function compressImage(file, maxSize, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      // Crop to square from centre
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width - side) / 2;
+      const sy = (img.height - side) / 2;
+      canvas.width  = maxSize;
+      canvas.height = maxSize;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
+      canvas.toBlob(blob => {
+        if (!blob) { reject(new Error('Compression failed')); return; }
+        resolve(blob);
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => reject(new Error('Could not read image'));
+    img.src = url;
+  });
 }
 
 function showChangePin() {
