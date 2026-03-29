@@ -904,6 +904,16 @@ let isAdmin = false;
 const ADMIN_PW = 'BHGS2026!';
 
 function initials(n) { return n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+
+function avatarHtml(player, size=44, fontSize=14) {
+  if (player && player.avatar_url) {
+    return `<div style="width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;flex-shrink:0;background:#0a1628">
+      <img src="${player.avatar_url}" style="width:100%;height:100%;object-fit:cover" loading="lazy"
+        onerror="this.parentElement.innerHTML='<span style=\\'display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:${Math.round(fontSize)}px;font-weight:700;color:#C9A84C\\'>${initials(player.name)}</span>'" />
+    </div>`;
+  }
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#0a1628;color:#C9A84C;font-size:${fontSize}px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${initials(player.name)}</div>`;
+}
 function fmtDate(d) {
   const [y,m,day] = d.split('-').map(Number);
   return new Date(y, m-1, day).toLocaleDateString('en-IE',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
@@ -1094,7 +1104,7 @@ function renderLeaderboard() {
     return `<div class="lb-card">
       <div class="rank ${rankClass}">${posStr}</div>
       <button onclick="showPlayerProfile('${p.id}')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;background:none;border:none;cursor:pointer;padding:0;text-align:left">
-        <div class="avatar">${initials(p.name)}</div>
+        ${avatarHtml(p, 34, 12)}
         <div class="lb-card-info">
           <div class="lb-card-name" style="color:var(--text)">${p.name}</div>
           <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)} · ${p.rounds} round${p.rounds!==1?'s':''} · Best ${p.best||'—'} · Avg ${p.avg}</div>
@@ -1123,7 +1133,7 @@ function renderPlayers() {
     for (const eid in byEvent) { const ranked=byEvent[eid]; const r=ranked.find(x=>x.player_id===p.id); if(r) lp+=r._lp; }
     return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:${isAdmin?'10px':'0'}">
-        <div class="avatar" style="flex-shrink:0">${initials(p.name)}</div>
+        <div class="avatar" style="flex-shrink:0;overflow:hidden;padding:0">${avatarHtml(p, 40, 13)}</div>
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:15px;color:var(--text)">${p.name}</div>
           <div style="font-size:12px;color:var(--text-3);margin-top:2px">
@@ -2754,13 +2764,20 @@ function renderProfile() {
   el.innerHTML = `
     <div class="card" style="margin-bottom:1rem">
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:1rem">
-        <div style="width:52px;height:52px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;color:var(--green-dark);flex-shrink:0">${initials(player.name)}</div>
+        <div style="position:relative;flex-shrink:0" onclick="triggerAvatarUpload('${pid}')">
+          ${avatarHtml(player, 52, 18)}
+          <div style="position:absolute;bottom:0;right:0;width:18px;height:18px;border-radius:50%;background:#C9A84C;display:flex;align-items:center;justify-content:center;border:2px solid white">
+            <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="#0a1628" stroke-width="1.8"><line x1="5" y1="2" x2="5" y2="8"/><line x1="2" y1="5" x2="8" y2="5"/></svg>
+          </div>
+        </div>
+        <input type="file" id="avatar-upload-input" accept="image/*" style="display:none" onchange="uploadAvatar(this,'${pid}')" />
         <div>
           <div style="font-family:'DM Serif Display',serif;font-size:20px">${player.name}</div>
           <div style="font-size:13px;color:var(--text-2)">
             ${player.plays_womens_index?'<span class="badge purple" style="font-size:10px;margin-right:4px">Women\'s index</span>':''}
             Handicap index: <strong>${parseFloat(player.handicap_index).toFixed(1)}</strong>
           </div>
+          <div style="font-size:11px;color:#9a9080;margin-top:3px">Tap photo to update</div>
         </div>
       </div>
     </div>
@@ -3568,7 +3585,7 @@ function buildLoginNameList(players) {
       const first = parts[0];
       const rest  = parts.slice(1).join(' ');
       return `<div onclick="selectPlayer('${p.id}')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;background:white;border-radius:10px;border:1px solid #e0d8c8;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation">
-        <div style="width:38px;height:38px;border-radius:50%;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${initials(p.name)}</div>
+        ${avatarHtml(p, 38, 12)}
         <div>
           <div style="font-size:13px;font-weight:700;color:#1a1510;line-height:1.2">${first}</div>
           <div style="font-size:11px;color:#9a9080;line-height:1.2">${rest}</div>
@@ -3601,7 +3618,12 @@ function selectPlayer(pid) {
   updatePinDots();
   document.getElementById('login-name-section').style.display = 'none';
   document.getElementById('login-pin-section').style.display = 'block';
-  document.getElementById('login-pin-avatar').textContent = initials(p.name);
+  const avEl = document.getElementById('login-pin-avatar');
+  if (p.avatar_url) {
+    avEl.innerHTML = `<img src="${p.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.textContent='${initials(p.name)}'" />`;
+  } else {
+    avEl.textContent = initials(p.name);
+  }
   document.getElementById('login-pin-greeting').textContent = `Welcome, ${p.name.split(' ')[0]}`;
   document.getElementById('login-pin-error').style.display = 'none';
 }
@@ -3713,6 +3735,40 @@ function updateUIForRole() {
   if (addRoundSection) addRoundSection.style.display = (role === 'viewer' || !currentUser) ? 'none' : '';
   showTab('home');
   renderAll();
+}
+
+function triggerAvatarUpload(pid) {
+  const input = document.getElementById('avatar-upload-input');
+  if (input) input.click();
+}
+
+async function uploadAvatar(input, pid) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 51200) { toast('Photo too large — please choose one under 50KB', 'error'); input.value=''; return; }
+  if (!file.type.startsWith('image/')) { toast('Please choose an image file', 'error'); input.value=''; return; }
+  toast('Uploading photo…', 'success');
+  try {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `${pid}.${ext}`;
+    await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': file.type },
+      body: file
+    });
+    if (!res.ok) throw new Error('Upload failed');
+    const avatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}?t=${Date.now()}`;
+    await patch(`players?id=eq.${pid}`, { avatar_url: avatarUrl });
+    toast('Photo updated!', 'success');
+    await loadAll(); renderAll();
+  } catch(e) {
+    toast('Upload failed — check file size is under 50KB', 'error');
+  }
+  input.value = '';
 }
 
 function showChangePin() {
