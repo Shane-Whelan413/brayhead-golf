@@ -6,11 +6,12 @@
 <meta name="theme-color" content="#0a1628">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Bray Head GS">
+<meta name="apple-mobile-web-app-title" content="BHGS">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="description" content="Bray Head Golf Society — scores, handicaps and leaderboard">
 <link rel="manifest" href="/brayhead-golf/manifest.json">
 <link rel="apple-touch-icon" href="/brayhead-golf/icon-192.png">
+<link rel="apple-touch-startup-image" href="/brayhead-golf/icon-512.png">
 <title>Bray Head Golf Society 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
@@ -431,6 +432,18 @@
 </style>
 </head>
 <body>
+
+<!-- INSTALL BANNER -->
+<div id="install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:600;background:#0a1628;padding:14px 16px 28px;border-top:1px solid rgba(201,168,76,0.3)">
+  <div style="display:flex;align-items:center;gap:12px">
+    <img src="/brayhead-golf/icon-192.png" style="width:44px;height:44px;border-radius:10px;flex-shrink:0" />
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:700;color:white;margin-bottom:2px">Add BHGS to your home screen</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.55)">Tap <strong style="color:#C9A84C">Share</strong> then <strong style="color:#C9A84C">Add to Home Screen</strong></div>
+    </div>
+    <button onclick="dismissInstallBanner()" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:20px;cursor:pointer;padding:4px;flex-shrink:0;font-family:'DM Sans',sans-serif">✕</button>
+  </div>
+</div>
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen" class="login-screen" style="display:none">
@@ -3749,10 +3762,7 @@ async function uploadAvatar(input, pid) {
   toast('Processing photo…', 'success');
   try {
     const compressed = await compressImage(file, 200, 0.7);
-    console.log('Compressed size:', compressed.size, 'bytes');
-    const ext = 'jpg';
-    const path = `${pid}.${ext}`;
-    // Try upsert instead of delete+post
+    const path = `${pid}.jpg`;
     const res = await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
       method: 'POST',
       headers: {
@@ -3763,16 +3773,13 @@ async function uploadAvatar(input, pid) {
       },
       body: compressed
     });
-    const resText = await res.text();
-    console.log('Upload response:', res.status, resText);
-    if (!res.ok) throw new Error(`Upload failed: ${res.status} ${resText}`);
+    if (!res.ok) { const t = await res.text(); throw new Error(t); }
     const avatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}?t=${Date.now()}`;
     await patch(`players?id=eq.${pid}`, { avatar_url: avatarUrl });
     toast('Photo updated!', 'success');
     await loadAll(); renderAll();
   } catch(e) {
-    console.error('Avatar upload error:', e.message);
-    toast('Upload failed: ' + e.message, 'error');
+    toast('Upload failed — please try again', 'error');
   }
   input.value = '';
 }
@@ -3914,6 +3921,26 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/brayhead-golf/sw.js', { scope: '/brayhead-golf/' }).catch(()=>{});
 }
 
+// Install banner — show on mobile Safari if not already installed and not dismissed
+function showInstallBanner() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true;
+  const dismissed = localStorage.getItem('install-banner-dismissed');
+  if (isIOS && !isStandalone && !dismissed) {
+    setTimeout(() => {
+      const banner = document.getElementById('install-banner');
+      if (banner) banner.style.display = 'block';
+    }, 3000);
+  }
+}
+
+function dismissInstallBanner() {
+  const banner = document.getElementById('install-banner');
+  if (banner) banner.style.display = 'none';
+  localStorage.setItem('install-banner-dismissed', '1');
+}
+
+showInstallBanner();
 init();
 </script>
 </body>

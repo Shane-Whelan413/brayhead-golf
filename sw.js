@@ -1,4 +1,4 @@
-const CACHE = 'brayhead-gs-v5';
+const CACHE = 'brayhead-gs-v6';
 const ASSETS = [
   '/brayhead-golf/index.html',
   '/brayhead-golf/manifest.json',
@@ -23,16 +23,29 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Never cache API or Supabase requests — always go to network
-  if (e.request.url.includes('supabase.co') || e.request.url.includes('/rest/v1/')) return;
-  // For app assets, try network first then fall back to cache
-  e.respondWith(
-    fetch(e.request)
-      .then(res => {
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
-        return res;
+  // Never cache Supabase API or storage requests
+  if (e.request.url.includes('supabase.co')) return;
+  // Cache first for assets, network first for HTML
+  if (e.request.destination === 'document') {
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
+  } else {
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        if (cached) return cached;
+        return fetch(e.request).then(res => {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+          return res;
+        });
       })
-      .catch(() => caches.match(e.request))
-  );
+    );
+  }
 });
