@@ -409,6 +409,13 @@
   .login-player-name { font-size: 14px; font-weight: 600; color: #1a1510; }
   .login-view-btn { width: 100%; padding: 11px; border-radius: 10px; border: 1px solid #e0d8c8; background: white; font-size: 13px; color: #9a9080; font-family: 'DM Sans', sans-serif; cursor: pointer; text-align: center; }
   .login-admin-btn { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid rgba(201,168,76,0.3); background: rgba(201,168,76,0.08); font-size: 13px; color: #8a6a1a; font-family: 'DM Sans', sans-serif; cursor: pointer; text-align: center; font-weight: 500; }
+  .pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #C9A84C; background: transparent; transition: background 0.1s; }
+  .pin-dot.filled { background: #C9A84C; }
+  .num-key { height: 52px; border-radius: 12px; border: 1px solid #e0d8c8; background: white; font-size: 20px; font-weight: 500; color: #1a1510; display: flex; align-items: center; justify-content: center; cursor: pointer; font-family: 'DM Sans', sans-serif; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; transition: background 0.08s, transform 0.08s; }
+  .num-key:active { background: #fef8e6; border-color: #C9A84C; transform: scale(0.93); }
+  .num-del { background: #f8f5ee; color: #9a9080; font-size: 16px; }
+  .num-go { background: #0a1628; color: #C9A84C; border-color: #0a1628; font-size: 13px; font-weight: 700; }
+  .num-go:active { background: #162338; }
   .login-pin-avatar { width: 60px; height: 60px; border-radius: 50%; background: #0a1628; color: #C9A84C; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 8px auto 12px; }
   .login-pin-greeting { font-size: 18px; font-weight: 700; color: #1a1510; text-align: center; margin-bottom: 3px; }
   .login-pin-sub { font-size: 12px; color: #9a9080; text-align: center; margin-bottom: 16px; }
@@ -435,26 +442,48 @@
     <p>2026 Season</p>
   </div>
   <div class="login-body">
-    <!-- Name list -->
+    <!-- Autocomplete phase -->
     <div id="login-name-section">
-      <div class="login-search-wrap">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4.5"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
-        <input type="text" id="login-search" placeholder="Search your name…" oninput="filterLoginNames(this.value)" autocomplete="off" />
-      </div>
+      <input type="text" id="login-search" placeholder="Start typing your name…" oninput="filterLoginNames(this.value)" autocomplete="off"
+        style="width:100%;height:50px;border-radius:12px;border:2px solid #C9A84C;background:white;padding:0 14px;font-size:15px;color:#1a1510;font-family:'DM Sans',sans-serif;margin-bottom:8px;outline:none" />
       <div id="login-name-grid"></div>
+      <div id="login-member-count" style="font-size:11px;color:#9a9080;text-align:center;padding:4px 0"></div>
+      <div style="flex:1;min-height:12px"></div>
       <button class="login-view-btn" onclick="loginAsViewer()">View only (no login)</button>
       <div style="height:8px"></div>
       <button class="login-admin-btn" onclick="showAdminLoginFromScreen()">Admin login</button>
     </div>
-    <!-- PIN section -->
+    <!-- PIN phase -->
     <div id="login-pin-section" style="display:none">
       <div class="login-pin-avatar" id="login-pin-avatar">??</div>
       <div class="login-pin-greeting" id="login-pin-greeting">Welcome!</div>
-      <div class="login-pin-sub">Enter your PIN to continue</div>
-      <input type="password" id="login-pin-input" placeholder="PIN" onkeydown="if(event.key==='Enter')submitPin()" style="width:100%;height:52px;border-radius:12px;border:2px solid #e0d8c8;background:white;text-align:center;letter-spacing:6px;font-size:24px;font-family:'DM Sans',sans-serif;margin-bottom:10px;color:#1a1510" />
-      <div id="login-pin-error" style="color:#A32D2D;font-size:12px;text-align:center;margin-bottom:8px;display:none">Incorrect PIN — try your first name if you haven't set one</div>
-      <button class="btn primary" onclick="submitPin()" style="width:100%;padding:13px;font-size:14px;margin-bottom:8px">Login</button>
-      <button class="login-view-btn" onclick="backToNames()">Back to players</button>
+      <div style="font-size:11px;color:#9a9080;text-align:center;margin-bottom:14px">Enter your PIN</div>
+      <!-- PIN dots -->
+      <div style="display:flex;gap:14px;justify-content:center;margin-bottom:18px">
+        <div class="pin-dot" id="pd1"></div>
+        <div class="pin-dot" id="pd2"></div>
+        <div class="pin-dot" id="pd3"></div>
+        <div class="pin-dot" id="pd4"></div>
+      </div>
+      <div id="login-pin-error" style="color:#A32D2D;font-size:12px;text-align:center;margin-bottom:8px;display:none">Incorrect PIN — try 1234 if first time</div>
+      <!-- Numpad -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <button class="num-key" ontouchstart="event.preventDefault();numKey(1)" onclick="numKey(1)">1</button>
+        <button class="num-key" ontouchstart="event.preventDefault();numKey(2)" onclick="numKey(2)">2</button>
+        <button class="num-key" ontouchstart="event.preventDefault();numKey(3)" onclick="numKey(3)">3</button>
+        <button class="num-key" ontouchstart="event.preventDefault();numKey(4)" onclick="numKey(4)">4</button>
+        <button class="num-key" ontouchstart="event.preventDefault();numKey(5)" onclick="numKey(5)">5</button>
+        <button class="num-key" ontouchstart="event.preventDefault();numKey(6)" onclick="numKey(6)">6</button>
+        <button class="num-key" ontouchstart="event.preventDefault();numKey(7)" onclick="numKey(7)">7</button>
+        <button class="num-key" ontouchstart="event.preventDefault();numKey(8)" onclick="numKey(8)">8</button>
+        <button class="num-key" ontouchstart="event.preventDefault();numKey(9)" onclick="numKey(9)">9</button>
+        <button class="num-key num-del" ontouchstart="event.preventDefault();numKey('del')" onclick="numKey('del')">⌫</button>
+        <button class="num-key" ontouchstart="event.preventDefault();numKey(0)" onclick="numKey(0)">0</button>
+        <button class="num-key num-go" ontouchstart="event.preventDefault();submitPin()" onclick="submitPin()">Login</button>
+      </div>
+      <div style="text-align:center;margin-top:12px">
+        <button onclick="backToNames()" style="font-size:12px;color:#9a9080;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif">← Back</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3522,48 +3551,38 @@ function renderLoginNames() {
   document.getElementById('login-name-section').style.display = 'block';
   const searchEl = document.getElementById('login-search');
   if (searchEl) searchEl.value = '';
-  const grid = document.getElementById('login-name-grid');
-  grid.style.display = 'block';
-  if (!db.players.length) {
-    grid.innerHTML = `<div style="text-align:center;padding:1rem;color:#A32D2D;font-size:13px;background:#FCEBEB;border-radius:8px;margin-bottom:8px">No players loaded — tap to retry</div>
-    <button class="login-view-btn" onclick="loadAll().then(renderLoginNames)">Retry</button>`;
-    return;
-  }
-  buildLoginNameList(db.players);
+  document.getElementById('login-name-grid').innerHTML = '';
+  const cnt = document.getElementById('login-member-count');
+  if (cnt) cnt.textContent = db.players.length ? `${db.players.length} members` : '';
+  pinBuffer = '';
+  updatePinDots();
 }
 
 function buildLoginNameList(players) {
   const grid = document.getElementById('login-name-grid');
-  const sorted = [...players].sort((a,b)=>a.name.localeCompare(b.name));
-  let html = '';
-  let lastLetter = '';
-  for (const p of sorted) {
-    const letter = p.name[0].toUpperCase();
-    if (letter !== lastLetter) {
-      html += `<div class="login-section-lbl">${letter}</div>`;
-      lastLetter = letter;
-    }
-    html += `<div class="login-player-row" onclick="selectPlayer('${p.id}')">
+  if (!players.length) {
+    grid.innerHTML = `<div style="font-size:13px;color:#9a9080;text-align:center;padding:12px">No players found</div>`;
+    return;
+  }
+  grid.innerHTML = `<div style="background:white;border-radius:10px;border:1px solid #e0d8c8;overflow:hidden;margin-bottom:6px">${
+    players.map(p=>`<div class="login-player-row" onclick="selectPlayer('${p.id}')" style="border-bottom:0.5px solid #f0ece4">
       <div class="login-player-avatar">${initials(p.name)}</div>
       <div class="login-player-name">${p.name}</div>
-    </div>`;
-  }
-  grid.innerHTML = html;
+    </div>`).join('')
+  }</div>`;
 }
 
 function filterLoginNames(val) {
   const query = val.trim().toLowerCase();
-  if (!query) { buildLoginNameList(db.players); return; }
-  const filtered = db.players.filter(p => p.name.toLowerCase().includes(query));
-  const grid = document.getElementById('login-name-grid');
-  if (!filtered.length) {
-    grid.innerHTML = `<div style="text-align:center;padding:12px;color:#9a9080;font-size:13px">No players found</div>`;
+  const cnt = document.getElementById('login-member-count');
+  if (!query) {
+    document.getElementById('login-name-grid').innerHTML = '';
+    if (cnt) cnt.textContent = `${db.players.length} members`;
     return;
   }
-  grid.innerHTML = filtered.map(p=>`<div class="login-player-row" onclick="selectPlayer('${p.id}')">
-    <div class="login-player-avatar">${initials(p.name)}</div>
-    <div class="login-player-name">${p.name}</div>
-  </div>`).join('');
+  const filtered = db.players.filter(p=>p.name.toLowerCase().includes(query));
+  if (cnt) cnt.textContent = filtered.length ? `${filtered.length} result${filtered.length!==1?'s':''}` : 'No players found';
+  buildLoginNameList(filtered.slice(0,5));
 }
 
 function loginAsViewer() {
@@ -3574,31 +3593,50 @@ function loginAsViewer() {
 }
 
 let selectedPlayerId = null;
+let pinBuffer = '';
+
 function selectPlayer(pid) {
   selectedPlayerId = pid;
   const p = db.players.find(x=>x.id===pid);
   if (!p) return;
-  // Switch to PIN section
+  pinBuffer = '';
+  updatePinDots();
   document.getElementById('login-name-section').style.display = 'none';
   document.getElementById('login-pin-section').style.display = 'block';
   document.getElementById('login-pin-avatar').textContent = initials(p.name);
   document.getElementById('login-pin-greeting').textContent = `Welcome, ${p.name.split(' ')[0]}`;
-  document.getElementById('login-pin-input').value = '';
   document.getElementById('login-pin-error').style.display = 'none';
-  setTimeout(()=>document.getElementById('login-pin-input').focus(), 100);
+}
+
+function numKey(val) {
+  if (val === 'del') {
+    pinBuffer = pinBuffer.slice(0,-1);
+  } else {
+    if (pinBuffer.length >= 4) return;
+    pinBuffer += val;
+  }
+  updatePinDots();
+}
+
+function updatePinDots() {
+  [1,2,3,4].forEach(i=>{
+    const d = document.getElementById('pd'+i);
+    if (d) d.classList.toggle('filled', i <= pinBuffer.length);
+  });
 }
 
 function backToNames() {
   document.getElementById('login-pin-section').style.display = 'none';
   document.getElementById('login-name-section').style.display = 'block';
+  pinBuffer = '';
+  updatePinDots();
 }
 
 function submitPin() {
-  const pin = document.getElementById('login-pin-input').value.trim();
   const p = db.players.find(x=>x.id===selectedPlayerId);
   if (!p) return;
-  const storedPin = p.pin || p.name.split(' ')[0];
-  if (pin.toLowerCase() === storedPin.toLowerCase()) {
+  const storedPin = (p.pin || '1234').toString();
+  if (pinBuffer === storedPin) {
     const role = p.is_admin ? 'admin' : 'member';
     currentUser = { role, playerId: p.id, name: p.name };
     isAdmin = role === 'admin';
@@ -3608,6 +3646,8 @@ function submitPin() {
     toast(`Welcome ${p.name.split(' ')[0]}${role==='admin'?' (Admin)':''}!`, 'success');
   } else {
     document.getElementById('login-pin-error').style.display = 'block';
+    pinBuffer = '';
+    updatePinDots();
   }
 }
 
