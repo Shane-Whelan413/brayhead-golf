@@ -2806,13 +2806,13 @@ function renderProfile() {
     setTimeout(() => {
       const canvas = document.getElementById('hcp-chart');
       if (!canvas) return;
-      const sorted = [...myRounds].sort((a,b)=>a.created_at?.localeCompare(b.created_at||'')||0);
+      const sorted = [...myRounds].sort((a,b)=>{ const ea=db.events.find(e=>e.id===a.event_id); const eb=db.events.find(e=>e.id===b.event_id); return (ea?.event_date||'').localeCompare(eb?.event_date||''); });
       const labels = sorted.map(r=>{ const ev=db.events.find(e=>e.id===r.event_id); return ev?ev.course_name.split(' ')[0]:'R'; });
-      const data   = sorted.map(r=>parseFloat(r.handicap_after));
-      // Add starting point
-      const startHcp = parseFloat(sorted[0].handicap_before);
-      const allData  = [startHcp, ...data];
-      const allLabels= ['Start', ...labels];
+      // Each point = handicap they played off that round (handicap_before)
+      // Final extra point = handicap_after of last round (where they end up)
+      const lastRound = sorted[sorted.length-1];
+      const allData   = [...sorted.map(r=>parseFloat(r.handicap_before)), parseFloat(lastRound.handicap_after)];
+      const allLabels = [...labels, 'Now'];
 
       const dpr = window.devicePixelRatio || 1;
       const w = canvas.offsetWidth;
