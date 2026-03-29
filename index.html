@@ -2417,19 +2417,26 @@ function showPlayerProfile(pid) {
   const avgScore  = countedRounds.length ? (countedRounds.reduce((a,r)=>a+r.stableford_points,0)/countedRounds.length).toFixed(1) : '—';
   const attendance = totalEvents > 0 ? Math.round((countedRounds.length/totalEvents)*100) : 0;
 
-  // Leaderboard position
+  // Leaderboard position — must match renderLeaderboard exactly
   const byEvent = {};
   for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) {
     if (!byEvent[r.event_id]) byEvent[r.event_id]=[];
     byEvent[r.event_id].push({...r});
   }
-  const playerTotals = {};
+  for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
+
+  const allPlayerRounds = {};
   for (const eid in byEvent) {
-    const ranked = assignLeaguePts(byEvent[eid].map(r=>({...r})));
-    for (const r of ranked) {
-      if (!playerTotals[r.player_id]) playerTotals[r.player_id]=0;
-      playerTotals[r.player_id]+=r._lp;
+    for (const r of byEvent[eid]) {
+      if (!allPlayerRounds[r.player_id]) allPlayerRounds[r.player_id]=[];
+      allPlayerRounds[r.player_id].push(r);
     }
+  }
+  const BEST_WEEKS = 33;
+  const playerTotals = {};
+  for (const pid2 in allPlayerRounds) {
+    const rounds2 = allPlayerRounds[pid2].sort((a,b)=>b._lp-a._lp).slice(0,BEST_WEEKS);
+    playerTotals[pid2] = rounds2.reduce((s,r)=>s+r._lp, 0);
   }
   const sorted = Object.entries(playerTotals).sort((a,b)=>b[1]-a[1]);
   const lbPos = sorted.findIndex(([id])=>id===pid) + 1;
@@ -2674,12 +2681,18 @@ function renderProfile() {
   const byEvent = {};
   for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) { if(!byEvent[r.event_id]) byEvent[r.event_id]=[]; byEvent[r.event_id].push({...r}); }
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
-  const playerTotals = {};
+
+  const allPlayerRounds2 = {};
   for (const eid in byEvent) {
     for (const r of byEvent[eid]) {
-      if(!playerTotals[r.player_id]) playerTotals[r.player_id]=0;
-      playerTotals[r.player_id]+=r._lp;
+      if(!allPlayerRounds2[r.player_id]) allPlayerRounds2[r.player_id]=[];
+      allPlayerRounds2[r.player_id].push(r);
     }
+  }
+  const playerTotals = {};
+  for (const pid2 in allPlayerRounds2) {
+    const rounds2 = allPlayerRounds2[pid2].sort((a,b)=>b._lp-a._lp).slice(0,33);
+    playerTotals[pid2] = rounds2.reduce((s,r)=>s+r._lp,0);
   }
   const sorted = Object.entries(playerTotals).sort((a,b)=>b[1]-a[1]);
   const lbPos  = sorted.findIndex(([id])=>id===pid) + 1;
