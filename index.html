@@ -944,13 +944,13 @@ function tiebreakerCompare(a, b) {
   if (!ev) return 0;
   const n = ev.event_type==='outing_18' ? 18 : 9;
 
-  // Step 1: total of last 3 holes
+  // Step 1: total of last 3 holes (7, 8, 9)
   let aLast=0, bLast=0;
   for (let i=n-3; i<n; i++) { aLast += calcHolePts(a,i); bLast += calcHolePts(b,i); }
   if (aLast !== bLast) return bLast - aLast;
 
-  // Step 2: work backwards hole by hole from hole n down to hole 1
-  for (let i=n-1; i>=0; i--) {
+  // Step 2: individual holes backwards from hole 6 down to hole 1
+  for (let i=n-4; i>=0; i--) {
     const aH = calcHolePts(a, i), bH = calcHolePts(b, i);
     if (aH !== bH) return bH - aH;
   }
