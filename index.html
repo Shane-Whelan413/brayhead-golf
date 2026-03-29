@@ -442,15 +442,14 @@
     <p>2026 Season</p>
   </div>
   <div class="login-body">
-    <!-- Autocomplete phase -->
+    <!-- Name grid phase -->
     <div id="login-name-section">
-      <input type="text" id="login-search" placeholder="Start typing your name…" oninput="filterLoginNames(this.value)" autocomplete="off"
-        style="width:100%;height:50px;border-radius:12px;border:2px solid #C9A84C;background:white;padding:0 14px;font-size:15px;color:#1a1510;font-family:'DM Sans',sans-serif;margin-bottom:8px;outline:none" />
-      <div id="login-name-grid"></div>
-      <div id="login-member-count" style="font-size:11px;color:#9a9080;text-align:center;padding:4px 0"></div>
-      <div style="flex:1;min-height:12px"></div>
-      <button class="login-view-btn" onclick="loginAsViewer()">View only (no login)</button>
+      <input type="text" id="login-search" placeholder="Search your name…" oninput="filterLoginNames(this.value)" autocomplete="off"
+        style="width:100%;height:40px;border-radius:10px;border:1px solid #e0d8c8;background:white;padding:0 12px;font-size:14px;color:#1a1510;font-family:'DM Sans',sans-serif;margin-bottom:10px;outline:none" />
+      <div id="login-name-grid" style="overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;overscroll-behavior:contain"></div>
       <div style="height:8px"></div>
+      <button class="login-view-btn" onclick="loginAsViewer()">View only (no login)</button>
+      <div style="height:6px"></div>
       <button class="login-admin-btn" onclick="showAdminLoginFromScreen()">Admin login</button>
     </div>
     <!-- PIN phase -->
@@ -3551,38 +3550,37 @@ function renderLoginNames() {
   document.getElementById('login-name-section').style.display = 'block';
   const searchEl = document.getElementById('login-search');
   if (searchEl) searchEl.value = '';
-  document.getElementById('login-name-grid').innerHTML = '';
-  const cnt = document.getElementById('login-member-count');
-  if (cnt) cnt.textContent = db.players.length ? `${db.players.length} members` : '';
   pinBuffer = '';
   updatePinDots();
+  buildLoginNameList(db.players);
 }
 
 function buildLoginNameList(players) {
   const grid = document.getElementById('login-name-grid');
-  if (!players.length) {
-    grid.innerHTML = `<div style="font-size:13px;color:#9a9080;text-align:center;padding:12px">No players found</div>`;
+  const sorted = [...players].sort((a,b)=>a.name.localeCompare(b.name));
+  if (!sorted.length) {
+    grid.innerHTML = `<div style="font-size:13px;color:#9a9080;text-align:center;padding:16px">No players found</div>`;
     return;
   }
-  grid.innerHTML = `<div style="background:white;border-radius:10px;border:1px solid #e0d8c8;overflow:hidden;margin-bottom:6px">${
-    players.map(p=>`<div class="login-player-row" onclick="selectPlayer('${p.id}')" style="border-bottom:0.5px solid #f0ece4">
-      <div class="login-player-avatar">${initials(p.name)}</div>
-      <div class="login-player-name">${p.name}</div>
-    </div>`).join('')
+  grid.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${
+    sorted.map(p => {
+      const parts = p.name.split(' ');
+      const first = parts[0];
+      const rest  = parts.slice(1).join(' ');
+      return `<div onclick="selectPlayer('${p.id}')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;background:white;border-radius:10px;border:1px solid #e0d8c8;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation">
+        <div style="width:38px;height:38px;border-radius:50%;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${initials(p.name)}</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#1a1510;line-height:1.2">${first}</div>
+          <div style="font-size:11px;color:#9a9080;line-height:1.2">${rest}</div>
+        </div>
+      </div>`;
+    }).join('')
   }</div>`;
 }
 
 function filterLoginNames(val) {
   const query = val.trim().toLowerCase();
-  const cnt = document.getElementById('login-member-count');
-  if (!query) {
-    document.getElementById('login-name-grid').innerHTML = '';
-    if (cnt) cnt.textContent = `${db.players.length} members`;
-    return;
-  }
-  const filtered = db.players.filter(p=>p.name.toLowerCase().includes(query));
-  if (cnt) cnt.textContent = filtered.length ? `${filtered.length} result${filtered.length!==1?'s':''}` : 'No players found';
-  buildLoginNameList(filtered.slice(0,5));
+  buildLoginNameList(query ? db.players.filter(p=>p.name.toLowerCase().includes(query)) : db.players);
 }
 
 function loginAsViewer() {
