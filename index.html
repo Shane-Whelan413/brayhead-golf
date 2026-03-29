@@ -925,16 +925,14 @@ function calcOutingCourseHcp(hcpIdx, slope, cr, par, playerId) {
 
 function calcHolePts(r, holeIndex) {
   try {
-    if (!r.hole_scores || !r.hole_scores[holeIndex]) return 0;
+    if (!r.hole_scores || r.hole_scores[holeIndex] == null) return 0;
     const ev = db.events.find(e=>e.id===r.event_id);
     const pl = db.players.find(x=>x.id===r.player_id);
     if (!ev) return 0;
     const n = ev.event_type==='outing_18' ? 18 : 9;
     const siVals  = getSIValues(n, ev, pl);
     const parVals = getParValues(n, ev, pl);
-    const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
-    let courseHcp = calcCourseHcp(parseFloat(r.handicap_before)||0, slope, cr, par);
-    if (ev.event_type==='outing_18') courseHcp *= 2;
+    const courseHcp = parseFloat(r.course_handicap) || 0;
     const score = r.hole_scores[holeIndex];
     if (score == null) return 0;
     return calcStableford(score, parVals[holeIndex], getStrokeAllowance(courseHcp, siVals[holeIndex], n));
@@ -951,8 +949,8 @@ function tiebreakerCompare(a, b) {
   for (let i=n-3; i<n; i++) { aLast += calcHolePts(a,i); bLast += calcHolePts(b,i); }
   if (aLast !== bLast) return bLast - aLast;
 
-  // Step 2: work backwards from hole 5 (index 4), then 4, 3, 2, 1
-  for (let i=4; i>=0; i--) {
+  // Step 2: work backwards hole by hole from hole n down to hole 1
+  for (let i=n-1; i>=0; i--) {
     const aH = calcHolePts(a, i), bH = calcHolePts(b, i);
     if (aH !== bH) return bH - aH;
   }
@@ -3755,7 +3753,7 @@ if (getSavedCourses().length === 0) {
     wcr: 35, wslope: 113, wpar: 36,
     pars:  [4,5,4,4,4,4,3,3,4],
     wpars: [4,5,4,4,5,4,3,3,4],
-    si:    [1,2,3,4,5,6,7,8,9],
+    si:    [5,2,9,8,1,3,6,7,4],
     wsi:   [4,1,8,7,5,2,6,9,3]
   }]);
 }
