@@ -1138,6 +1138,7 @@ function renderEvents() {
         <button class="btn sm" onclick="viewEventResults('${e.id}')">Results</button>
         ${isAdmin ? `<button class="btn sm" onclick="editEvent('${e.id}')">Edit</button>` : ''}
         ${isAdmin && verified < count ? `<button class="btn sm" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="verifyAllRounds('${e.id}')">Verify all (${count - verified})</button>` : ''}
+        ${isAdmin && e.published ? `<button class="btn sm" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="recalcHandicaps('${e.id}')">Recalc handicaps</button>` : ''}
         ${isAdmin ? `<button class="btn sm" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="showPostUpdate('${e.id}')">Post update</button>` : ''}
         ${isAdmin ? `<button class="btn sm" style="background:${e.published?'#FCEBEB':'#fef8e6'};color:${e.published?'#A32D2D':'#8a6a1a'};border-color:${e.published?'#F7C1C1':'#C9A84C'}" onclick="togglePublishEvent('${e.id}',${!!e.published})">${e.published?'Unpublish':'Publish results'}</button>` : ''}
         ${isAdmin ? `<button class="btn sm danger" onclick="deleteEvent('${e.id}')">Delete</button>` : ''}
@@ -1807,15 +1808,16 @@ async function verifyAllRounds(eid) {
   const ev = db.events.find(e=>e.id===eid);
   const isOuting = ev && ev.event_type === 'outing_18';
   try {
-    // For weekly events, need all pts sorted to determine position for handicap calc
-    const eventRounds = db.rounds.filter(r=>r.event_id===eid && r.verified);
+    // Calculate all positions at once using full sorted list
+    const allRounds = db.rounds.filter(r=>r.event_id===eid);
+    const sortedPts = [...allRounds].sort((a,b)=>b.stableford_points-a.stableford_points);
+
     for (const r of unverified) {
       let newHcp;
       if (isOuting) {
         newHcp = calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points);
       } else {
-        const allPts = [...eventRounds.map(x=>x.stableford_points), r.stableford_points].sort((a,b)=>b-a);
-        const pos = allPts.indexOf(r.stableford_points) + 1;
+        const pos = sortedPts.findIndex(x=>x.id===r.id) + 1;
         newHcp = calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos);
       }
       await patch(`rounds?id=eq.${r.id}`, { verified: true, handicap_after: newHcp });
@@ -1824,6 +1826,30 @@ async function verifyAllRounds(eid) {
     toast(`${unverified.length} round${unverified.length!==1?'s':''} verified — handicaps updated!`, 'success');
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); btn.disabled = false; }
+}
+
+async function recalcHandicaps(eid) {
+  if (!confirm('Recalculate and update all player handicaps for this event? This will overwrite current handicap values.')) return;
+  const ev = db.events.find(e=>e.id===eid);
+  const isOuting = ev && ev.event_type === 'outing_18';
+  const rounds = db.rounds.filter(r=>r.event_id===eid && r.verified);
+  if (!rounds.length) { toast('No verified rounds found', 'error'); return; }
+  const sortedPts = [...rounds].sort((a,b)=>b.stableford_points-a.stableford_points);
+  try {
+    for (const r of rounds) {
+      let newHcp;
+      if (isOuting) {
+        newHcp = calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points);
+      } else {
+        const pos = sortedPts.findIndex(x=>x.id===r.id) + 1;
+        newHcp = calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos);
+      }
+      await patch(`rounds?id=eq.${r.id}`, { handicap_after: newHcp });
+      await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp });
+    }
+    toast('Handicaps recalculated and updated!', 'success');
+    await loadAll(); renderAll();
+  } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
 async function togglePublishEvent(eid, currentlyPublished) {
