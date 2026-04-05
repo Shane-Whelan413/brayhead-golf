@@ -935,8 +935,8 @@ function fmtDate(d) {
 function calcStableford(score, par, allowance) { return Math.max(0, par - (score - allowance) + 2); }
 function calcCourseHcp(idx, slope, cr, par) { return Math.round(idx); }
 function calcNewHcp(hcpIdx, totalPts, position) {
-  if (totalPts >= 18) {
-    return Math.max(0, Math.round(hcpIdx) - 1);
+  if (totalPts >= 17) {
+    return Math.max(0, parseFloat((hcpIdx - 1).toFixed(1)));
   } else if (position && position <= 3) {
     return hcpIdx;
   } else {
