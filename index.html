@@ -935,7 +935,7 @@ function fmtDate(d) {
 function calcStableford(score, par, allowance) { return Math.max(0, par - (score - allowance) + 2); }
 function calcCourseHcp(idx, slope, cr, par) { return Math.round(idx); }
 function calcNewHcp(hcpIdx, totalPts, position) {
-  if (totalPts >= 17) {
+  if (totalPts >= 18) {
     return Math.max(0, parseFloat((hcpIdx - 1).toFixed(1)));
   } else if (position && position <= 3) {
     return hcpIdx;
@@ -2545,6 +2545,11 @@ function showPlayerProfile(pid) {
         <div style="font-size:12px;color:#993C1D;margin-top:2px">3rd place</div>
       </div>
     </div>
+    ${countedRounds.length > 1 ? `
+    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;margin-top:1rem">Handicap progression</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:1rem">
+      <canvas id="modal-hcp-chart" style="width:100%;height:160px"></canvas>
+    </div>` : ''}
     ${countedRounds.length ? `
     <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Round history</div>
     ${[...countedRounds].sort((a,b)=>b.created_at?.localeCompare(a.created_at||'')||0).map(r=>{
@@ -2562,9 +2567,91 @@ function showPlayerProfile(pid) {
     }).join('')}` : '<div style="font-size:13px;color:var(--text-3);text-align:center;padding:1rem 0">No rounds played yet</div>'}
   `;
   document.getElementById('modal-overlay').classList.add('open');
-}
 
-function viewPlayerRounds(pid, name) {
+  // Draw handicap chart in modal if enough rounds
+  if (countedRounds.length > 1) {
+    setTimeout(() => {
+      const canvas = document.getElementById('modal-hcp-chart');
+      if (!canvas) return;
+      const sorted = [...countedRounds].sort((a,b)=>{
+        const ea=db.events.find(e=>e.id===a.event_id);
+        const eb=db.events.find(e=>e.id===b.event_id);
+        return (ea?.event_date||'').localeCompare(eb?.event_date||'');
+      });
+      const labels = sorted.map(r=>{ const ev=db.events.find(e=>e.id===r.event_id); return ev?ev.course_name.split(' ')[0]:'R'; });
+      const lastRound = sorted[sorted.length-1];
+      const allData   = [...sorted.map(r=>parseFloat(r.handicap_before)), parseFloat(lastRound.handicap_after)];
+      const allLabels = [...labels, 'Now'];
+
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.offsetWidth;
+      const h = 160;
+      canvas.width  = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width  = w + 'px';
+      canvas.style.height = h + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      const pad = { top:16, right:16, bottom:36, left:36 };
+      const cw = w - pad.left - pad.right;
+      const ch = h - pad.top - pad.bottom;
+      const minV = Math.max(0, Math.min(...allData) - 1);
+      const maxV = Math.max(...allData) + 1;
+      const range = maxV - minV || 1;
+      const xStep = cw / (allData.length - 1);
+      const yPos  = v => pad.top + ch - ((v - minV) / range) * ch;
+      const xPos  = i => pad.left + i * xStep;
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+      ctx.lineWidth = 1;
+      for (let i=0; i<=4; i++) {
+        const y = pad.top + (ch/4)*i;
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+cw, y); ctx.stroke();
+        const val = (maxV - (range/4)*i).toFixed(1);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(val, pad.left-4, y+3);
+      }
+
+      // Fill under line
+      ctx.beginPath();
+      ctx.moveTo(xPos(0), yPos(allData[0]));
+      allData.forEach((v,i) => ctx.lineTo(xPos(i), yPos(v)));
+      ctx.lineTo(xPos(allData.length-1), pad.top+ch);
+      ctx.lineTo(xPos(0), pad.top+ch);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(201,168,76,0.12)';
+      ctx.fill();
+
+      // Line
+      ctx.beginPath();
+      ctx.strokeStyle = '#C9A84C';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap  = 'round';
+      allData.forEach((v,i) => i===0 ? ctx.moveTo(xPos(i),yPos(v)) : ctx.lineTo(xPos(i),yPos(v)));
+      ctx.stroke();
+
+      // Dots + labels
+      allData.forEach((v,i) => {
+        ctx.beginPath();
+        ctx.arc(xPos(i), yPos(v), 4, 0, Math.PI*2);
+        ctx.fillStyle = '#C9A84C';
+        ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(allLabels[i], xPos(i), pad.top+ch+14);
+        ctx.fillStyle = '#8a6a1a';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText(v.toFixed(1), xPos(i), yPos(v)-8);
+      });
+    }, 80);
+  }
+}
   const rounds = db.rounds.filter(r=>r.player_id===pid).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
   const canEdit = isAdmin || (currentUser && currentUser.playerId===pid);
   document.getElementById('modal-title').textContent = `Rounds — ${name}`;
