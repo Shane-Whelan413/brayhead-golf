@@ -2652,6 +2652,8 @@ function showPlayerProfile(pid) {
     }, 80);
   }
 }
+
+function viewPlayerRounds(pid, name) {
   const rounds = db.rounds.filter(r=>r.player_id===pid).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
   const canEdit = isAdmin || (currentUser && currentUser.playerId===pid);
   document.getElementById('modal-title').textContent = `Rounds — ${name}`;
