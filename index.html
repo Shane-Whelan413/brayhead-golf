@@ -554,9 +554,21 @@
       </div>
       <div id="admin-dashboard"></div>
     </div>
-    <button onclick="showTab('knockout')" style="width:100%;margin-bottom:1rem;padding:14px;border-radius:var(--radius);border:1px solid var(--amber);background:var(--gold-light);color:var(--gold);font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+    <button onclick="showTab('knockout')" style="width:100%;margin-bottom:10px;padding:14px;border-radius:var(--radius);border:1px solid var(--amber);background:var(--gold-light);color:var(--gold);font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 10l-3 1.5.5-3.5L3 5.5l3.5-.5z"/></svg>
       2026 Knockout Competition
+    </button>
+    <button onclick="showStatsModal()" style="width:100%;margin-bottom:1rem;padding:13px 16px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:32px;height:32px;border-radius:8px;background:var(--green-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="6" y="5" width="3" height="10" rx="1"/><rect x="11" y="1" width="3" height="14" rx="1"/></svg>
+        </div>
+        <div style="text-align:left">
+          <div style="font-weight:500">Season stats</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:1px">Birdies · Pars · Eagles</div>
+        </div>
+      </div>
+      <span style="color:var(--text-3);font-size:18px">›</span>
     </button>
     <div id="noticeboard-feed"><div class="empty" style="padding:3rem">Loading updates…</div></div>
   </div>
@@ -768,6 +780,17 @@
     </div>
     <button class="btn primary" onclick="saveNewPin()" style="width:100%">Save new PIN</button>
     <div id="cp-error" style="color:#A32D2D;font-size:12px;margin-top:8px;display:none"></div>
+  </div>
+</div>
+
+<!-- STATS MODAL -->
+<div class="modal-overlay" id="stats-modal" onclick="maybeCloseStatsModal(event)">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-hdr">
+      <span class="modal-title">Season stats</span>
+      <button class="btn sm" onclick="closeStatsModal()">Close</button>
+    </div>
+    <div id="stats-modal-body"></div>
   </div>
 </div>
 
@@ -2211,6 +2234,103 @@ function renderHome() {
 
 function showAdminLogin() {
   showAdminLoginFromScreen();
+}
+
+function closeStatsModal() { document.getElementById('stats-modal').classList.remove('open'); }
+function maybeCloseStatsModal(e) { if(e.target===document.getElementById('stats-modal')) closeStatsModal(); }
+
+function showStatsModal() {
+  renderStatsModal('birdies');
+  document.getElementById('stats-modal').classList.add('open');
+}
+
+function calcPlayerStats() {
+  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+  const stats = {};
+
+  for (const player of db.players) {
+    stats[player.id] = { name: player.name, rounds: 0, birdies: 0, pars: 0, eagles: 0 };
+  }
+
+  for (const r of db.rounds.filter(x => x.verified && publishedEids.has(x.event_id))) {
+    if (!r.hole_scores) continue;
+    const ev = db.events.find(e => e.id === r.event_id);
+    const pl = db.players.find(p => p.id === r.player_id);
+    if (!ev || !pl || !stats[pl.id]) continue;
+    const n = ev.event_type === 'outing_18' ? 18 : 9;
+    const parVals = getParValues(n, ev, pl);
+    stats[pl.id].rounds++;
+    for (let i = 0; i < n; i++) {
+      const score = r.hole_scores[i];
+      const par   = parVals[i] || 4;
+      if (score == null) continue;
+      const diff = score - par;
+      if (diff <= -2) stats[pl.id].eagles++;
+      else if (diff === -1) stats[pl.id].birdies++;
+      else if (diff === 0)  stats[pl.id].pars++;
+    }
+  }
+  return Object.values(stats).filter(s => s.rounds > 0);
+}
+
+function renderStatsModal(tab) {
+  const allStats = calcPlayerStats();
+  const totalBirdies = allStats.reduce((s,p)=>s+p.birdies,0);
+  const totalPars    = allStats.reduce((s,p)=>s+p.pars,0);
+  const totalEagles  = allStats.reduce((s,p)=>s+p.eagles,0);
+
+  const tabData = {
+    birdies: { key:'birdies', label:'Most birdies', sub: p=>`${p.rounds} round${p.rounds!==1?'s':''} · avg ${p.rounds?(p.birdies/p.rounds).toFixed(1):0}/round` },
+    pars:    { key:'pars',    label:'Most pars',    sub: p=>`${p.rounds} round${p.rounds!==1?'s':''} · avg ${p.rounds?(p.pars/p.rounds).toFixed(1):0}/round` },
+    eagles:  { key:'eagles',  label:'Eagles',       sub: p=>`${p.rounds} round${p.rounds!==1?'s':''}` }
+  };
+
+  const { key, label, sub } = tabData[tab];
+  const sorted = [...allStats].sort((a,b) => b[key] - a[key]).filter(p => p[key] > 0);
+  const max = sorted.length ? sorted[0][key] : 1;
+
+  const posClass = i => i===0?'r1':i===1?'r2':i===2?'r3':'rn';
+  const posLabel = i => i===0?'1st':i===1?'2nd':i===2?'3rd':`${i+1}th`;
+
+  const rows = sorted.length ? sorted.map((p,i) => {
+    const pct = Math.round((p[key]/max)*100);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--border)">
+      <div class="rank ${posClass(i)}" style="flex-shrink:0">${posLabel(i)}</div>
+      <div class="avatar" style="flex-shrink:0">${initials(p.name)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:500;color:var(--text)">${p.name}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:1px">${sub(p)}</div>
+      </div>
+      <div style="width:80px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;flex-shrink:0">
+        <div style="width:${pct}%;height:100%;background:#C9A84C;border-radius:3px"></div>
+      </div>
+      <div style="font-size:16px;font-weight:600;color:var(--text);min-width:28px;text-align:right">${p[key]}</div>
+    </div>`;
+  }).join('') : `<div class="empty">No data yet</div>`;
+
+  const tabBtn = t => `<button onclick="renderStatsModal('${t}')" style="flex:1;padding:8px;border-radius:var(--radius);border:1px solid ${tab===t?'var(--green-dark)':'var(--border-strong)'};background:${tab===t?'var(--green-dark)':'transparent'};color:${tab===t?'#C9A84C':'var(--text-2)'};font-size:13px;font-weight:${tab===t?'600':'400'};font-family:'DM Sans',sans-serif;cursor:pointer">${t.charAt(0).toUpperCase()+t.slice(1)}</button>`;
+
+  document.getElementById('stats-modal-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:1rem">
+      <div style="background:var(--bg);border-radius:var(--radius);padding:10px;text-align:center">
+        <div style="font-size:22px;font-weight:600;color:var(--text)">${totalBirdies}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">Total birdies</div>
+      </div>
+      <div style="background:var(--bg);border-radius:var(--radius);padding:10px;text-align:center">
+        <div style="font-size:22px;font-weight:600;color:var(--text)">${totalPars}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">Total pars</div>
+      </div>
+      <div style="background:var(--bg);border-radius:var(--radius);padding:10px;text-align:center">
+        <div style="font-size:22px;font-weight:600;color:var(--text)">${totalEagles}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">Total eagles</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:1rem">
+      ${tabBtn('birdies')}${tabBtn('pars')}${tabBtn('eagles')}
+    </div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">${label} — all games</div>
+    ${rows}
+  `;
 }
 
 function closeAdminModal() { document.getElementById('admin-modal').classList.remove('open'); }
