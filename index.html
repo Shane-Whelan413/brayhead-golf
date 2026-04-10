@@ -2353,182 +2353,173 @@ function generateResultsCard(eid) {
   });
 
   const extItems = [];
-  if (notice && notice.closest_to_pin) extItems.push({ label:'CLOSEST TO PIN', value: notice.closest_to_pin });
-  if (notice && notice.birdies && notice.birdies.length) extItems.push({ label:'BIRDIES', value: notice.birdies.join(', ') });
-  if (isOuting && notice && notice.best_front_9) extItems.push({ label:'BEST FRONT 9', value: notice.best_front_9 });
-  if (isOuting && notice && notice.best_back_9)  extItems.push({ label:'BEST BACK 9',  value: notice.best_back_9 });
+  if (notice && notice.closest_to_pin) extItems.push({ label:'Closest to pin', value: notice.closest_to_pin });
+  if (notice && notice.birdies && notice.birdies.length) extItems.push({ label:'Birdies', value: notice.birdies.join(', ') });
+  if (isOuting && notice && notice.best_front_9) extItems.push({ label:'Best front 9', value: notice.best_front_9 });
+  if (isOuting && notice && notice.best_back_9)  extItems.push({ label:'Best back 9',  value: notice.best_back_9 });
 
-  // 1080px wide — standard mobile share size, sharp on all phones
-  const S = 2; // 2x scale for retina sharpness
-  const W = 1080, PAD = 60;
-  const ROW_H = 130, HEADER_H = 220, EXT_ROW_H = 100;
-  const H = HEADER_H + 60 + podium.length * ROW_H + (extItems.length ? 40 + extItems.length * EXT_ROW_H + 20 : 0) + 120;
+  // Narrow portrait — 580px wide, 3x retina, big readable text for older phones
+  const S = 3;
+  const W = 580, PAD = 32;
+  const HEADER_H = 170, ROW_H = 110, EXT_ROW_H = 88;
+  const H = HEADER_H + 50 + podium.length * ROW_H
+          + (extItems.length ? 36 + extItems.length * EXT_ROW_H + 16 : 0)
+          + 96;
 
   const NAVY = '#0c1c2e', GOLD = '#C9A84C', WHITE = '#ffffff';
-  const LIGHT = 'rgba(255,255,255,0.08)', LIGHTER = 'rgba(255,255,255,0.14)';
+  const LIGHT = 'rgba(255,255,255,0.09)', LIGHTER = 'rgba(255,255,255,0.14)';
   const medalColors = ['#FAC775','#D3D1C7','#F0997B'];
   const medalText   = ['#633806','#444441','#4A1B0C'];
   const posLabels   = ['1st','2nd','3rd'];
 
   const canvas = document.createElement('canvas');
-  canvas.width = W * S;
+  canvas.width  = W * S;
   canvas.height = H * S;
   const ctx = canvas.getContext('2d');
   ctx.scale(S, S);
 
-  // Background
   ctx.fillStyle = NAVY;
   ctx.fillRect(0, 0, W, H);
-
-  // Gold top & bottom bars
   ctx.fillStyle = GOLD;
-  ctx.fillRect(0, 0, W, 10);
-  ctx.fillRect(0, H-10, W, 10);
+  ctx.fillRect(0, 0, W, 8);
+  ctx.fillRect(0, H-8, W, 8);
 
-  // ── HEADER ──
+  // Header
   ctx.fillStyle = LIGHTER;
   ctx.beginPath();
-  ctx.roundRect(PAD, 28, W-PAD*2, HEADER_H - 10, 16);
+  ctx.roundRect(PAD, 20, W-PAD*2, HEADER_H, 14);
   ctx.fill();
-
-  // Logo circle
+  const cx = PAD+52, cy = 20+HEADER_H/2;
   ctx.fillStyle = GOLD;
   ctx.beginPath();
-  ctx.arc(PAD + 64, 28 + (HEADER_H-10)/2, 58, 0, Math.PI*2);
+  ctx.arc(cx, cy, 40, 0, Math.PI*2);
   ctx.fill();
   ctx.fillStyle = NAVY;
-  ctx.font = 'bold 34px DM Sans, sans-serif';
+  ctx.font = 'bold 22px DM Sans,sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('BH', PAD + 64, 28 + (HEADER_H-10)/2 + 12);
-
-  // Society & event info
-  const tx = PAD + 148;
+  ctx.fillText('BH', cx, cy+8);
+  const tx = PAD+108;
   ctx.fillStyle = WHITE;
-  ctx.font = 'bold 36px DM Sans, sans-serif';
+  ctx.font = 'bold 26px DM Sans,sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('Bray Head Golf Society', tx, 80);
+  ctx.fillText('Bray Head Golf Society', tx, cy-38);
   ctx.fillStyle = GOLD;
-  ctx.font = '500 26px DM Sans, sans-serif';
-  ctx.fillText(ev.course_name, tx, 122);
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = '22px DM Sans, sans-serif';
-  ctx.fillText(fmtDate(ev.event_date), tx, 160);
+  ctx.font = '500 21px DM Sans,sans-serif';
+  ctx.fillText(ev.course_name, tx, cy-10);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = '18px DM Sans,sans-serif';
+  ctx.fillText(fmtDate(ev.event_date), tx, cy+18);
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.font = '20px DM Sans, sans-serif';
-  ctx.fillText(isOuting ? '18-hole outing' : 'Sunday 9', tx, 192);
+  ctx.font = '16px DM Sans,sans-serif';
+  ctx.fillText(isOuting ? '18-hole outing' : 'Sunday 9', tx, cy+42);
 
-  // ── RESULTS LABEL ──
-  let cursor = HEADER_H + 32;
+  // Results label
+  let cursor = HEADER_H + 28;
   ctx.fillStyle = GOLD;
-  ctx.font = '600 18px DM Sans, sans-serif';
+  ctx.font = '600 15px DM Sans,sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText('RESULTS', PAD, cursor);
   ctx.fillStyle = 'rgba(201,168,76,0.25)';
-  ctx.fillRect(PAD, cursor + 10, W-PAD*2, 1.5);
-  cursor += 28;
+  ctx.fillRect(PAD, cursor+8, W-PAD*2, 1.5);
+  cursor += 22;
 
-  // ── PODIUM ROWS ──
+  // Podium rows
   podium.forEach((p, i) => {
     const y = cursor + i * ROW_H;
-    // Row background
+    const rowH = ROW_H - 8;
+    const mid = y + rowH/2;
     ctx.fillStyle = i===0 ? 'rgba(201,168,76,0.13)' : LIGHT;
     ctx.beginPath();
-    ctx.roundRect(PAD, y, W-PAD*2, ROW_H - 10, 12);
+    ctx.roundRect(PAD, y, W-PAD*2, rowH, 12);
     ctx.fill();
     if (i===0) {
       ctx.strokeStyle = 'rgba(201,168,76,0.4)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.roundRect(PAD, y, W-PAD*2, ROW_H - 10, 12);
+      ctx.roundRect(PAD, y, W-PAD*2, rowH, 12);
       ctx.stroke();
     }
-    const mid = y + (ROW_H-10)/2;
-    // Position badge
     ctx.fillStyle = medalColors[i];
     ctx.beginPath();
-    ctx.arc(PAD + 44, mid, 28, 0, Math.PI*2);
+    ctx.arc(PAD+30, mid, 22, 0, Math.PI*2);
     ctx.fill();
     ctx.fillStyle = medalText[i];
-    ctx.font = 'bold 16px DM Sans, sans-serif';
+    ctx.font = 'bold 13px DM Sans,sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(posLabels[i], PAD+44, mid+6);
-    // Avatar
+    ctx.fillText(posLabels[i], PAD+30, mid+5);
     ctx.fillStyle = NAVY;
     ctx.beginPath();
-    ctx.arc(PAD + 112, mid, 34, 0, Math.PI*2);
+    ctx.arc(PAD+82, mid, 28, 0, Math.PI*2);
     ctx.fill();
     ctx.strokeStyle = GOLD;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(PAD + 112, mid, 34, 0, Math.PI*2);
+    ctx.arc(PAD+82, mid, 28, 0, Math.PI*2);
     ctx.stroke();
     ctx.fillStyle = GOLD;
-    ctx.font = 'bold 18px DM Sans, sans-serif';
+    ctx.font = 'bold 15px DM Sans,sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(p.initials, PAD+112, mid+6);
-    // Name & sub
+    ctx.fillText(p.initials, PAD+82, mid+5);
     ctx.fillStyle = WHITE;
-    ctx.font = i===0 ? 'bold 30px DM Sans, sans-serif' : '500 27px DM Sans, sans-serif';
+    ctx.font = i===0 ? 'bold 26px DM Sans,sans-serif' : '500 24px DM Sans,sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(p.name, PAD+164, mid - 6);
+    ctx.fillText(p.name, PAD+122, mid-4);
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = '19px DM Sans, sans-serif';
-    ctx.fillText(p.lp + ' league pts', PAD+164, mid + 22);
-    // Points pill
-    const pillW = 110, pillH = 58, pillX = W - PAD - pillW;
+    ctx.font = '17px DM Sans,sans-serif';
+    ctx.fillText(p.lp+' league pts', PAD+122, mid+20);
+    const pillW=82, pillH=48, pillX=W-PAD-pillW;
     ctx.fillStyle = i===0 ? GOLD : LIGHTER;
     ctx.beginPath();
-    ctx.roundRect(pillX, mid - pillH/2, pillW, pillH, 10);
+    ctx.roundRect(pillX, mid-pillH/2, pillW, pillH, 10);
     ctx.fill();
     ctx.fillStyle = i===0 ? NAVY : WHITE;
-    ctx.font = 'bold 36px DM Sans, sans-serif';
+    ctx.font = 'bold 30px DM Sans,sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(p.pts, pillX + pillW/2, mid + 8);
+    ctx.fillText(p.pts, pillX+pillW/2, mid+7);
     ctx.fillStyle = i===0 ? 'rgba(12,28,46,0.5)' : 'rgba(255,255,255,0.4)';
-    ctx.font = '14px DM Sans, sans-serif';
-    ctx.fillText('pts', pillX + pillW/2, mid + 26);
+    ctx.font = '12px DM Sans,sans-serif';
+    ctx.fillText('pts', pillX+pillW/2, mid+22);
   });
 
-  // ── EXTRAS ──
+  // Extras
   if (extItems.length) {
-    const extY = cursor + podium.length * ROW_H + 20;
-    const extH = extItems.length * EXT_ROW_H + 24;
+    const extY = cursor + podium.length * ROW_H + 14;
+    const extH = extItems.length * EXT_ROW_H + 20;
     ctx.fillStyle = LIGHTER;
     ctx.beginPath();
-    ctx.roundRect(PAD, extY, W-PAD*2, extH, 14);
+    ctx.roundRect(PAD, extY, W-PAD*2, extH, 12);
     ctx.fill();
     extItems.forEach((item, i) => {
-      const iy = extY + 20 + i * EXT_ROW_H;
+      const iy = extY + 16 + i * EXT_ROW_H;
       if (i > 0) {
         ctx.fillStyle = 'rgba(255,255,255,0.08)';
-        ctx.fillRect(PAD+30, iy - 8, W-PAD*2-60, 1);
+        ctx.fillRect(PAD+20, iy-6, W-PAD*2-40, 1);
       }
       ctx.fillStyle = GOLD;
-      ctx.font = '600 16px DM Sans, sans-serif';
+      ctx.font = '600 14px DM Sans,sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(item.label, PAD+30, iy + 20);
+      ctx.fillText(item.label.toUpperCase(), PAD+20, iy+18);
       ctx.fillStyle = WHITE;
-      ctx.font = '500 24px DM Sans, sans-serif';
-      ctx.fillText(item.value, PAD+30, iy + 52);
+      ctx.font = '500 22px DM Sans,sans-serif';
+      ctx.fillText(item.value, PAD+20, iy+46);
     });
   }
 
-  // ── FOOTER ──
-  const footY = H - 100;
+  // Footer
+  const footY = H - 80;
   ctx.fillStyle = 'rgba(255,255,255,0.1)';
   ctx.fillRect(PAD, footY, W-PAD*2, 1);
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = '18px DM Sans, sans-serif';
+  ctx.font = '16px DM Sans,sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('Bray Head Golf Society · 2026 Season', W/2, footY + 30);
+  ctx.fillText('Bray Head Golf Society · 2026 Season', W/2, footY+26);
   ctx.fillStyle = GOLD;
-  ctx.font = '500 17px DM Sans, sans-serif';
-  ctx.fillText('shane-whelan413.github.io/brayhead-golf', W/2, footY + 56);
+  ctx.font = '500 15px DM Sans,sans-serif';
+  ctx.fillText('www.golfsoc.ie', W/2, footY+50);
 
-  // Download
   const link = document.createElement('a');
   const courseName = ev.course_name.replace(/\s+/g,'-').toLowerCase();
-  link.download = `bhgs-${courseName}-results.png`;
+  link.download = 'bhgs-'+courseName+'-results.png';
   link.href = canvas.toDataURL('image/png');
   link.click();
   toast('Results card downloaded — share to WhatsApp!', 'success');
