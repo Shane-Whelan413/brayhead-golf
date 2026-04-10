@@ -1379,17 +1379,23 @@ function buildHoleInputs(n) {
     </div><input type="hidden" id="h${i}">`;
   }
 
-  const front = Array.from({length:9},(_,i)=>makeRow(i+1)).join('');
-  const back  = Array.from({length:9},(_,i)=>makeRow(i+10)).join('');
-
-  wrap.innerHTML = `
-    <div class="nine-tabs">
-      <button class="nine-tab active" id="tab-front" onclick="switchNine('front')">Front 9</button>
-      <button class="nine-tab" id="tab-back" onclick="switchNine('back')">Back 9</button>
-    </div>
-    <div class="nine-panel active" id="panel-front">${makeHeader()}${front}</div>
-    <div class="nine-panel" id="panel-back">${makeHeader()}${back}</div>
-  `;
+  if (n === 9) {
+    // Sunday 9 — no tabs, just one panel
+    const front = Array.from({length:9},(_,i)=>makeRow(i+1)).join('');
+    wrap.innerHTML = `<div class="nine-panel active" id="panel-front">${makeHeader()}${front}</div>`;
+  } else {
+    // 18-hole outing — tabbed Front / Back
+    const front = Array.from({length:9},(_,i)=>makeRow(i+1)).join('');
+    const back  = Array.from({length:9},(_,i)=>makeRow(i+10)).join('');
+    wrap.innerHTML = `
+      <div class="nine-tabs">
+        <button class="nine-tab active" id="tab-front" onclick="switchNine('front')">Front 9</button>
+        <button class="nine-tab" id="tab-back" onclick="switchNine('back')">Back 9</button>
+      </div>
+      <div class="nine-panel active" id="panel-front">${makeHeader()}${front}</div>
+      <div class="nine-panel" id="panel-back">${makeHeader()}${back}</div>
+    `;
+  }
 
   // Restore cached scores
   const pid = document.getElementById('r-player')?.value;
