@@ -1008,6 +1008,43 @@ function tiebreakerCompare(a, b) {
   return 0;
 }
 
+// Calculates best front or back 9 for an 18-hole outing
+// half = 'front' (holes 0-8) or 'back' (holes 9-17)
+function calcBestHalf(rounds, half) {
+  const start = half === 'front' ? 0 : 9;
+  const end   = half === 'front' ? 9 : 18;
+
+  // Sum stableford pts for each player across their half
+  const totals = rounds.map(r => {
+    let pts = 0;
+    for (let i = start; i < end; i++) pts += calcHolePts(r, i);
+    return { r, pts };
+  });
+
+  // Sort by pts desc, tiebreak by last 3 holes of that half then backwards
+  totals.sort((a, b) => {
+    if (b.pts !== a.pts) return b.pts - a.pts;
+    // Tiebreaker: last 3 holes of the half (holes 7,8,9 for front / 16,17,18 for back)
+    let aLast = 0, bLast = 0;
+    for (let i = end - 3; i < end; i++) {
+      aLast += calcHolePts(a.r, i);
+      bLast += calcHolePts(b.r, i);
+    }
+    if (aLast !== bLast) return bLast - aLast;
+    // Then work backwards hole by hole
+    for (let i = end - 4; i >= start; i--) {
+      const aH = calcHolePts(a.r, i), bH = calcHolePts(b.r, i);
+      if (aH !== bH) return bH - aH;
+    }
+    return 0;
+  });
+
+  if (!totals.length) return null;
+  const winner = totals[0];
+  const player = db.players.find(p => p.id === winner.r.player_id);
+  return { name: player ? player.name : '?', pts: winner.pts };
+}
+
 function assignLeaguePts(rounds) {
   const sorted = [...rounds].sort((a,b) => {
     if (b.stableford_points !== a.stableford_points) return b.stableford_points - a.stableford_points;
@@ -2139,6 +2176,21 @@ function renderHome() {
       </div>` : '';
     const custom = n.custom_text ? `
       <div style="margin-top:10px;font-size:13px;color:var(--text-2);font-style:italic;border-left:3px solid var(--green);padding-left:10px">${n.custom_text}</div>` : '';
+    const isOutingPost = ev && ev.event_type === 'outing_18';
+    const frontBack = isOutingPost && (n.best_front_9 || n.best_back_9) ? `
+      <div style="margin-top:10px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Best front &amp; back 9</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div style="background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Front 9</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">⛳ ${n.best_front_9 || '—'}</div>
+          </div>
+          <div style="background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Back 9</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">⛳ ${n.best_back_9 || '—'}</div>
+          </div>
+        </div>
+      </div>` : '';
     return `<div class="card" style="margin-bottom:1rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <div>
@@ -2148,7 +2200,7 @@ function renderHome() {
         <span class="badge ${ev&&ev.event_type==='outing_18'?'purple':'green'}">${ev&&ev.event_type==='outing_18'?'Outing':'Sunday 9'}</span>
       </div>
       ${ranked.length ? `<div style="margin-bottom:4px">${podium}</div>` : ''}
-      ${ctp}${birdies}${custom}
+      ${frontBack}${ctp}${birdies}${custom}
       <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between">
         ${ev ? `<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C;font-weight:600">View full results →</button>` : '<span></span>'}
         ${isAdmin ? `<button class="btn sm danger" onclick="deleteNotice('${n.id}')">Remove</button>` : ''}
@@ -2188,12 +2240,40 @@ function showPostUpdate(eid) {
     return `<button type="button" id="birdie-${p.id}" onclick="toggleBirdie('${p.id}','${p.name.replace(/'/g,"\\'")}')" style="padding:6px 10px;border-radius:99px;border:1px solid ${selected?'var(--green)':'var(--border-strong)'};background:${selected?'var(--green-light)':'var(--bg)'};color:${selected?'var(--green-dark)':'var(--text)'};font-size:12px;font-family:var(--font-sans);cursor:pointer;transition:all 0.15s">${p.name.split(' ')[0]}</button>`;
   }).join('');
 
+  const isOuting = ev.event_type === 'outing_18';
+  const outingRounds = db.rounds.filter(r=>r.event_id===eid && r.verified);
+
+  // Front/back 9 — outings only
+  let frontBest = null, backBest = null;
+  if (isOuting && outingRounds.length) {
+    frontBest = calcBestHalf(outingRounds, 'front');
+    backBest  = calcBestHalf(outingRounds, 'back');
+  }
+
+  const frontBackHtml = isOuting ? `
+    <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-bottom:1rem">
+      <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Best front &amp; back 9 (auto)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:white;border-radius:8px;padding:10px;border:1px solid var(--border)">
+          <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Front 9</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${frontBest ? frontBest.name.split(' ')[0] + ' ' + frontBest.name.split(' ').slice(1).join(' ') : '—'}</div>
+          <div style="font-size:12px;color:#8a6a1a;font-weight:500">${frontBest ? frontBest.pts + ' pts' : ''}</div>
+        </div>
+        <div style="background:white;border-radius:8px;padding:10px;border:1px solid var(--border)">
+          <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Back 9</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${backBest ? backBest.name.split(' ')[0] + ' ' + backBest.name.split(' ').slice(1).join(' ') : '—'}</div>
+          <div style="font-size:12px;color:#8a6a1a;font-weight:500">${backBest ? backBest.pts + ' pts' : ''}</div>
+        </div>
+      </div>
+    </div>` : '';
+
   document.getElementById('post-update-title').textContent = `Post update — ${ev.course_name} (${fmtDate(ev.event_date)})`;
   document.getElementById('post-update-body').innerHTML = `
     <div style="margin-bottom:1rem">
       <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Results (auto from scores)</div>
       ${podiumHtml}
     </div>
+    ${frontBackHtml}
     <div class="form-group" style="margin-bottom:12px">
       <label>Closest to pin</label>
       <select id="pu-ctp" style="width:100%">
@@ -2242,14 +2322,27 @@ function toggleBirdie(pid, name) {
 }
 
 async function saveNotice(eid, existingId) {
+  const ev      = db.events.find(e=>e.id===eid);
+  const isOuting = ev && ev.event_type === 'outing_18';
   const ctp     = document.getElementById('pu-ctp').value || null;
   const birdies = [...selectedBirdies];
   const custom  = document.getElementById('pu-custom').value.trim() || null;
+
+  // Recalculate front/back 9 at save time for outings
+  let best_front_9 = null, best_back_9 = null;
+  if (isOuting) {
+    const outingRounds = db.rounds.filter(r=>r.event_id===eid && r.verified);
+    const front = calcBestHalf(outingRounds, 'front');
+    const back  = calcBestHalf(outingRounds, 'back');
+    if (front) best_front_9 = `${front.name} (${front.pts} pts)`;
+    if (back)  best_back_9  = `${back.name} (${back.pts} pts)`;
+  }
+
   try {
     if (existingId) {
-      await patch(`noticeboard?id=eq.${existingId}`, { closest_to_pin:ctp, birdies, custom_text:custom });
+      await patch(`noticeboard?id=eq.${existingId}`, { closest_to_pin:ctp, birdies, custom_text:custom, best_front_9, best_back_9 });
     } else {
-      await post('noticeboard', { event_id:eid, closest_to_pin:ctp, birdies, custom_text:custom });
+      await post('noticeboard', { event_id:eid, closest_to_pin:ctp, birdies, custom_text:custom, best_front_9, best_back_9 });
     }
     toast('Update posted to home page!', 'success');
     selectedBirdies.clear();
