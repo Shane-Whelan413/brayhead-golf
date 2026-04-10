@@ -701,8 +701,8 @@
   </div>
 
   <!-- ADD ROUND -->
-  <div id="add-round" class="section" style="margin:-1.5rem -1.5rem 0;overflow-x:hidden">
-    <div id="ar-header" style="background:#0a1628;padding:14px 16px 12px">
+  <div id="add-round" class="section" style="margin:-1.5rem -1.5rem 0;overflow-x:hidden;overscroll-behavior:contain">
+    <div id="ar-header" style="background:#0a1628;padding:14px 16px 12px;position:sticky;top:0;z-index:10">
       <div id="ar-event-name" style="font-size:16px;font-weight:700;color:white"></div>
       <div id="ar-event-date" style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;margin-bottom:12px"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px">
@@ -1354,15 +1354,22 @@ function buildHoleInputs(n) {
   const wrap = document.getElementById('hole-inputs');
 
   function makeHeader() {
-    return '<div style="display:grid;grid-template-columns:32px 32px 1fr 42px;background:#162338;padding:7px 16px;gap:4px">' +
-      ['#','Par','Score','Pts'].map(t=>`<span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.06em;text-align:center">${t}</span>`).join('') +
+    return '<div style="display:grid;grid-template-columns:28px 36px 36px 1fr 42px;background:#162338;padding:7px 12px;gap:4px">' +
+      ['#','Par','Idx','Score','Pts'].map(t=>`<span style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.06em;text-align:center">${t}</span>`).join('') +
       '</div>';
   }
 
   function makeRow(i) {
-    return `<div id="sc-row${i}" style="display:grid;grid-template-columns:32px 32px 1fr 42px;align-items:center;gap:4px;padding:0 16px;border-bottom:0.5px solid #e0d8c8;background:${i===1?'#fef8e6':i%2===0?'#fdfcf9':'white'};cursor:pointer" onclick="selectScorecardHole(${i})">
+    return `<div id="sc-row${i}" style="display:grid;grid-template-columns:28px 36px 36px 1fr 42px;align-items:center;gap:4px;padding:0 12px;border-bottom:0.5px solid #e0d8c8;background:${i===1?'#fef8e6':i%2===0?'#fdfcf9':'white'};cursor:pointer" onclick="selectScorecardHole(${i})">
       <div style="font-size:12px;font-weight:700;color:#9a9080;text-align:center;padding:10px 0">${i}</div>
-      <div style="font-size:12px;color:#9a9080;text-align:center;font-weight:500" id="sc-par${i}">—</div>
+      <div style="text-align:center">
+        <div style="font-size:12px;color:#9a9080;font-weight:500" id="sc-par${i}">—</div>
+        <div style="font-size:9px;color:#b8b0a0;margin-top:1px">par</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:12px;color:#9a9080;font-weight:500" id="sc-si${i}">—</div>
+        <div style="font-size:9px;color:#b8b0a0;margin-top:1px">idx</div>
+      </div>
       <div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 0">
         <button class="sc-adj" ontouchstart="event.preventDefault();event.stopPropagation();adjustScore(${i},-1)" onclick="event.stopPropagation();adjustScore(${i},-1)">−</button>
         <div class="sc-score-val sc-empty" id="sc-score${i}">—</div>
@@ -1712,10 +1719,12 @@ function updateRoundSummary() {
   const siVals  = getSIValues(n, ev, p || null);
   const parVals = getParValues(n, ev, p || null);
 
-  // Update par column in scorecard
+  // Update par and SI columns in scorecard
   for (let i=1; i<=n; i++) {
     const parEl = document.getElementById('sc-par'+i);
     if (parEl) parEl.textContent = parVals[i-1] || '—';
+    const siEl = document.getElementById('sc-si'+i);
+    if (siEl) siEl.textContent = siVals[i-1] || '—';
   }
 
   // Update pts per hole
