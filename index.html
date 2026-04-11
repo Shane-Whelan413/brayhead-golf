@@ -4692,7 +4692,7 @@ async function runScan() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': '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', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
-        model: 'claude-opus-4-5',
+        model: 'claude-3-5-sonnet-20241022',
         max_tokens: 1000,
         messages: [{
           role: 'user',
@@ -4728,8 +4728,9 @@ Respond ONLY with a JSON array, no explanation, no markdown:
     });
 
     const data = await response.json();
+    console.log('API response:', JSON.stringify(data));
     if (!response.ok || data.error) {
-      throw new Error(data.error?.message || `API error ${response.status}`);
+      throw new Error(data.error?.message || data.error?.type || `API error ${response.status}: ${JSON.stringify(data)}`);
     }
     const text = data.content.map(c=>c.text||'').join('');
     const clean = text.replace(/```json|```/g,'').trim();
