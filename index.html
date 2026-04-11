@@ -751,7 +751,7 @@
     <div id="ar-no-event" style="display:none;padding:2rem;text-align:center;color:#9a9080;font-size:13px;background:#f8f5ee"></div>
 
     <!-- Sticky save bar -->
-    <div id="ar-save-bar" style="position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-top:1px solid var(--border);padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 10px);z-index:50;display:none;">
+    <div id="ar-save-bar" style="position:fixed;bottom:calc(60px + env(safe-area-inset-bottom,0px));left:0;right:0;background:var(--bg);border-top:1px solid var(--border);padding:10px 16px 10px;z-index:50;display:none;">
       <div id="round-summary" class="summary-bar" style="margin-bottom:8px"></div>
       <button class="btn primary" id="btn-save-round" onclick="saveRound()" style="width:100%;padding:15px;font-size:16px;font-weight:700;border-radius:12px">Save round</button>
     </div>
