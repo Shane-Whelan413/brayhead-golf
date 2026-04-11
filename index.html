@@ -4400,6 +4400,7 @@ function updateUIForRole() {
   if (addPlayerCard) addPlayerCard.style.display = isAdmin ? '' : 'none';
   const createEventCard = document.getElementById('create-event-card');
   if (createEventCard) createEventCard.style.display = isAdmin ? '' : 'none';
+  const pinBtn = document.getElementById('pin-btn');
   if (pinBtn) pinBtn.style.display = (role === 'member' || role === 'admin') && currentUser.playerId ? '' : 'none';
 
   // FAB — grey out for viewers only
