@@ -4687,25 +4687,20 @@ async function runScan() {
   btn.innerHTML = '<span class="scan-spinner"></span>Reading card…';
   btn.disabled = true;
 
-  // Get event + player context
+  // Get event context only — player matched in review screen
   const eid = document.getElementById('r-event').value;
-  const pid = document.getElementById('r-player').value;
   const ev  = db.events.find(e=>e.id===eid);
-  const pl  = db.players.find(p=>p.id===pid);
   const n   = ev ? (ev.event_type==='outing_18' ? 18 : 9) : 9;
-  const parVals = ev ? getParValues(n, ev, pl||null) : Array.from({length:n},()=>4);
-  const siVals  = ev ? getSIValues(n, ev, pl||null)  : Array.from({length:n},(_,i)=>i+1);
-  const hcp = pl ? parseFloat(pl.handicap_index) : 0;
-  const { cr, slope, par: coursePar } = ev ? getCourseIndexForPlayer(pl, ev) : {cr:72,slope:113,par:72};
-  const isOuting = ev && ev.event_type === 'outing_18';
-  const courseHcp = ev ? (isOuting ? calcOutingCourseHcp(hcp,slope,cr,coursePar,pid) : calcCourseHcp(hcp,slope,cr,coursePar)) : Math.round(hcp/2);
-  // Max score = par + 2 + strokes received (gives 0 stableford points)
-  // e.g. par 4, SI 4, handicap 13 on 9 holes = 2 strokes, max = 4+2+2 = 8
-  const maxScores = parVals.map((p,i) => {
-    const strokes = getStrokeAllowance(courseHcp, siVals[i], n);
-    return p + 2 + strokes;
-  });
+  const parVals = ev ? getParValues(n, ev, null) : Array.from({length:n},()=>4);
+  const siVals  = ev ? getSIValues(n, ev, null)  : Array.from({length:n},(_,i)=>i+1);
+  // Placeholder max scores (par+2) — recalculated per player in review screen
+  const maxScores = parVals.map(p => p + 2);
   const parInfo = parVals.map((p,i)=>`Hole ${i+1}: Par ${p}, SI ${siVals[i]}, max score if no finish=${maxScores[i]}`).join(' | ');
+  // Store for recalc after player is matched
+  window._scanParVals = parVals;
+  window._scanSiVals  = siVals;
+  window._scanN       = n;
+  window._scanEid     = eid;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -4766,24 +4761,52 @@ ${parInfo}
   }
 }
 
+function calcScanMaxScores(pid) {
+  const parVals = window._scanParVals || [];
+  const siVals  = window._scanSiVals  || [];
+  const n       = window._scanN       || 9;
+  const eid     = window._scanEid     || '';
+  const ev      = db.events.find(e=>e.id===eid);
+  const pl      = db.players.find(p=>p.id===pid);
+  if (!pl || !ev) return parVals.map(p=>p+2);
+  const hcp = parseFloat(pl.handicap_index);
+  const { cr, slope, par: coursePar } = getCourseIndexForPlayer(pl, ev);
+  const isOuting = ev.event_type === 'outing_18';
+  const courseHcp = isOuting ? calcOutingCourseHcp(hcp,slope,cr,coursePar,pid) : calcCourseHcp(hcp,slope,cr,coursePar);
+  return parVals.map((p,i) => p + 2 + getStrokeAllowance(courseHcp, siVals[i], n));
+}
+
+function onScanPlayerChange(pi) {
+  const pid = document.getElementById('scan-player-'+pi)?.value;
+  if (!pid) return;
+  const maxScores = calcScanMaxScores(pid);
+  const parVals = window._scanParVals || [];
+  // Update any holes that have a max score value (no-score holes)
+  (_scanResults[pi]?.scores||[]).forEach((score, hi) => {
+    const inp = document.getElementById('scan-score-'+pi+'-'+hi);
+    if (!inp) return;
+    const par = parVals[hi]||4;
+    const oldMax = par + 2; // previous placeholder
+    // If current value matches the old placeholder max, update to correct max
+    if (parseInt(inp.value) === oldMax || inp.value === '' || inp.classList.contains('scan-warn')) {
+      inp.value = maxScores[hi];
+      inp.classList.remove('scan-warn');
+    }
+  });
+}
+
 function renderScanResults(results, n, parVals) {
   const body = document.getElementById('scan-results-body');
 
   body.innerHTML = results.map((player, pi) => `
     <div style="margin-bottom:20px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <div style="font-size:13px;font-weight:700;color:var(--text)">Player name on card:</div>
-        <input type="text" value="${player.player}" id="scan-pname-${pi}"
-          style="flex:1;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)">
-      </div>
-      <div style="margin-bottom:6px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <div style="font-size:12px;font-weight:600;color:var(--text-3)">Match to player:</div>
-          <select id="scan-player-${pi}" style="flex:1;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)">
-            <option value="">— select player —</option>
-            ${db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}
-          </select>
-        </div>
+      <div style="background:#f8f5ee;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Name on card: ${player.player}</div>
+        <select id="scan-player-${pi}" onchange="onScanPlayerChange(${pi})"
+          style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;background:white;color:var(--text)">
+          <option value="">— match to player —</option>
+          ${db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}
+        </select>
       </div>
       <table class="scan-table">
         <thead><tr><th>Hole</th><th>Par</th><th>Score</th></tr></thead>
@@ -4805,7 +4828,7 @@ function renderScanResults(results, n, parVals) {
     </div>
   `).join('');
 
-  // Auto-match players by name similarity
+  // Auto-match by name
   results.forEach((player, pi) => {
     const sel = document.getElementById('scan-player-'+pi);
     if (!sel) return;
@@ -4814,7 +4837,7 @@ function renderScanResults(results, n, parVals) {
       p.name.toLowerCase().includes(nameLower.split(' ')[0]) ||
       nameLower.includes(p.name.toLowerCase().split(' ')[0])
     );
-    if (match) sel.value = match.id;
+    if (match) { sel.value = match.id; onScanPlayerChange(pi); }
   });
 }
 
