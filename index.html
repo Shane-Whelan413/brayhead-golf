@@ -139,7 +139,7 @@
 
   /* Content padding for bottom nav and topbar */
   .content { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem 140px; overflow-x: hidden; height: calc(100vh - 60px); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-  .content.no-pad { padding: 0 0 0 0; }
+  .content.no-pad { padding: 0 !important; }
 
   /* Toasts above bottom nav */
   .toasts { bottom: 100px; }
@@ -711,10 +711,10 @@
   </div>
 
   <!-- ADD ROUND -->
-  <div id="add-round" class="section" style="margin:-1.5rem -1.5rem 0;overflow-x:hidden">
+  <div id="add-round" class="section" style="display:none;flex-direction:column;height:100%;overflow:hidden">
 
     <!-- Dark header — event info + live stats -->
-    <div id="ar-header" style="background:#0a1628;position:sticky;top:0;z-index:10">
+    <div id="ar-header" style="background:#0a1628;flex-shrink:0;">
       <div style="padding:14px 16px 10px">
         <div id="ar-event-name" style="font-size:17px;font-weight:700;color:white;line-height:1.2"></div>
         <div id="ar-event-date" style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:3px"></div>
@@ -749,11 +749,11 @@
     <input type="hidden" id="sb-hcp" />
 
     <!-- Hole rows -->
-    <div id="hole-inputs" style="background:var(--surface)"></div>
+    <div id="hole-inputs" style="background:var(--surface);overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;overscroll-behavior:contain"></div>
     <div id="ar-no-event" style="display:none;padding:2rem;text-align:center;color:#9a9080;font-size:13px;background:#f8f5ee"></div>
 
     <!-- Sticky save bar -->
-    <div class="ar-save-bar">
+    <div style="flex-shrink:0;background:var(--bg);border-top:1px solid var(--border);padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 10px);">
       <div id="round-summary" class="summary-bar" style="margin-bottom:8px"></div>
       <button class="btn primary" id="btn-save-round" onclick="saveRound()" style="width:100%;padding:15px;font-size:16px;font-weight:700;border-radius:12px">Save round</button>
     </div>
@@ -4140,9 +4140,11 @@ function showTab(name) {
   const tabs = ['home','leaderboard','add-round','profile','schedule'];
   const i = tabs.indexOf(name);
   if (i>=0) document.querySelectorAll('.nav-btn')[i].classList.add('active');
-  // Remove content padding for add-round (it manages its own layout)
+  // Remove content padding for add-round and set correct display
   const contentEl = document.querySelector('.content');
   if (contentEl) contentEl.classList.toggle('no-pad', name === 'add-round');
+  const arEl = document.getElementById('add-round');
+  if (arEl) arEl.style.display = name === 'add-round' ? 'flex' : '';
   // Re-render fresh every time these tabs are opened
   if (name === 'profile') safeRender(renderProfile);
   if (name === 'add-round') safeRender(renderAddRound);
