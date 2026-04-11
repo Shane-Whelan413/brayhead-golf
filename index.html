@@ -709,10 +709,10 @@
   </div>
 
   <!-- ADD ROUND -->
-  <div id="add-round" class="section" style="margin:-1.5rem -1.5rem 0;overflow-x:hidden;padding-bottom:120px">
+  <div id="add-round" class="section" style="position:fixed;top:calc(60px + env(safe-area-inset-top,0px));left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom,0px));display:none;flex-direction:column;background:var(--bg);z-index:5;">
 
     <!-- Dark header — event info + live stats -->
-    <div id="ar-header" style="background:#0a1628;position:sticky;top:0;z-index:10;">
+    <div id="ar-header" style="background:#0a1628;flex-shrink:0;">
       <div style="padding:14px 16px 10px">
         <div id="ar-event-name" style="font-size:17px;font-weight:700;color:white;line-height:1.2"></div>
         <div id="ar-event-date" style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:3px"></div>
@@ -742,18 +742,18 @@
       </div>
     </div>
 
-    <!-- Hidden inputs -->
+    <!-- Scrollable hole rows -->
     <input type="hidden" id="r-event" />
     <input type="hidden" id="sb-hcp" />
+    <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;">
+      <div id="hole-inputs" style="background:var(--surface)"></div>
+      <div id="ar-no-event" style="display:none;padding:2rem;text-align:center;color:#9a9080;font-size:13px"></div>
+    </div>
 
-    <!-- Hole rows -->
-    <div id="hole-inputs" style="background:var(--surface)"></div>
-    <div id="ar-no-event" style="display:none;padding:2rem;text-align:center;color:#9a9080;font-size:13px;background:#f8f5ee"></div>
-
-    <!-- Sticky save bar -->
-    <div id="ar-save-bar" style="position:fixed;bottom:calc(60px + env(safe-area-inset-bottom,0px));left:0;right:0;background:var(--bg);border-top:1px solid var(--border);padding:10px 16px 10px;z-index:50;display:none;">
+    <!-- Save bar pinned at bottom -->
+    <div id="ar-save-bar" style="flex-shrink:0;background:var(--bg);border-top:1px solid var(--border);padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 4px);display:none;">
       <div id="round-summary" class="summary-bar" style="margin-bottom:8px"></div>
-      <button class="btn primary" id="btn-save-round" onclick="saveRound()" style="width:100%;padding:15px;font-size:16px;font-weight:700;border-radius:12px">Save round</button>
+      <button class="btn primary" id="btn-save-round" onclick="saveRound()" style="width:100%;padding:14px;font-size:16px;font-weight:700;border-radius:12px">Save round</button>
     </div>
 
   </div>
@@ -4138,14 +4138,12 @@ function showTab(name) {
   const tabs = ['home','leaderboard','add-round','profile','schedule'];
   const i = tabs.indexOf(name);
   if (i>=0) document.querySelectorAll('.nav-btn')[i].classList.add('active');
-  // Show/hide fixed save bar for add-round tab
+  // add-round is position:fixed — show as flex, hide others as none
+  const arEl = document.getElementById('add-round');
+  if (arEl) arEl.style.display = name === 'add-round' ? 'flex' : 'none';
+  // Show save bar when entering add-round
   const arSaveBar = document.getElementById('ar-save-bar');
   if (arSaveBar) arSaveBar.style.display = name === 'add-round' ? 'block' : 'none';
-  // Scroll to top when entering add-round so header is visible
-  if (name === 'add-round') {
-    const contentEl = document.querySelector('.content');
-    if (contentEl) contentEl.scrollTop = 0;
-  }
   // Re-render fresh every time these tabs are opened
   if (name === 'profile') safeRender(renderProfile);
   if (name === 'add-round') safeRender(renderAddRound);
