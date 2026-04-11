@@ -454,7 +454,7 @@
   .nine-panel.active { display:block; }
 
   /* ── Scorecard scanner ── */
-  .scan-modal { background:var(--surface);border-radius:var(--radius-xl);width:100%;max-width:480px;height:90vh;display:flex;flex-direction:column;overflow:hidden; }
+  .scan-modal { background:var(--surface);border-radius:14px 14px 0 0;width:100%;max-width:480px;height:92vh;display:flex;flex-direction:column;overflow:hidden;position:fixed;bottom:0;left:0;right:0;margin:0 auto; }
   .scan-preview { width:100%;max-height:200px;object-fit:contain;background:#111;display:block; }
   .scan-table { width:100%;border-collapse:collapse;font-size:14px; }
   .scan-table th { background:#162338;color:rgba(255,255,255,0.6);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;text-align:left; }
@@ -777,7 +777,7 @@
   </div>
 
   <!-- SCORECARD SCANNER MODAL -->
-  <div class="modal-overlay" id="scanner-modal" onclick="maybeCloseScanner(event)" style="z-index:200">
+  <div class="modal-overlay" id="scanner-modal" onclick="maybeCloseScanner(event)" style="z-index:200;align-items:flex-end;padding:0">
     <div class="scan-modal">
       <div style="background:#0a1628;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
         <span style="font-size:16px;font-weight:700;color:white">Scan scorecard</span>
@@ -4699,10 +4699,11 @@ async function runScan() {
   const { cr, slope, par: coursePar } = ev ? getCourseIndexForPlayer(pl, ev) : {cr:72,slope:113,par:72};
   const isOuting = ev && ev.event_type === 'outing_18';
   const courseHcp = ev ? (isOuting ? calcOutingCourseHcp(hcp,slope,cr,coursePar,pid) : calcCourseHcp(hcp,slope,cr,coursePar)) : Math.round(hcp/2);
-  // Max score per hole = par + strokes received on that hole + 1 (gives 0 stableford points)
+  // Max score = par + 2 + strokes received (gives 0 stableford points)
+  // e.g. par 4, SI 4, handicap 13 on 9 holes = 2 strokes, max = 4+2+2 = 8
   const maxScores = parVals.map((p,i) => {
     const strokes = getStrokeAllowance(courseHcp, siVals[i], n);
-    return p + strokes + 1;
+    return p + 2 + strokes;
   });
   const parInfo = parVals.map((p,i)=>`Hole ${i+1}: Par ${p}, SI ${siVals[i]}, max score if no finish=${maxScores[i]}`).join(' | ');
 
