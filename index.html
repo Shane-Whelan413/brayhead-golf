@@ -4642,18 +4642,37 @@ function resetScanner() {
   document.getElementById('scan-file-input').value = '';
 }
 
+let _scanMediaType = 'image/jpeg';
+
 function handleScanImage(e) {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    const dataUrl = ev.target.result;
-    _scanImageBase64 = dataUrl.split(',')[1]; // strip data:image/...;base64,
+
+  // Convert any image to JPEG via canvas to ensure API compatibility
+  const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
+  img.onload = function() {
+    const canvas = document.createElement('canvas');
+    // Resize if too large (max 1600px wide to keep payload reasonable)
+    const maxW = 1600;
+    const scale = img.width > maxW ? maxW / img.width : 1;
+    canvas.width  = Math.round(img.width  * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    _scanImageBase64 = dataUrl.split(',')[1];
+    _scanMediaType   = 'image/jpeg';
+    URL.revokeObjectURL(objectUrl);
     document.getElementById('scan-preview-img').src = dataUrl;
     document.getElementById('scan-step-upload').style.display = 'none';
     document.getElementById('scan-step-preview').style.display = 'flex';
   };
-  reader.readAsDataURL(file);
+  img.onerror = function() {
+    URL.revokeObjectURL(objectUrl);
+    toast('Could not load image — try a different photo', 'error');
+  };
+  img.src = objectUrl;
 }
 
 async function runScan() {
@@ -4680,7 +4699,7 @@ async function runScan() {
           content: [
             {
               type: 'image',
-              source: { type: 'base64', media_type: 'image/jpeg', data: _scanImageBase64 }
+              source: { type: 'base64', media_type: _scanMediaType, data: _scanImageBase64 }
             },
             {
               type: 'text',
@@ -4709,8 +4728,11 @@ Respond ONLY with a JSON array, no explanation, no markdown:
     });
 
     const data = await response.json();
+    if (!response.ok || data.error) {
+      throw new Error(data.error?.message || `API error ${response.status}`);
+    }
     const text = data.content.map(c=>c.text||'').join('');
-    const clean = text.replace(/\`\`\`json|\`\`\`/g,'').trim();
+    const clean = text.replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(clean);
 
     _scanResults = parsed;
@@ -4720,7 +4742,8 @@ Respond ONLY with a JSON array, no explanation, no markdown:
     document.getElementById('scan-step-results').style.display = 'flex';
 
   } catch(err) {
-    toast('Scan failed: ' + err.message, 'error');
+    console.error('Scan error full:', err);
+    toast('Scan failed: ' + (err.message || String(err)), 'error');
     btn.innerHTML = 'Scan scorecard';
     btn.disabled = false;
   }
