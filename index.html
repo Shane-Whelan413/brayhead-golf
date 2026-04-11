@@ -4698,7 +4698,7 @@ async function runScan() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': getAnthropicKey(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-3-haiku-20240307',
         max_tokens: 1000,
         messages: [{
           role: 'user',
@@ -4736,7 +4736,7 @@ Respond ONLY with a JSON array, no explanation, no markdown:
     const data = await response.json();
     console.log('API response:', JSON.stringify(data));
     if (!response.ok || data.error) {
-      throw new Error(data.error?.message || data.error?.type || `API error ${response.status}: ${JSON.stringify(data)}`);
+      throw new Error(data.error?.message || data.error?.type || `HTTP ${response.status}`);
     }
     const text = data.content.map(c=>c.text||'').join('');
     const clean = text.replace(/```json|```/g,'').trim();
@@ -4877,18 +4877,16 @@ function saveAnthropicKey(key) {
 
 function openApiKeyModal() {
   const current = getAnthropicKey();
-  const key = prompt(
-    'Enter your Anthropic API key\n(stored on this device only, never sent to GitHub)',
-    current ? '••••••••' + current.slice(-8) : ''
-  );
-  if (key === null) return; // cancelled
-  if (key && key.startsWith('sk-ant-')) {
+  const msg = current
+    ? `Current key: ...${current.slice(-8)}\n\nPaste a new key to replace it, or leave blank to keep current:`
+    : 'Paste your Anthropic API key (starts with sk-ant-):';
+  const key = prompt(msg, '');
+  if (key === null || key === '') return; // cancelled or blank
+  if (key.startsWith('sk-ant-')) {
     saveAnthropicKey(key);
-    toast('API key saved to this device', 'success');
-  } else if (key === '' || key === '••••••••' + (current||'').slice(-8)) {
-    // unchanged or cleared
+    toast('API key saved', 'success');
   } else {
-    toast('Invalid key — should start with sk-ant-', 'error');
+    toast('Invalid — key should start with sk-ant-', 'error');
   }
 }
 
