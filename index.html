@@ -454,7 +454,7 @@
   .nine-panel.active { display:block; }
 
   /* ── Scorecard scanner ── */
-  .scan-modal { background:var(--surface);border-radius:14px 14px 0 0;width:100%;max-width:480px;height:92vh;display:flex;flex-direction:column;overflow:hidden;position:fixed;bottom:0;left:0;right:0;margin:0 auto;z-index:201; }
+  .scan-modal { background:var(--surface);border-radius:var(--radius-xl);width:calc(100% - 32px);max-width:480px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden; }
   .scan-preview { width:100%;max-height:200px;object-fit:contain;background:#111;display:block; }
   .scan-table { width:100%;border-collapse:collapse;font-size:14px; }
   .scan-table th { background:#162338;color:rgba(255,255,255,0.6);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;text-align:left; }
@@ -777,8 +777,8 @@
   </div>
 
   <!-- SCORECARD SCANNER MODAL -->
-  <div class="modal-overlay" id="scanner-modal" onclick="maybeCloseScanner(event)" style="z-index:200;align-items:flex-end;padding:0">
-    <div class="scan-modal" style="display:flex;flex-direction:column;">
+  <div class="modal-overlay" id="scanner-modal" onclick="maybeCloseScanner(event)" style="z-index:200">
+    <div class="scan-modal">
       <div style="background:#0a1628;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
         <span style="font-size:16px;font-weight:700;color:white">Scan scorecard</span>
         <button onclick="closeScanner()" style="background:rgba(255,255,255,0.1);border:none;border-radius:8px;padding:6px 12px;color:white;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer">Close</button>
