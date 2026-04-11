@@ -359,7 +359,7 @@
   .modal-overlay {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
     z-index: 600; align-items: flex-start; justify-content: center;
-    padding: 60px 1rem 1rem;
+    padding: calc(60px + env(safe-area-inset-top, 0px)) 1rem calc(env(safe-area-inset-bottom, 0px) + 1rem);
     min-height: 100vh;
   }
   .modal-overlay.open { display: flex; }
