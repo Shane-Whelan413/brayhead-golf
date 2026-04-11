@@ -454,7 +454,7 @@
   .nine-panel.active { display:block; }
 
   /* ── Scorecard scanner ── */
-  .scan-modal { background:var(--surface);border-radius:var(--radius-xl);width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden; }
+  .scan-modal { background:var(--surface);border-radius:var(--radius-xl);width:100%;max-width:480px;height:90vh;display:flex;flex-direction:column;overflow:hidden; }
   .scan-preview { width:100%;max-height:200px;object-fit:contain;background:#111;display:block; }
   .scan-table { width:100%;border-collapse:collapse;font-size:14px; }
   .scan-table th { background:#162338;color:rgba(255,255,255,0.6);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;text-align:left; }
@@ -815,9 +815,9 @@
         <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
           <div id="scan-results-body" style="padding:12px 16px"></div>
         </div>
-        <div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px">
+        <div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;background:var(--bg)">
           <button onclick="resetScanner()" class="btn" style="flex:1">Re-scan</button>
-          <button onclick="loadScanResults()" class="btn primary" style="flex:2">Load into round entry</button>
+          <button onclick="loadScanResults()" class="btn primary" style="flex:2;padding:13px;font-size:15px;font-weight:700">Load scores</button>
         </div>
       </div>
 
@@ -4687,12 +4687,24 @@ async function runScan() {
   btn.innerHTML = '<span class="scan-spinner"></span>Reading card…';
   btn.disabled = true;
 
-  // Get event context to help the AI
+  // Get event + player context
   const eid = document.getElementById('r-event').value;
+  const pid = document.getElementById('r-player').value;
   const ev  = db.events.find(e=>e.id===eid);
+  const pl  = db.players.find(p=>p.id===pid);
   const n   = ev ? (ev.event_type==='outing_18' ? 18 : 9) : 9;
-  const parVals = ev ? getParValues(n, ev, null) : Array.from({length:n},()=>4);
-  const parInfo = parVals.map((p,i)=>`Hole ${i+1}: Par ${p}`).join(', ');
+  const parVals = ev ? getParValues(n, ev, pl||null) : Array.from({length:n},()=>4);
+  const siVals  = ev ? getSIValues(n, ev, pl||null)  : Array.from({length:n},(_,i)=>i+1);
+  const hcp = pl ? parseFloat(pl.handicap_index) : 0;
+  const { cr, slope, par: coursePar } = ev ? getCourseIndexForPlayer(pl, ev) : {cr:72,slope:113,par:72};
+  const isOuting = ev && ev.event_type === 'outing_18';
+  const courseHcp = ev ? (isOuting ? calcOutingCourseHcp(hcp,slope,cr,coursePar,pid) : calcCourseHcp(hcp,slope,cr,coursePar)) : Math.round(hcp/2);
+  // Max score per hole = par + strokes received on that hole + 1 (gives 0 stableford points)
+  const maxScores = parVals.map((p,i) => {
+    const strokes = getStrokeAllowance(courseHcp, siVals[i], n);
+    return p + strokes + 1;
+  });
+  const parInfo = parVals.map((p,i)=>`Hole ${i+1}: Par ${p}, SI ${siVals[i]}, max score if no finish=${maxScores[i]}`).join(' | ');
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -4710,17 +4722,20 @@ async function runScan() {
             },
             {
               type: 'text',
-              text: `Extract golf scores from this scorecard. ${n} holes. ${parInfo}.
+              text: `Extract golf scores from this scorecard. ${n} holes.
 
 OUTPUT ONLY A JSON ARRAY. NO OTHER TEXT. NO EXPLANATION. START WITH [ AND END WITH ].
 
-Rules:
-- Extract gross strokes per hole (not stableford points)
-- Dash, X, cross, or blank = player did not finish hole, use par+2: holes are ${parVals.map((p,i)=>`hole ${i+1}=${p+2}`).join(', ')}
-- Illegible score = null
-- Multiple players = multiple objects in array
+IMPORTANT:
+- Only extract the FIRST player on the card. This is usually labelled "A" or is the top row.
+- Ignore all other players (B, C, D rows).
+- Extract GROSS STROKES only (how many times they hit the ball). NOT stableford points.
+- If a hole has a dash, X, cross, or is scratched out = player did not finish. Use these max scores: ${maxScores.map((m,i)=>`hole ${i+1}=${m}`).join(', ')}
+- If genuinely illegible = null
 
-[{"player":"name or Player 1","scores":[h1,h2,h3,h4,h5,h6,h7,h8,h9]}]`
+${parInfo}
+
+[{"player":"name from card or Player A","scores":[${Array.from({length:n},(_,i)=>`h${i+1}`).join(',')}]}]`
             }
           ]
         }]
