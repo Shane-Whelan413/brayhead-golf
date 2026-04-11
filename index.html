@@ -4710,24 +4710,17 @@ async function runScan() {
             },
             {
               type: 'text',
-              text: `This is a golf scorecard for a ${n}-hole round. Course info: ${parInfo}.
+              text: `Extract golf scores from this scorecard. ${n} holes. ${parInfo}.
 
-Extract the gross score (number of strokes, NOT stableford points) for each hole.
-If there are multiple players on the card, extract all of them.
+OUTPUT ONLY A JSON ARRAY. NO OTHER TEXT. NO EXPLANATION. START WITH [ AND END WITH ].
 
-IMPORTANT RULES:
-- If a hole shows a dash (—), cross (X), crossed-out score, or is blank, the player did not complete that hole. Use the value ${parVals.map((p,i)=>p+2).join(',')} for holes 1-${n} respectively (par+2 = 0 stableford points, which is the max score used in this scoring system).
-- Only extract gross stroke counts (how many times they hit the ball). Do not extract stableford points.
-- Scores should be realistic: typically 1-10 strokes per hole.
-- If a score is genuinely illegible (smudged, torn), use null.
+Rules:
+- Extract gross strokes per hole (not stableford points)
+- Dash, X, cross, or blank = player did not finish hole, use par+2: holes are ${parVals.map((p,i)=>`hole ${i+1}=${p+2}`).join(', ')}
+- Illegible score = null
+- Multiple players = multiple objects in array
 
-Respond ONLY with a JSON array, no explanation, no markdown:
-[
-  {
-    "player": "player name or 'Player 1' if unclear",
-    "scores": [hole1_score, hole2_score, ..., hole${n}_score]
-  }
-]`
+[{"player":"name or Player 1","scores":[h1,h2,h3,h4,h5,h6,h7,h8,h9]}]`
             }
           ]
         }]
