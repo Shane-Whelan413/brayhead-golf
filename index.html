@@ -808,17 +808,16 @@
       </div>
 
       <!-- Step 3: Review & edit results -->
-      <div id="scan-step-results" style="display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden">
-        <div style="padding:10px 16px;background:#fef8e6;border-bottom:1px solid #e8d899;flex-shrink:0">
-          <div style="font-size:13px;font-weight:600;color:#8a6a1a">Review scanned scores — edit anything that looks wrong</div>
+      <div id="scan-step-results" style="display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1">
+        <div style="padding:10px 16px;background:#fef8e6;border-bottom:1px solid #e8d899;position:sticky;top:0;z-index:2">
+          <div style="font-size:13px;font-weight:600;color:#8a6a1a">Review scores — edit anything wrong, then tap Load</div>
         </div>
-        <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
-          <div id="scan-results-body" style="padding:12px 16px"></div>
-        </div>
-        <div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;background:var(--bg)">
+        <div id="scan-results-body" style="padding:12px 16px"></div>
+        <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;background:var(--bg)">
           <button onclick="resetScanner()" class="btn" style="flex:1">Re-scan</button>
           <button onclick="loadScanResults()" class="btn primary" style="flex:2;padding:13px;font-size:15px;font-weight:700">Load scores</button>
         </div>
+        <div style="height:20px"></div>
       </div>
 
     </div>
