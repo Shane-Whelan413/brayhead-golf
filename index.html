@@ -1067,7 +1067,7 @@ function fmtDate(d) {
 }
 
 function calcStableford(score, par, allowance) { return Math.max(0, par - (score - allowance) + 2); }
-function calcCourseHcp(idx, slope, cr, par) { return Math.round(idx); }
+function calcCourseHcp(idx, slope, cr, par) { return Math.min(18, Math.round(idx)); }
 function calcNewHcp(hcpIdx, totalPts, position) {
   if (totalPts >= 18) {
     return Math.max(0, parseFloat((hcpIdx - 1).toFixed(1)));
@@ -1104,7 +1104,7 @@ function calcOutingCourseHcp(hcpIdx, slope, cr, par, playerId) {
   // Multiply raw index by 2 first, THEN round — avoids rounding up 13.5 → 14 before doubling
   const prevWinner = getPreviousOutingWinnerId();
   const bonus = (prevWinner && prevWinner === playerId) ? 0 : 2;
-  return Math.round(hcpIdx * 2) + bonus;
+  return Math.min(36, Math.round(hcpIdx * 2) + bonus);
 }
 
 function calcHolePts(r, holeIndex) {
