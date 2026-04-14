@@ -1101,11 +1101,10 @@ function getPreviousOutingWinnerId() {
 }
 
 function calcOutingCourseHcp(hcpIdx, slope, cr, par, playerId) {
-  const base = calcCourseHcp(hcpIdx, slope, cr, par) * 2;
+  // Multiply raw index by 2 first, THEN round — avoids rounding up 13.5 → 14 before doubling
   const prevWinner = getPreviousOutingWinnerId();
-  // Previous outing winner skips the +2
-  if (prevWinner && prevWinner === playerId) return base;
-  return base + 2;
+  const bonus = (prevWinner && prevWinner === playerId) ? 0 : 2;
+  return Math.round(hcpIdx * 2) + bonus;
 }
 
 function calcHolePts(r, holeIndex) {
