@@ -2152,6 +2152,14 @@ async function recalcHandicaps(eid) {
       await patch(`rounds?id=eq.${r.id}`, { handicap_after: newHcp });
       await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp });
     }
+    // Reassign outing penalties for top 3
+    if (isOuting) {
+      const ranked = assignLeaguePts(rounds.map(r=>({...r}))).slice(0, 3);
+      const penaltyMap = [-4, -3, -2];
+      for (let i = 0; i < ranked.length; i++) {
+        await patch(`players?id=eq.${ranked[i].player_id}`, { outing_penalty: penaltyMap[i] });
+      }
+    }
     toast('Handicaps recalculated and updated!', 'success');
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
