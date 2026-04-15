@@ -1087,24 +1087,13 @@ function calcNewHcpOuting(hcpIdx, totalPts) {
   }
 }
 
-function getPreviousOutingWinnerId() {
-  // Find the last published outing event
-  const outings = db.events
-    .filter(e => e.event_type === 'outing_18' && e.published)
-    .sort((a,b) => b.event_date.localeCompare(a.event_date));
-  if (!outings.length) return null;
-  const lastOuting = outings[0];
-  const outingRounds = db.rounds.filter(r => r.event_id === lastOuting.id && r.verified);
-  if (!outingRounds.length) return null;
-  const sorted = assignLeaguePts(outingRounds.map(r=>({...r})));
-  return sorted[0]?.player_id || null;
-}
-
 function calcOutingCourseHcp(hcpIdx, slope, cr, par, playerId) {
   // Multiply raw index by 2 first, THEN round — avoids rounding up 13.5 → 14 before doubling
-  const prevWinner = getPreviousOutingWinnerId();
-  const bonus = (prevWinner && prevWinner === playerId) ? 0 : 2;
-  return Math.min(36, Math.round(hcpIdx * 2) + bonus);
+  const base = Math.min(36, Math.round(hcpIdx * 2) + 2);
+  // Apply any pending outing penalty stored on the player record (−4, −3, or −2)
+  const player = db.players.find(p => p.id === playerId);
+  const penalty = (player && player.outing_penalty) ? player.outing_penalty : 0;
+  return base + penalty; // penalty is negative so this subtracts
 }
 
 function calcHolePts(r, holeIndex) {
@@ -2120,8 +2109,26 @@ async function verifyAllRounds(eid) {
       }
       await patch(`rounds?id=eq.${r.id}`, { verified: true, handicap_after: newHcp });
       await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp });
+      // Clear any pending outing penalty for players who played this outing
+      if (isOuting) {
+        await patch(`players?id=eq.${r.player_id}`, { outing_penalty: null });
+      }
     }
-    toast(`${unverified.length} round${unverified.length!==1?'s':''} verified — handicaps updated!`, 'success');
+
+    // After an outing, assign new penalties to top 3 finishers
+    if (isOuting) {
+      const allVerified = db.rounds.filter(r=>r.event_id===eid && r.verified);
+      const justVerified = unverified; // these are now verified
+      const combined = [...allVerified, ...justVerified];
+      const ranked = assignLeaguePts(combined.map(r=>({...r}))).slice(0, 3);
+      const penaltyMap = [-4, -3, -2];
+      for (let i = 0; i < ranked.length; i++) {
+        await patch(`players?id=eq.${ranked[i].player_id}`, { outing_penalty: penaltyMap[i] });
+      }
+      toast(`${unverified.length} round${unverified.length!==1?'s':''} verified — handicaps updated! Outing penalties set for top 3.`, 'success');
+    } else {
+      toast(`${unverified.length} round${unverified.length!==1?'s':''} verified — handicaps updated!`, 'success');
+    }
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); btn.disabled = false; }
 }
@@ -3360,9 +3367,15 @@ async function saveEditedRound(rid) {
 async function verifyRound(rid) {
   const r = db.rounds.find(x=>x.id===rid);
   if (!r) return;
+  const ev = db.events.find(e=>e.id===r.event_id);
+  const isOuting = ev && ev.event_type === 'outing_18';
   try {
     await patch(`rounds?id=eq.${rid}`, { verified: true });
     await patch(`players?id=eq.${r.player_id}`, { handicap_index: parseFloat(r.handicap_after) });
+    // Clear any pending outing penalty now that the player has used it
+    if (isOuting) {
+      await patch(`players?id=eq.${r.player_id}`, { outing_penalty: null });
+    }
     toast(`Round verified! Hcp updated to ${parseFloat(r.handicap_after).toFixed(1)}`, 'success');
     await loadAll(); renderAll();
     closeModal();
