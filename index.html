@@ -260,6 +260,7 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 11px; font-weight: 600; color: var(--green-dark); flex-shrink: 0;
   }
+  .avatar.gold { background: var(--gold-light); color: var(--gold); }
   .player-cell { display: flex; align-items: center; gap: 10px; }
 
   .pts-bar {
@@ -452,6 +453,31 @@
   .nine-tab.active { color:#0a1628;border-bottom-color:#C9A84C;background:#fef8e6; }
   .nine-panel { display:none; }
   .nine-panel.active { display:block; }
+
+  /* ── Knockout ── */
+  .ko-round { margin-bottom: 1.25rem; }
+  .ko-round-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .ko-round-header::before { content: ''; display: block; width: 3px; height: 20px; background: var(--amber); border-radius: 2px; flex-shrink: 0; }
+  .ko-round-title { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: 0.03em; }
+  .ko-round-count { font-size: 12px; color: var(--text-3); }
+  .ko-match { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; }
+  .ko-match.complete { border-color: rgba(201,168,76,0.35); }
+  .ko-player { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
+  .ko-player + .ko-player { border-top: 1px solid var(--border); }
+  .ko-player .avatar { flex-shrink: 0; width: 34px; height: 34px; font-size: 12px; }
+  .ko-player-info { flex: 1; min-width: 0; }
+  .ko-player-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ko-player-name.winner { font-weight: 700; color: var(--gold); }
+  .ko-player-name.loser { color: var(--text-3); }
+  .ko-player-hcp { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+  .ko-winner-tick { font-size: 14px; flex-shrink: 0; }
+  .ko-match-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 14px 10px; border-top: 1px solid var(--border); background: var(--bg); }
+  .ko-bye { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
+  .ko-bye .avatar { flex-shrink: 0; width: 34px; height: 34px; font-size: 12px; }
+  .ko-champion { background: var(--gold-light); border: 1.5px solid var(--amber); border-radius: var(--radius); padding: 1.25rem; text-align: center; margin-bottom: 1.25rem; }
+  .ko-champion-trophy { font-size: 32px; margin-bottom: 6px; }
+  .ko-champion-name { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--gold); }
+  .ko-champion-label { font-size: 12px; color: var(--gold); margin-top: 3px; opacity: 0.8; }
 
   /* ── Scorecard scanner ── */
   .scan-preview { width:100%;max-height:200px;object-fit:contain;background:#111;display:block; }
@@ -3946,78 +3972,102 @@ function renderKnockout() {
   const rounds = [...new Set(matches.map(m=>m.round))].sort((a,b)=>a-b);
   const roundNames = {1:'Round of 32',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
 
-  const setupBtn = isAdmin ? `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem">
+  const adminBtns = isAdmin ? `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
       ${matches.length===0 ? `<button class="btn primary" onclick="showKnockoutSetup()">Set up draw</button>` : ''}
-      ${isAdmin && matches.length>0 ? `<button class="btn" onclick="showKnockoutSetup()">Edit draw</button>` : ''}
+      ${matches.length>0 ? `<button class="btn" onclick="showKnockoutSetup()">Edit draw</button>` : ''}
     </div>` : '';
 
   if (!matches.length) {
-    el.innerHTML = setupBtn + `<div class="card"><div class="empty">The knockout draw has not been set up yet</div></div>`;
+    el.innerHTML = adminBtns + `<div class="card"><div class="empty">The knockout draw has not been set up yet</div></div>`;
     return;
   }
 
-  // Find overall winner
   const finalMatch = matches.find(m=>m.round===Math.max(...rounds));
-  const winner = finalMatch?.winner_id ? db.players.find(p=>p.id===finalMatch.winner_id) : null;
+  const champion = finalMatch?.winner_id ? db.players.find(p=>p.id===finalMatch.winner_id) : null;
 
-  el.innerHTML = setupBtn +
-    (winner ? `<div class="card" style="margin-bottom:1rem;border-color:var(--amber);background:var(--gold-light)">
-      <div style="text-align:center;padding:0.5rem">
-        <div style="font-size:28px;margin-bottom:4px">🏆</div>
-        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--gold)">${winner.name}</div>
-        <div style="font-size:13px;color:var(--gold);margin-top:2px">2026 Knockout Champion</div>
-      </div>
-    </div>` : '') +
-    rounds.map(round => {
-      const roundMatches = matches.filter(m=>m.round===round).sort((a,b)=>a.match_number-b.match_number);
-      return `<div class="card" style="margin-bottom:1rem">
-        <div class="card-title">${roundNames[round]||'Round '+round}</div>
-        ${roundMatches.map(m=>{
-          const p1 = m.player1_id ? db.players.find(p=>p.id===m.player1_id) : null;
-          const p2 = m.player2_id ? db.players.find(p=>p.id===m.player2_id) : null;
-          const winner = m.winner_id ? db.players.find(p=>p.id===m.winner_id) : null;
-          if (m.is_bye) {
-            return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
-              <div class="avatar" style="flex-shrink:0">${p1?initials(p1.name):'?'}</div>
-              <div style="flex:1"><div style="font-size:14px;font-weight:500">${p1?p1.name:'TBD'}</div></div>
-              <span class="badge green">Bye</span>
-            </div>`;
-          }
-          const statusBadge = m.status==='complete'
-            ? `<span class="badge green">Done</span>`
-            : m.status==='in_progress'
-            ? `<span class="badge blue">In progress</span>`
-            : `<span class="badge gray">Pending</span>`;
-          return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-              <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
-                <div class="avatar" style="flex-shrink:0;${winner&&winner.id===m.player1_id?'background:var(--gold-light);color:var(--gold)':''}">${p1?initials(p1.name):'?'}</div>
-                <div style="min-width:0">
-                  <div style="font-size:13px;font-weight:${winner&&winner.id===m.player1_id?'600':'400'};color:var(--text)">${p1?p1.name:'TBD'}</div>
-                  <div style="font-size:11px;color:var(--text-3)">Hcp ${p1?parseFloat(p1.handicap_index).toFixed(1):'—'}</div>
-                </div>
-              </div>
-              <div style="font-size:11px;color:var(--text-3);flex-shrink:0">vs</div>
-              <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;justify-content:flex-end">
-                <div style="min-width:0;text-align:right">
-                  <div style="font-size:13px;font-weight:${winner&&winner.id===m.player2_id?'600':'400'};color:var(--text)">${p2?p2.name:'TBD'}</div>
-                  <div style="font-size:11px;color:var(--text-3)">Hcp ${p2?parseFloat(p2.handicap_index).toFixed(1):'—'}</div>
-                </div>
-                <div class="avatar" style="flex-shrink:0;${winner&&winner.id===m.player2_id?'background:var(--gold-light);color:var(--gold)':''}">${p2?initials(p2.name):'?'}</div>
-              </div>
+  const championHtml = champion ? `
+    <div class="ko-champion">
+      <div class="ko-champion-trophy">🏆</div>
+      <div class="ko-champion-name">${champion.name}</div>
+      <div class="ko-champion-label">2026 Knockout Champion</div>
+    </div>` : '';
+
+  const roundsHtml = rounds.map(round => {
+    const roundMatches = matches.filter(m=>m.round===round).sort((a,b)=>a.match_number-b.match_number);
+    const doneCount = roundMatches.filter(m=>m.status==='complete').length;
+
+    const matchesHtml = roundMatches.map(m => {
+      const p1 = m.player1_id ? db.players.find(p=>p.id===m.player1_id) : null;
+      const p2 = m.player2_id ? db.players.find(p=>p.id===m.player2_id) : null;
+      const w  = m.winner_id  ? m.winner_id : null;
+
+      if (m.is_bye) {
+        return `<div class="ko-match">
+          <div class="ko-bye">
+            <div class="avatar">${p1?initials(p1.name):'?'}</div>
+            <div class="ko-player-info">
+              <div class="ko-player-name">${p1?p1.name:'TBD'}</div>
+              <div class="ko-player-hcp">Hcp ${p1?parseFloat(p1.handicap_index).toFixed(1):'—'}</div>
             </div>
-            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-              ${statusBadge}
-              ${m.result ? `<span class="badge gray">${m.result}</span>` : ''}
-              ${m.holes ? `<span class="badge gray">${m.holes} holes</span>` : ''}
-              ${isAdmin && m.status!=='complete' && p1 && p2 ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">Enter scores</button>` : ''}
-              ${isAdmin && m.status==='complete' ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">Edit</button>` : ''}
-            </div>
-          </div>`;
-        }).join('')}
+            <span class="badge green">Bye</span>
+          </div>
+        </div>`;
+      }
+
+      const p1Won = w && w===m.player1_id;
+      const p2Won = w && w===m.player2_id;
+
+      const statusBadge = m.status==='complete'
+        ? `<span class="badge green">Done</span>`
+        : m.status==='in_progress'
+        ? `<span class="badge blue">In progress</span>`
+        : `<span class="badge gray">Pending</span>`;
+
+      const adminBtn = isAdmin
+        ? (m.status!=='complete' && p1 && p2
+          ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">Enter result</button>`
+          : m.status==='complete'
+          ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">Edit</button>`
+          : '')
+        : '';
+
+      return `<div class="ko-match${m.status==='complete'?' complete':''}">
+        <div class="ko-player">
+          <div class="avatar${p1Won?' gold':''}">${p1?initials(p1.name):'?'}</div>
+          <div class="ko-player-info">
+            <div class="ko-player-name${p1Won?' winner':p2Won?' loser':''}">${p1?p1.name:'TBD'}</div>
+            <div class="ko-player-hcp">Hcp ${p1?parseFloat(p1.handicap_index).toFixed(1):'—'}</div>
+          </div>
+          ${p1Won ? '<span class="ko-winner-tick">✓</span>' : ''}
+        </div>
+        <div class="ko-player">
+          <div class="avatar${p2Won?' gold':''}">${p2?initials(p2.name):'?'}</div>
+          <div class="ko-player-info">
+            <div class="ko-player-name${p2Won?' winner':p1Won?' loser':''}">${p2?p2.name:'TBD'}</div>
+            <div class="ko-player-hcp">Hcp ${p2?parseFloat(p2.handicap_index).toFixed(1):'—'}</div>
+          </div>
+          ${p2Won ? '<span class="ko-winner-tick">✓</span>' : ''}
+        </div>
+        <div class="ko-match-footer">
+          ${statusBadge}
+          ${m.result ? `<span class="badge gray">${m.result}</span>` : ''}
+          ${m.holes ? `<span class="badge gray">${m.holes} holes</span>` : ''}
+          ${adminBtn}
+        </div>
       </div>`;
     }).join('');
+
+    return `<div class="ko-round">
+      <div class="ko-round-header">
+        <span class="ko-round-title">${roundNames[round]||'Round '+round}</span>
+        <span class="ko-round-count">${doneCount}/${roundMatches.length} complete</span>
+      </div>
+      ${matchesHtml}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = adminBtns + championHtml + roundsHtml;
 }
 
 function showKnockoutSetup() {
