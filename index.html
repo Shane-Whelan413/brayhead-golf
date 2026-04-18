@@ -479,6 +479,66 @@
   .ko-champion-name { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--gold); }
   .ko-champion-label { font-size: 12px; color: var(--gold); margin-top: 3px; opacity: 0.8; }
 
+  /* ── Knockout draw setup ── */
+  .ko-setup { padding-bottom: 2rem; }
+  .ko-setup-intro { font-size: 13px; color: var(--text-2); margin-bottom: 1rem; padding: 10px 12px; background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border); }
+  .ko-pool-section { margin-bottom: 1.25rem; }
+  .ko-pool-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
+  .ko-pool { display: flex; flex-wrap: wrap; gap: 6px; min-height: 40px; }
+  .ko-chip {
+    padding: 7px 12px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    cursor: pointer; transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
+  }
+  .ko-chip:hover { background: var(--green-light); border-color: var(--green-dark); color: var(--green-dark); }
+  .ko-chip.selected { background: var(--amber); border-color: var(--amber); color: #3a2000; font-weight: 700; }
+  .ko-chip.assigned { opacity: 0.35; pointer-events: none; }
+  .ko-slots-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
+  .ko-slot {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 6px; overflow: hidden;
+  }
+  .ko-slot.active { border-color: var(--amber); box-shadow: 0 0 0 2px rgba(201,168,76,0.2); }
+  .ko-slot-hdr {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 600; color: var(--text-3);
+    letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .ko-slot-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--border); color: var(--text-2);
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .ko-slot.active .ko-slot-num { background: var(--amber); color: #3a2000; }
+  .ko-slot-players { display: flex; flex-direction: column; }
+  .ko-slot-player {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; cursor: pointer;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+    transition: background 0.1s;
+  }
+  .ko-slot-player + .ko-slot-player { border-top: 1px solid var(--border); }
+  .ko-slot-player:active { background: var(--bg); }
+  .ko-slot-player-name { flex: 1; font-size: 14px; font-weight: 500; color: var(--text); }
+  .ko-slot-player-name.empty { color: var(--text-3); font-weight: 400; font-style: italic; }
+  .ko-slot-player-clear { font-size: 16px; color: var(--text-3); padding: 2px 4px; flex-shrink: 0; }
+  .ko-slot-bye-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .ko-bye-toggle {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-2); cursor: pointer;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  .ko-bye-toggle input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--amber); }
+  .ko-setup-save { position: sticky; bottom: 0; background: var(--surface); padding: 12px 0 0; margin-top: 8px; }
+
   /* ── Scorecard scanner ── */
   .scan-preview { width:100%;max-height:200px;object-fit:contain;background:#111;display:block; }
   .scan-table { width:100%;border-collapse:collapse;font-size:14px; }
@@ -4070,78 +4130,205 @@ function renderKnockout() {
   el.innerHTML = adminBtns + championHtml + roundsHtml;
 }
 
+// ── Knockout draw setup state ──
+let _koDrawSlots = []; // [{p1Id, p2Id, isBye}] x16
+let _koDrawActiveSlot = null; // {matchNum, position} — which slot+position is being filled
+let _koDrawExisting = [];
+
 function showKnockoutSetup() {
-  const rounds = [...new Set(db.knockout_matches.map(m=>m.round))];
-  const existing = db.knockout_matches.filter(m=>m.round===1);
-  const playerOpts = db.players.map(p=>`<option value="${p.id}">${p.name} (${parseFloat(p.handicap_index).toFixed(1)})</option>`).join('');
-
-  // Build 16 match slots for round of 32
-  let matchSlots = '';
+  _koDrawExisting = db.knockout_matches.filter(m=>m.round===1);
+  // Initialise slots from existing data or blank
+  _koDrawSlots = [];
   for (let i=1; i<=16; i++) {
-    const m = existing.find(x=>x.match_number===i);
-    const p1 = m?.player1_id || '';
-    const p2 = m?.player2_id || '';
-    const isBye = m?.is_bye || false;
-    matchSlots += `<div style="background:var(--bg);border-radius:var(--radius);padding:10px;margin-bottom:8px">
-      <div style="font-size:11px;color:var(--text-3);font-weight:500;margin-bottom:6px">Match ${i}</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-        <select id="ko-p1-${i}" style="flex:1;height:34px;font-size:12px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);padding:0 8px;font-family:'DM Sans',sans-serif">
-          <option value="">— Player 1 —</option>
-          ${playerOpts}
-        </select>
-        <span style="font-size:12px;color:var(--text-3)">vs</span>
-        <select id="ko-p2-${i}" style="flex:1;height:34px;font-size:12px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);padding:0 8px;font-family:'DM Sans',sans-serif">
-          <option value="">— Bye —</option>
-          ${playerOpts}
-        </select>
-      </div>
-      <label style="font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:6px">
-        <input type="checkbox" id="ko-bye-${i}" ${isBye?'checked':''} onchange="document.getElementById('ko-p2-${i}').disabled=this.checked"> This is a bye match
-      </label>
-    </div>`;
-  }
-
-  // Pre-fill existing values
-  document.getElementById('modal-title').textContent = 'Set up knockout draw';
-  document.getElementById('modal-body').innerHTML = `
-    <p style="font-size:13px;color:var(--text-2);margin-bottom:1rem">Set up the Round of 32 draw. 5 matches should be byes (leaving 27 players). Winners automatically advance.</p>
-    ${matchSlots}
-    <button class="btn primary" onclick="saveKnockoutDraw()" style="width:100%;margin-top:8px">Save draw</button>
-  `;
-  document.getElementById('modal-overlay').classList.add('open');
-
-  // Pre-fill after render
-  setTimeout(()=>{
-    existing.forEach(m=>{
-      const p1el = document.getElementById('ko-p1-'+m.match_number);
-      const p2el = document.getElementById('ko-p2-'+m.match_number);
-      const byeEl = document.getElementById('ko-bye-'+m.match_number);
-      if (p1el && m.player1_id) p1el.value = m.player1_id;
-      if (p2el && m.player2_id) p2el.value = m.player2_id;
-      if (byeEl && m.is_bye) { byeEl.checked = true; if(p2el) p2el.disabled = true; }
+    const m = _koDrawExisting.find(x=>x.match_number===i);
+    _koDrawSlots.push({
+      p1Id: m?.player1_id || null,
+      p2Id: m?.player2_id || null,
+      isBye: m?.is_bye || false
     });
+  }
+  _koDrawActiveSlot = null;
+  _renderKoSetup();
+}
+
+function _koAssignedIds() {
+  const ids = new Set();
+  _koDrawSlots.forEach(s => {
+    if (s.p1Id) ids.add(s.p1Id);
+    if (s.p2Id) ids.add(s.p2Id);
+  });
+  return ids;
+}
+
+function _renderKoSetup() {
+  const el = document.getElementById('knockout-content');
+  if (!el) return;
+  const assigned = _koAssignedIds();
+  const players = [...db.players].sort((a,b)=>a.name.localeCompare(b.name));
+  const byeCount = _koDrawSlots.filter(s=>s.isBye).length;
+
+  // Player pool chips
+  const poolHtml = players.map(p => {
+    const isAssigned = assigned.has(p.id);
+    const isSelected = _koDrawActiveSlot && (
+      (_koDrawActiveSlot.position===1 && _koDrawSlots[_koDrawActiveSlot.matchNum-1]?.p1Id===p.id) ||
+      (_koDrawActiveSlot.position===2 && _koDrawSlots[_koDrawActiveSlot.matchNum-1]?.p2Id===p.id)
+    );
+    return `<div class="ko-chip${isAssigned?' assigned':''}${isSelected?' selected':''}"
+      onclick="koChipTap('${p.id}')">${p.name}</div>`;
+  }).join('');
+
+  // Match slots
+  const slotsHtml = _koDrawSlots.map((s, idx) => {
+    const matchNum = idx + 1;
+    const p1 = s.p1Id ? db.players.find(p=>p.id===s.p1Id) : null;
+    const p2 = s.p2Id ? db.players.find(p=>p.id===s.p2Id) : null;
+    const isActive = _koDrawActiveSlot?.matchNum === matchNum;
+    const activePos = isActive ? _koDrawActiveSlot.position : 0;
+
+    return `<div class="ko-slot${isActive?' active':''}">
+      <div class="ko-slot-hdr">
+        <div class="ko-slot-num">${matchNum}</div>
+        Match ${matchNum}
+        ${s.isBye ? '<span class="badge green" style="margin-left:auto">Bye</span>' : ''}
+      </div>
+      <div class="ko-slot-players">
+        <div class="ko-slot-player${activePos===1?' active':''}" onclick="koSlotTap(${matchNum},1)">
+          <div class="avatar" style="${activePos===1?'background:var(--amber);color:#3a2000':''}">
+            ${p1?initials(p1.name):'?'}
+          </div>
+          <div class="ko-slot-player-name${p1?'':' empty'}">${p1?p1.name:'Tap to assign player 1'}</div>
+          ${p1 ? `<span class="ko-slot-player-clear" onclick="event.stopPropagation();koSlotClear(${matchNum},1)">✕</span>` : ''}
+        </div>
+        ${!s.isBye ? `<div class="ko-slot-player${activePos===2?' active':''}" onclick="koSlotTap(${matchNum},2)">
+          <div class="avatar" style="${activePos===2?'background:var(--amber);color:#3a2000':''}">
+            ${p2?initials(p2.name):'?'}
+          </div>
+          <div class="ko-slot-player-name${p2?'':' empty'}">${p2?p2.name:'Tap to assign player 2'}</div>
+          ${p2 ? `<span class="ko-slot-player-clear" onclick="event.stopPropagation();koSlotClear(${matchNum},2)">✕</span>` : ''}
+        </div>` : ''}
+      </div>
+      <div class="ko-slot-bye-row">
+        <label class="ko-bye-toggle">
+          <input type="checkbox" ${s.isBye?'checked':''} onchange="koToggleBye(${matchNum},this.checked)">
+          Bye match
+        </label>
+        ${s.isBye && p1 ? `<span style="font-size:11px;color:var(--text-3)">${p1.name} advances</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const byeWarning = byeCount !== 5
+    ? `<div style="font-size:12px;color:${byeCount>5?'#A32D2D':'var(--text-3)'};margin-top:4px">
+        ${byeCount}/5 byes set ${byeCount>5?'— too many byes!':''}
+       </div>` : `<div style="font-size:12px;color:var(--green-dark);margin-top:4px">✓ 5 byes set</div>`;
+
+  el.innerHTML = `<div class="ko-setup">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
+      <button class="btn sm" onclick="renderKnockout()">← Back</button>
+      <span style="font-size:15px;font-weight:600;color:var(--text)">Set up draw</span>
+    </div>
+    <div class="ko-setup-intro">
+      Tap a match slot position, then tap a player from the pool to assign them.
+      Tap ✕ to remove. Tick "Bye match" for walkovers — you need exactly 5 byes.
+      ${byeWarning}
+    </div>
+    <div class="ko-pool-section">
+      <div class="ko-pool-label">Player pool — tap a slot first, then tap a player</div>
+      <div class="ko-pool">${poolHtml}</div>
+    </div>
+    <div class="ko-slots-label">Match slots</div>
+    ${slotsHtml}
+    <div class="ko-setup-save">
+      <button class="btn primary" onclick="saveKnockoutDraw()" style="width:100%">Save draw</button>
+    </div>
+  </div>`;
+}
+
+function koSlotTap(matchNum, position) {
+  // Toggle active slot — tap same again to deselect
+  if (_koDrawActiveSlot?.matchNum===matchNum && _koDrawActiveSlot?.position===position) {
+    _koDrawActiveSlot = null;
+  } else {
+    _koDrawActiveSlot = { matchNum, position };
+  }
+  _renderKoSetup();
+  // Scroll pool into view
+  setTimeout(() => {
+    document.querySelector('.ko-pool')?.scrollIntoView({ behavior:'smooth', block:'nearest' });
   }, 50);
 }
 
+function koChipTap(playerId) {
+  if (!_koDrawActiveSlot) return;
+  const { matchNum, position } = _koDrawActiveSlot;
+  const slot = _koDrawSlots[matchNum-1];
+  // Remove this player from any other slot first
+  _koDrawSlots.forEach(s => {
+    if (s.p1Id === playerId) s.p1Id = null;
+    if (s.p2Id === playerId) s.p2Id = null;
+  });
+  if (position === 1) slot.p1Id = playerId;
+  else slot.p2Id = playerId;
+  // Auto-advance to next empty position
+  const next = _findNextEmpty(matchNum, position);
+  _koDrawActiveSlot = next;
+  _renderKoSetup();
+}
+
+function _findNextEmpty(matchNum, position) {
+  // Try next position in same slot first, then next slots
+  const slot = _koDrawSlots[matchNum-1];
+  if (position === 1 && !slot.isBye && !slot.p2Id) return { matchNum, position:2 };
+  for (let i=matchNum; i<=16; i++) {
+    const s = _koDrawSlots[i-1];
+    if (!s.p1Id) return { matchNum:i, position:1 };
+    if (!s.isBye && !s.p2Id) return { matchNum:i, position:2 };
+  }
+  return null; // all filled
+}
+
+function koSlotClear(matchNum, position) {
+  const slot = _koDrawSlots[matchNum-1];
+  if (position === 1) slot.p1Id = null;
+  else slot.p2Id = null;
+  _renderKoSetup();
+}
+
+function koToggleBye(matchNum, isBye) {
+  const slot = _koDrawSlots[matchNum-1];
+  slot.isBye = isBye;
+  if (isBye) slot.p2Id = null;
+  _renderKoSetup();
+}
+
 async function saveKnockoutDraw() {
-  const existing = db.knockout_matches.filter(m=>m.round===1);
+  const existing = _koDrawExisting;
+  // Validate — warn but don't block if byes aren't exactly 5
+  const byeCount = _koDrawSlots.filter(s=>s.isBye).length;
+  if (byeCount !== 5) {
+    if (!confirm(`You have ${byeCount} bye${byeCount!==1?'s':''} — expected 5 for a 29-player draw. Save anyway?`)) return;
+  }
   try {
     for (let i=1; i<=16; i++) {
-      const p1 = document.getElementById('ko-p1-'+i)?.value || null;
-      const p2 = document.getElementById('ko-p2-'+i)?.value || null;
-      const isBye = document.getElementById('ko-bye-'+i)?.checked || false;
-      if (!p1) continue;
-      const data = { round:1, match_number:i, player1_id:p1, player2_id:isBye?null:p2, is_bye:isBye, status: isBye?'complete':'pending', winner_id: isBye?p1:null };
+      const s = _koDrawSlots[i-1];
+      if (!s.p1Id) continue;
+      const data = {
+        round:1, match_number:i,
+        player1_id: s.p1Id,
+        player2_id: s.isBye ? null : (s.p2Id || null),
+        is_bye: s.isBye,
+        status: s.isBye ? 'complete' : 'pending',
+        winner_id: s.isBye ? s.p1Id : null
+      };
       const existing_m = existing.find(m=>m.match_number===i);
       if (existing_m) {
         await patch(`knockout_matches?id=eq.${existing_m.id}`, data);
       } else {
-        if (!p1) continue;
         await post('knockout_matches', data);
       }
     }
     toast('Draw saved!', 'success');
-    closeModal();
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
