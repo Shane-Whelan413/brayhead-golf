@@ -599,7 +599,7 @@
         </div>
         <div style="text-align:left">
           <div style="font-weight:500">Season stats</div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:1px">Birdies · Pars · Eagles</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:1px">Birdies · Pars · Scratches</div>
         </div>
       </div>
       <span style="color:var(--text-3);font-size:18px">›</span>
@@ -2439,7 +2439,7 @@ function calcPlayerStats() {
   const stats = {};
 
   for (const player of db.players) {
-    stats[player.id] = { name: player.name, rounds: 0, birdies: 0, pars: 0, eagles: 0 };
+    stats[player.id] = { name: player.name, rounds: 0, birdies: 0, pars: 0, scratches: 0 };
   }
 
   for (const r of db.rounds.filter(x => x.verified && publishedEids.has(x.event_id))) {
@@ -2455,9 +2455,9 @@ function calcPlayerStats() {
       const par   = parVals[i] || 4;
       if (score == null) continue;
       const diff = score - par;
-      if (diff <= -2) stats[pl.id].eagles++;
-      else if (diff === -1) stats[pl.id].birdies++;
-      else if (diff === 0)  stats[pl.id].pars++;
+      if (diff === -1) stats[pl.id].birdies++;
+      else if (diff === 0) stats[pl.id].pars++;
+      if (calcHolePts(r, i) === 0) stats[pl.id].scratches++;
     }
   }
   return Object.values(stats).filter(s => s.rounds > 0);
@@ -2467,12 +2467,12 @@ function renderStatsModal(tab) {
   const allStats = calcPlayerStats();
   const totalBirdies = allStats.reduce((s,p)=>s+p.birdies,0);
   const totalPars    = allStats.reduce((s,p)=>s+p.pars,0);
-  const totalEagles  = allStats.reduce((s,p)=>s+p.eagles,0);
+  const totalScratches = allStats.reduce((s,p)=>s+p.scratches,0);
 
   const tabData = {
     birdies: { key:'birdies', label:'Most birdies', sub: p=>`${p.rounds} round${p.rounds!==1?'s':''} · avg ${p.rounds?(p.birdies/p.rounds).toFixed(1):0}/round` },
     pars:    { key:'pars',    label:'Most pars',    sub: p=>`${p.rounds} round${p.rounds!==1?'s':''} · avg ${p.rounds?(p.pars/p.rounds).toFixed(1):0}/round` },
-    eagles:  { key:'eagles',  label:'Eagles',       sub: p=>`${p.rounds} round${p.rounds!==1?'s':''}` }
+    scratches: { key:'scratches', label:'Most scratches', sub: p=>`${p.rounds} round${p.rounds!==1?'s':''} · avg ${p.rounds?(p.scratches/p.rounds).toFixed(1):0}/round` }
   };
 
   const { key, label, sub } = tabData[tab];
@@ -2511,12 +2511,12 @@ function renderStatsModal(tab) {
         <div style="font-size:11px;color:var(--text-3);margin-top:2px">Total pars</div>
       </div>
       <div style="background:var(--bg);border-radius:var(--radius);padding:10px;text-align:center">
-        <div style="font-size:22px;font-weight:600;color:var(--text)">${totalEagles}</div>
-        <div style="font-size:11px;color:var(--text-3);margin-top:2px">Total eagles</div>
+        <div style="font-size:22px;font-weight:600;color:var(--text)">${totalScratches}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">Total scratches</div>
       </div>
     </div>
     <div style="display:flex;gap:6px;margin-bottom:1rem">
-      ${tabBtn('birdies')}${tabBtn('pars')}${tabBtn('eagles')}
+      ${tabBtn('birdies')}${tabBtn('pars')}${tabBtn('scratches')}
     </div>
     <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">${label} — all games</div>
     ${rows}
