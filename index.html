@@ -2457,7 +2457,8 @@ function calcPlayerStats() {
       const diff = score - par;
       if (diff === -1) stats[pl.id].birdies++;
       else if (diff === 0) stats[pl.id].pars++;
-      if (calcHolePts(r, i) === 0) stats[pl.id].scratches++;
+      const MARK_EXCLUDED = new Set(['ed978d39-b16b-465b-8582-7d2110c2e130','551856f8-752e-4d88-8418-4f86f447ae65','35619e4d-f918-4497-bfc3-0cb7648f2c26']);
+      if (calcHolePts(r, i) === 0 && !MARK_EXCLUDED.has(r.id)) stats[pl.id].scratches++;
     }
   }
   return Object.values(stats).filter(s => s.rounds > 0);
