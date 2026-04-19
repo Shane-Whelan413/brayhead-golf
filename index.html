@@ -3977,10 +3977,19 @@ function renderKnockout() {
           }
           const statusBadge = m.status==='complete'
             ? `<span class="badge green">Done</span>`
+            : m.status==='playoff'
+            ? `<span class="badge" style="background:#EEEDFE;color:#3C3489">🔄 Playoff</span>`
             : m.status==='in_progress'
             ? `<span class="badge blue">In progress</span>`
             : `<span class="badge gray">Pending</span>`;
-          return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
+          const adminBtn = isAdmin
+            ? (m.status==='complete'
+              ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">Edit</button>`
+              : p1 && p2
+              ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">${m.status==='playoff'?'Settle playoff':'Settle match'}</button>`
+              : '')
+            : '';
+          return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)${m.status==='playoff'?';background:rgba(238,237,254,0.25);border-radius:8px;padding:10px':''}">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
               <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
                 <div class="avatar" style="flex-shrink:0;${winner&&winner.id===m.player1_id?'background:var(--gold-light);color:var(--gold)':''}">${p1?initials(p1.name):'?'}</div>
@@ -4000,10 +4009,8 @@ function renderKnockout() {
             </div>
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
               ${statusBadge}
-              ${m.result ? `<span class="badge gray">${m.result}</span>` : ''}
-              ${m.holes ? `<span class="badge gray">${m.holes} holes</span>` : ''}
-              ${isAdmin && m.status!=='complete' && p1 && p2 ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">Enter scores</button>` : ''}
-              ${isAdmin && m.status==='complete' ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">Edit</button>` : ''}
+              ${m.result && m.result!=='Playoff' ? `<span class="badge gray">${m.result}</span>` : ''}
+              ${adminBtn}
             </div>
           </div>`;
         }).join('')}
@@ -4087,6 +4094,8 @@ async function saveKnockoutDraw() {
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
+// ── Match entry — event card based ──────────────────────────────────────
+
 function showMatchEntry(mid) {
   const m = db.knockout_matches.find(x=>x.id===mid);
   if (!m) return;
@@ -4094,74 +4103,170 @@ function showMatchEntry(mid) {
   const p2 = db.players.find(p=>p.id===m.player2_id);
   if (!p1 || !p2) return;
 
-  const hcp1 = Math.round(parseFloat(p1.handicap_index));
-  const hcp2 = Math.round(parseFloat(p2.handicap_index));
-  const diff = Math.abs(hcp1 - hcp2);
-  const lowerHcp = hcp1 <= hcp2 ? p1.name : p2.name;
-  const higherHcp = hcp1 > hcp2 ? p1.name : p2.name;
+  // Published events where both players have a verified round
+  const publishedEvents = db.events.filter(e=>e.published);
+  const eventOptions = publishedEvents.map(e=>{
+    const r1 = db.rounds.find(r=>r.event_id===e.id && r.player_id===m.player1_id && r.verified);
+    const r2 = db.rounds.find(r=>r.event_id===e.id && r.player_id===m.player2_id && r.verified);
+    const both = r1 && r2;
+    const label = `${e.course_name} — ${fmtDate(e.event_date)}${both?'':' (missing card)'}`;
+    return `<option value="${e.id}" ${!both?'disabled':''} ${m.event_card_id===e.id?'selected':''}>${label}</option>`;
+  }).join('');
 
-  const holes = m.holes || 18;
-  const holeInputs = (prefix, scores) => Array.from({length:holes},(_,i)=>
-    `<div class="hole-card-inp" style="width:44px">
-      <div class="hole-lbl">H${i+1}</div>
-      <input type="number" id="${prefix}-h${i+1}" min="1" max="15" value="${scores&&scores[i]?scores[i]:''}" placeholder="—" style="height:44px;width:44px;text-align:center;font-size:16px;font-weight:600;border-radius:8px;border:1.5px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif">
-    </div>`
-  ).join('');
+  const isPlayoff = m.status === 'playoff';
 
   document.getElementById('modal-title').textContent = `${p1.name} vs ${p2.name}`;
   document.getElementById('modal-body').innerHTML = `
-    <div style="background:var(--bg);border-radius:var(--radius);padding:10px;margin-bottom:1rem;font-size:13px;color:var(--text-2)">
-      Handicap allowance: <strong>${higherHcp}</strong> receives <strong>${diff} stroke${diff!==1?'s':''}</strong> from <strong>${lowerHcp}</strong>
-    </div>
-    <div class="form-group" style="margin-bottom:12px">
-      <label>Number of holes</label>
-      <select id="match-holes" style="width:100%">
-        <option value="9" ${holes===9?'selected':''}>9 holes</option>
-        <option value="18" ${holes===18?'selected':''}>18 holes</option>
+    ${isPlayoff ? `<div style="background:#EEEDFE;border-radius:var(--radius);padding:10px 12px;margin-bottom:1rem;font-size:13px;color:#3C3489;font-weight:500">
+      🔄 This match went to a playoff — pick the event card to resolve it.
+    </div>` : ''}
+    <div class="form-group" style="margin-bottom:1rem">
+      <label>Select event card to use</label>
+      <select id="match-event-sel" onchange="previewMatchCards('${mid}')" style="width:100%">
+        <option value="">— pick an event —</option>
+        ${eventOptions}
       </select>
     </div>
-    <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px">${p1.name} scores</div>
-    <div class="hole-scroll-wrap" style="margin-bottom:1rem">${holeInputs('p1', m.hole_scores_p1)}</div>
-    <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px">${p2.name} scores</div>
-    <div class="hole-scroll-wrap" style="margin-bottom:1rem">${holeInputs('p2', m.hole_scores_p2)}</div>
-    <div class="form-group" style="margin-bottom:1rem">
-      <label>Result summary <span style="font-weight:400;color:var(--text-3)">(e.g. 3&2, All Square, 19th hole)</span></label>
-      <input id="match-result" value="${m.result||''}" placeholder="e.g. 3&2" />
-    </div>
-    <div class="form-group" style="margin-bottom:1rem">
-      <label>Winner</label>
-      <select id="match-winner" style="width:100%">
-        <option value="">— select winner —</option>
-        <option value="${p1.id}" ${m.winner_id===p1.id?'selected':''}>${p1.name}</option>
-        <option value="${p2.id}" ${m.winner_id===p2.id?'selected':''}>${p2.name}</option>
-      </select>
-    </div>
-    <button class="btn primary" onclick="saveMatchResult('${mid}')" style="width:100%">Save result</button>
+    <div id="match-card-preview"></div>
   `;
   document.getElementById('modal-overlay').classList.add('open');
+
+  // If a card was previously used, auto-preview it
+  if (m.event_card_id) {
+    setTimeout(() => previewMatchCards(mid), 50);
+  }
 }
 
-async function saveMatchResult(mid) {
+function previewMatchCards(mid) {
+  const m  = db.knockout_matches.find(x=>x.id===mid);
+  const p1 = db.players.find(p=>p.id===m.player1_id);
+  const p2 = db.players.find(p=>p.id===m.player2_id);
+  const eid = document.getElementById('match-event-sel').value;
+  if (!eid) return;
+
+  const ev = db.events.find(e=>e.id===eid);
+  const r1 = db.rounds.find(r=>r.event_id===eid && r.player_id===m.player1_id && r.verified);
+  const r2 = db.rounds.find(r=>r.event_id===eid && r.player_id===m.player2_id && r.verified);
+  const preview = document.getElementById('match-card-preview');
+
+  if (!r1 || !r2) {
+    preview.innerHTML = `<div style="background:#FCEBEB;border-radius:var(--radius);padding:10px;font-size:13px;color:#A32D2D">
+      ${!r1?p1.name:p2.name} has no verified round for this event.
+    </div>`;
+    return;
+  }
+
+  const n = ev.event_type === 'outing_18' ? 18 : 9;
+
+  // Calculate stableford pts per hole for each player
+  const pts1 = [], pts2 = [];
+  for (let i=0; i<n; i++) {
+    pts1.push(calcHolePts(r1, i));
+    pts2.push(calcHolePts(r2, i));
+  }
+
+  // Determine hole winners
+  let p1holes=0, p2holes=0, halved=0;
+  const holeResults = pts1.map((p, i) => {
+    if (pts1[i] > pts2[i])  { p1holes++; return 'p1'; }
+    if (pts2[i] > pts1[i])  { p2holes++; return 'p2'; }
+    halved++;
+    return 'half';
+  });
+
+  // Build result string and determine winner/playoff
+  const diff = p1holes - p2holes;
+  let resultStr, winnerId, isPlayoffResult = false;
+  if (diff > 0) {
+    resultStr = `${p1.name.split(' ')[0]} wins ${p1holes} holes to ${p2holes}`;
+    winnerId = m.player1_id;
+  } else if (diff < 0) {
+    resultStr = `${p2.name.split(' ')[0]} wins ${p2holes} holes to ${p1holes}`;
+    winnerId = m.player2_id;
+  } else {
+    resultStr = `All square — ${p1holes} holes each · Playoff required`;
+    winnerId = null;
+    isPlayoffResult = true;
+  }
+
+  // Hole-by-hole table
+  const holeRows = holeResults.map((res, i) => {
+    const bg = res==='p1'?'#fef8e6':res==='p2'?'#EEEDFE':'var(--bg)';
+    const icon = res==='p1'?'◀':res==='p2'?'▶':'·';
+    return `<tr style="border-bottom:0.5px solid var(--border);background:${bg}">
+      <td style="padding:5px 8px;font-size:12px;font-weight:600;color:var(--text-3);text-align:center">${i+1}</td>
+      <td style="padding:5px 8px;font-size:13px;font-weight:${res==='p1'?'700':'400'};color:${res==='p1'?'#8a6a1a':'var(--text)'};text-align:center">${pts1[i]}</td>
+      <td style="padding:5px 4px;font-size:11px;color:var(--text-3);text-align:center">${icon}</td>
+      <td style="padding:5px 8px;font-size:13px;font-weight:${res==='p2'?'700':'400'};color:${res==='p2'?'#3C3489':'var(--text)'};text-align:center">${pts2[i]}</td>
+    </tr>`;
+  }).join('');
+
+  preview.innerHTML = `
+    <div style="background:${isPlayoffResult?'#FAEEDA':winnerId?'var(--green-light)':'var(--bg)'};border-radius:var(--radius);padding:12px;margin-bottom:1rem;text-align:center">
+      <div style="font-size:15px;font-weight:700;color:${isPlayoffResult?'#633806':winnerId?'var(--green-dark)':'var(--text)'}">${resultStr}</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:4px">${halved} hole${halved!==1?'s':''} halved · ${p1.name.split(' ')[0]}: ${r1.stableford_points} pts · ${p2.name.split(' ')[0]}: ${r2.stableford_points} pts</div>
+    </div>
+
+    <!-- Hole breakdown (collapsible) -->
+    <details style="margin-bottom:1rem">
+      <summary style="font-size:12px;font-weight:600;color:var(--text-2);cursor:pointer;padding:8px 0;list-style:none;display:flex;align-items:center;gap:6px">
+        <span style="font-size:14px">▸</span> Hole-by-hole breakdown
+      </summary>
+      <div style="margin-top:8px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:#0a1628">
+              <th style="padding:6px 8px;font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;text-align:center">Hole</th>
+              <th style="padding:6px 8px;font-size:11px;color:#C9A84C;text-align:center">${p1.name.split(' ')[0]}</th>
+              <th style="padding:6px;font-size:10px;color:rgba(255,255,255,0.3);text-align:center"></th>
+              <th style="padding:6px 8px;font-size:11px;color:#EEEDFE;text-align:center">${p2.name.split(' ')[0]}</th>
+            </tr>
+          </thead>
+          <tbody>${holeRows}</tbody>
+          <tfoot>
+            <tr style="border-top:1.5px solid var(--border);background:var(--bg)">
+              <td style="padding:7px 8px;font-size:11px;font-weight:600;color:var(--text-3);text-align:center">Total</td>
+              <td style="padding:7px 8px;font-size:13px;font-weight:700;color:#8a6a1a;text-align:center">${p1holes}</td>
+              <td style="padding:7px;font-size:11px;color:var(--text-3);text-align:center">holes</td>
+              <td style="padding:7px 8px;font-size:13px;font-weight:700;color:#3C3489;text-align:center">${p2holes}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </details>
+
+    ${isPlayoffResult
+      ? `<button class="btn primary" onclick="saveMatchPlayoff('${mid}','${eid}')" style="width:100%">Mark as Playoff</button>`
+      : `<button class="btn primary" onclick="saveMatchFromCards('${mid}','${eid}','${winnerId}',\`${resultStr}\`)" style="width:100%">Save result & advance winner</button>`
+    }
+  `;
+}
+
+async function saveMatchFromCards(mid, eid, winnerId, resultStr) {
   const m = db.knockout_matches.find(x=>x.id===mid);
   if (!m) return;
-  const holes = parseInt(document.getElementById('match-holes').value) || 18;
-  const result = document.getElementById('match-result').value.trim() || null;
-  const winnerId = document.getElementById('match-winner').value || null;
-  const scores_p1 = [], scores_p2 = [];
-  for (let i=1; i<=holes; i++) {
-    const v1 = parseInt(document.getElementById('p1-h'+i)?.value); scores_p1.push(isNaN(v1)?null:v1);
-    const v2 = parseInt(document.getElementById('p2-h'+i)?.value); scores_p2.push(isNaN(v2)?null:v2);
-  }
-  if (!winnerId) { toast('Please select a winner', 'error'); return; }
   try {
     await patch(`knockout_matches?id=eq.${mid}`, {
-      holes, result, winner_id: winnerId,
-      hole_scores_p1: scores_p1, hole_scores_p2: scores_p2,
-      status: 'complete'
+      status: 'complete',
+      winner_id: winnerId,
+      result: resultStr,
+      event_card_id: eid
     });
-    // Auto-advance winner to next round
     await advanceWinner(m, winnerId);
-    toast('Result saved!', 'success');
+    toast('Result saved — winner advances!', 'success');
+    closeModal();
+    await loadAll(); renderAll();
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+async function saveMatchPlayoff(mid, eid) {
+  try {
+    await patch(`knockout_matches?id=eq.${mid}`, {
+      status: 'playoff',
+      event_card_id: eid,
+      result: 'Playoff'
+    });
+    toast('Match marked as playoff — settle it after the next event.', 'success');
     closeModal();
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
