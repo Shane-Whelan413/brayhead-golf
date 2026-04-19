@@ -260,7 +260,6 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 11px; font-weight: 600; color: var(--green-dark); flex-shrink: 0;
   }
-  .avatar.gold { background: var(--gold-light); color: var(--gold); }
   .player-cell { display: flex; align-items: center; gap: 10px; }
 
   .pts-bar {
@@ -453,91 +452,6 @@
   .nine-tab.active { color:#0a1628;border-bottom-color:#C9A84C;background:#fef8e6; }
   .nine-panel { display:none; }
   .nine-panel.active { display:block; }
-
-  /* ── Knockout ── */
-  .ko-round { margin-bottom: 1.25rem; }
-  .ko-round-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-  .ko-round-header::before { content: ''; display: block; width: 3px; height: 20px; background: var(--amber); border-radius: 2px; flex-shrink: 0; }
-  .ko-round-title { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: 0.03em; }
-  .ko-round-count { font-size: 12px; color: var(--text-3); }
-  .ko-match { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; }
-  .ko-match.complete { border-color: rgba(201,168,76,0.35); }
-  .ko-player { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
-  .ko-player + .ko-player { border-top: 1px solid var(--border); }
-  .ko-player .avatar { flex-shrink: 0; width: 34px; height: 34px; font-size: 12px; }
-  .ko-player-info { flex: 1; min-width: 0; }
-  .ko-player-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ko-player-name.winner { font-weight: 700; color: var(--gold); }
-  .ko-player-name.loser { color: var(--text-3); }
-  .ko-player-hcp { font-size: 11px; color: var(--text-3); margin-top: 1px; }
-  .ko-winner-tick { font-size: 14px; flex-shrink: 0; }
-  .ko-match-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 14px 10px; border-top: 1px solid var(--border); background: var(--bg); }
-  .ko-bye { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
-  .ko-bye .avatar { flex-shrink: 0; width: 34px; height: 34px; font-size: 12px; }
-  .ko-champion { background: var(--gold-light); border: 1.5px solid var(--amber); border-radius: var(--radius); padding: 1.25rem; text-align: center; margin-bottom: 1.25rem; }
-  .ko-champion-trophy { font-size: 32px; margin-bottom: 6px; }
-  .ko-champion-name { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--gold); }
-  .ko-champion-label { font-size: 12px; color: var(--gold); margin-top: 3px; opacity: 0.8; }
-
-  /* ── Knockout draw setup ── */
-  .ko-setup { padding-bottom: 2rem; }
-  .ko-setup-intro { font-size: 13px; color: var(--text-2); margin-bottom: 1rem; padding: 10px 12px; background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border); }
-  .ko-pool-section { margin-bottom: 1.25rem; }
-  .ko-pool-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
-  .ko-pool { display: flex; flex-wrap: wrap; gap: 6px; min-height: 40px; }
-  .ko-chip {
-    padding: 7px 12px; border-radius: 20px; font-size: 13px; font-weight: 500;
-    background: var(--surface); border: 1px solid var(--border); color: var(--text);
-    cursor: pointer; transition: background 0.12s, border-color 0.12s, opacity 0.12s;
-    touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
-  }
-  .ko-chip:hover { background: var(--green-light); border-color: var(--green-dark); color: var(--green-dark); }
-  .ko-chip.selected { background: var(--amber); border-color: var(--amber); color: #3a2000; font-weight: 700; }
-  .ko-chip.assigned { opacity: 0.35; pointer-events: none; }
-  .ko-slots-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
-  .ko-slot {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); margin-bottom: 6px; overflow: hidden;
-  }
-  .ko-slot.active { border-color: var(--amber); box-shadow: 0 0 0 2px rgba(201,168,76,0.2); }
-  .ko-slot-hdr {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 12px; background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    font-size: 11px; font-weight: 600; color: var(--text-3);
-    letter-spacing: 0.05em; text-transform: uppercase;
-  }
-  .ko-slot-num {
-    width: 20px; height: 20px; border-radius: 50%;
-    background: var(--border); color: var(--text-2);
-    font-size: 11px; font-weight: 700;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .ko-slot.active .ko-slot-num { background: var(--amber); color: #3a2000; }
-  .ko-slot-players { display: flex; flex-direction: column; }
-  .ko-slot-player {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px; cursor: pointer;
-    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-    transition: background 0.1s;
-  }
-  .ko-slot-player + .ko-slot-player { border-top: 1px solid var(--border); }
-  .ko-slot-player:active { background: var(--bg); }
-  .ko-slot-player-name { flex: 1; font-size: 14px; font-weight: 500; color: var(--text); }
-  .ko-slot-player-name.empty { color: var(--text-3); font-weight: 400; font-style: italic; }
-  .ko-slot-player-clear { font-size: 16px; color: var(--text-3); padding: 2px 4px; flex-shrink: 0; }
-  .ko-slot-bye-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 8px 12px; border-top: 1px solid var(--border);
-    background: var(--bg);
-  }
-  .ko-bye-toggle {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 12px; color: var(--text-2); cursor: pointer;
-    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-  }
-  .ko-bye-toggle input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--amber); }
-  .ko-setup-save { position: sticky; bottom: 0; background: var(--surface); padding: 12px 0 0; margin-top: 8px; }
 
   /* ── Scorecard scanner ── */
   .scan-preview { width:100%;max-height:200px;object-fit:contain;background:#111;display:block; }
@@ -1153,7 +1067,7 @@ function fmtDate(d) {
 }
 
 function calcStableford(score, par, allowance) { return Math.max(0, par - (score - allowance) + 2); }
-function calcCourseHcp(idx, slope, cr, par) { return Math.min(18, Math.round(idx)); }
+function calcCourseHcp(idx, slope, cr, par) { return Math.round(idx); }
 function calcNewHcp(hcpIdx, totalPts, position) {
   if (totalPts >= 18) {
     return Math.max(0, parseFloat((hcpIdx - 1).toFixed(1)));
@@ -1164,22 +1078,35 @@ function calcNewHcp(hcpIdx, totalPts, position) {
   }
 }
 
-function calcNewHcpOuting(hcpIdx, totalPts) {
-  // Outing rule: broke par = 37+ pts → -1, otherwise +0.2
-  if (totalPts >= 37) {
-    return Math.max(0, parseFloat((hcpIdx - 1).toFixed(1)));
-  } else {
-    return Math.min(54, parseFloat((hcpIdx + 0.2).toFixed(1)));
-  }
+function calcNewHcpOuting(hcpIdx, totalPts, position) {
+  // Top 3 get a flat placement cut — replaces score-based rule entirely
+  if (position === 1) return Math.max(0, parseFloat((hcpIdx - 1).toFixed(1)));
+  if (position === 2) return Math.max(0, parseFloat((hcpIdx - 0.5).toFixed(1)));
+  if (position === 3) return Math.max(0, parseFloat((hcpIdx - 0.3).toFixed(1)));
+  // Everyone else: score-based (37+ pts = -1, otherwise +0.2)
+  if (totalPts >= 37) return Math.max(0, parseFloat((hcpIdx - 1).toFixed(1)));
+  return Math.min(54, parseFloat((hcpIdx + 0.2).toFixed(1)));
+}
+
+function getPreviousOutingWinnerId() {
+  // Find the last published outing event
+  const outings = db.events
+    .filter(e => e.event_type === 'outing_18' && e.published)
+    .sort((a,b) => b.event_date.localeCompare(a.event_date));
+  if (!outings.length) return null;
+  const lastOuting = outings[0];
+  const outingRounds = db.rounds.filter(r => r.event_id === lastOuting.id && r.verified);
+  if (!outingRounds.length) return null;
+  const sorted = assignLeaguePts(outingRounds.map(r=>({...r})));
+  return sorted[0]?.player_id || null;
 }
 
 function calcOutingCourseHcp(hcpIdx, slope, cr, par, playerId) {
-  // Multiply raw index by 2 first, THEN round — avoids rounding up 13.5 → 14 before doubling
-  const base = Math.min(36, Math.round(hcpIdx * 2) + 2);
-  // Apply any pending outing penalty stored on the player record (−4, −3, or −2)
-  const player = db.players.find(p => p.id === playerId);
-  const penalty = (player && player.outing_penalty) ? player.outing_penalty : 0;
-  return base + penalty; // penalty is negative so this subtracts
+  const base = calcCourseHcp(hcpIdx, slope, cr, par) * 2;
+  const prevWinner = getPreviousOutingWinnerId();
+  // Previous outing winner skips the +2
+  if (prevWinner && prevWinner === playerId) return base;
+  return base + 2;
 }
 
 function calcHolePts(r, holeIndex) {
@@ -1218,12 +1145,18 @@ function tiebreakerCompare(a, b) {
 
 // Calculates best front or back 9 for an 18-hole outing
 // half = 'front' (holes 0-8) or 'back' (holes 9-17)
-function calcBestHalf(rounds, half) {
+// excludePlayerIds: set of player IDs to exclude (top 3 overall finishers)
+function calcBestHalf(rounds, half, excludePlayerIds) {
   const start = half === 'front' ? 0 : 9;
   const end   = half === 'front' ? 9 : 18;
 
+  // Exclude top 3 overall finishers if provided
+  const eligible = excludePlayerIds
+    ? rounds.filter(r => !excludePlayerIds.has(r.player_id))
+    : rounds;
+
   // Sum stableford pts for each player across their half
-  const totals = rounds.map(r => {
+  const totals = eligible.map(r => {
     let pts = 0;
     for (let i = start; i < end; i++) pts += calcHolePts(r, i);
     return { r, pts };
@@ -2188,33 +2121,16 @@ async function verifyAllRounds(eid) {
     for (const r of unverified) {
       let newHcp;
       if (isOuting) {
-        newHcp = calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points);
+        const pos = sortedPts.findIndex(x=>x.id===r.id) + 1;
+        newHcp = calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points, pos);
       } else {
         const pos = sortedPts.findIndex(x=>x.id===r.id) + 1;
         newHcp = calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos);
       }
       await patch(`rounds?id=eq.${r.id}`, { verified: true, handicap_after: newHcp });
       await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp });
-      // Clear any pending outing penalty for players who played this outing
-      if (isOuting) {
-        await patch(`players?id=eq.${r.player_id}`, { outing_penalty: null });
-      }
     }
-
-    // After an outing, assign new penalties to top 3 finishers
-    if (isOuting) {
-      const allVerified = db.rounds.filter(r=>r.event_id===eid && r.verified);
-      const justVerified = unverified; // these are now verified
-      const combined = [...allVerified, ...justVerified];
-      const ranked = assignLeaguePts(combined.map(r=>({...r}))).slice(0, 3);
-      const penaltyMap = [-4, -3, -2];
-      for (let i = 0; i < ranked.length; i++) {
-        await patch(`players?id=eq.${ranked[i].player_id}`, { outing_penalty: penaltyMap[i] });
-      }
-      toast(`${unverified.length} round${unverified.length!==1?'s':''} verified — handicaps updated! Outing penalties set for top 3.`, 'success');
-    } else {
-      toast(`${unverified.length} round${unverified.length!==1?'s':''} verified — handicaps updated!`, 'success');
-    }
+    toast(`${unverified.length} round${unverified.length!==1?'s':''} verified — handicaps updated!`, 'success');
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); btn.disabled = false; }
 }
@@ -2230,21 +2146,14 @@ async function recalcHandicaps(eid) {
     for (const r of rounds) {
       let newHcp;
       if (isOuting) {
-        newHcp = calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points);
+        const pos = sortedPts.findIndex(x=>x.id===r.id) + 1;
+        newHcp = calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points, pos);
       } else {
         const pos = sortedPts.findIndex(x=>x.id===r.id) + 1;
         newHcp = calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos);
       }
       await patch(`rounds?id=eq.${r.id}`, { handicap_after: newHcp });
       await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp });
-    }
-    // Reassign outing penalties for top 3
-    if (isOuting) {
-      const ranked = assignLeaguePts(rounds.map(r=>({...r}))).slice(0, 3);
-      const penaltyMap = [-4, -3, -2];
-      for (let i = 0; i < ranked.length; i++) {
-        await patch(`players?id=eq.${ranked[i].player_id}`, { outing_penalty: penaltyMap[i] });
-      }
     }
     toast('Handicaps recalculated and updated!', 'success');
     await loadAll(); renderAll();
@@ -2833,8 +2742,9 @@ function showPostUpdate(eid) {
   // Front/back 9 — outings only
   let frontBest = null, backBest = null;
   if (isOuting && outingRounds.length) {
-    frontBest = calcBestHalf(outingRounds, 'front');
-    backBest  = calcBestHalf(outingRounds, 'back');
+    const top3Ids = new Set(assignLeaguePts(outingRounds.map(r=>({...r}))).slice(0,3).map(r=>r.player_id));
+    frontBest = calcBestHalf(outingRounds, 'front', top3Ids);
+    backBest  = calcBestHalf(outingRounds, 'back',  top3Ids);
   }
 
   const frontBackHtml = isOuting ? `
@@ -2919,8 +2829,9 @@ async function saveNotice(eid, existingId) {
   let best_front_9 = null, best_back_9 = null;
   if (isOuting) {
     const outingRounds = db.rounds.filter(r=>r.event_id===eid && r.verified);
-    const front = calcBestHalf(outingRounds, 'front');
-    const back  = calcBestHalf(outingRounds, 'back');
+    const top3Ids = new Set(assignLeaguePts(outingRounds.map(r=>({...r}))).slice(0,3).map(r=>r.player_id));
+    const front = calcBestHalf(outingRounds, 'front', top3Ids);
+    const back  = calcBestHalf(outingRounds, 'back',  top3Ids);
     if (front) best_front_9 = `${front.name} (${front.pts} pts)`;
     if (back)  best_back_9  = `${back.name} (${back.pts} pts)`;
   }
@@ -3461,15 +3372,9 @@ async function saveEditedRound(rid) {
 async function verifyRound(rid) {
   const r = db.rounds.find(x=>x.id===rid);
   if (!r) return;
-  const ev = db.events.find(e=>e.id===r.event_id);
-  const isOuting = ev && ev.event_type === 'outing_18';
   try {
     await patch(`rounds?id=eq.${rid}`, { verified: true });
     await patch(`players?id=eq.${r.player_id}`, { handicap_index: parseFloat(r.handicap_after) });
-    // Clear any pending outing penalty now that the player has used it
-    if (isOuting) {
-      await patch(`players?id=eq.${r.player_id}`, { outing_penalty: null });
-    }
     toast(`Round verified! Hcp updated to ${parseFloat(r.handicap_after).toFixed(1)}`, 'success');
     await loadAll(); renderAll();
     closeModal();
@@ -4032,303 +3937,152 @@ function renderKnockout() {
   const rounds = [...new Set(matches.map(m=>m.round))].sort((a,b)=>a-b);
   const roundNames = {1:'Round of 32',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
 
-  const adminBtns = isAdmin ? `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
+  const setupBtn = isAdmin ? `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem">
       ${matches.length===0 ? `<button class="btn primary" onclick="showKnockoutSetup()">Set up draw</button>` : ''}
-      ${matches.length>0 ? `<button class="btn" onclick="showKnockoutSetup()">Edit draw</button>` : ''}
+      ${isAdmin && matches.length>0 ? `<button class="btn" onclick="showKnockoutSetup()">Edit draw</button>` : ''}
     </div>` : '';
 
   if (!matches.length) {
-    el.innerHTML = adminBtns + `<div class="card"><div class="empty">The knockout draw has not been set up yet</div></div>`;
+    el.innerHTML = setupBtn + `<div class="card"><div class="empty">The knockout draw has not been set up yet</div></div>`;
     return;
   }
 
+  // Find overall winner
   const finalMatch = matches.find(m=>m.round===Math.max(...rounds));
-  const champion = finalMatch?.winner_id ? db.players.find(p=>p.id===finalMatch.winner_id) : null;
+  const winner = finalMatch?.winner_id ? db.players.find(p=>p.id===finalMatch.winner_id) : null;
 
-  const championHtml = champion ? `
-    <div class="ko-champion">
-      <div class="ko-champion-trophy">🏆</div>
-      <div class="ko-champion-name">${champion.name}</div>
-      <div class="ko-champion-label">2026 Knockout Champion</div>
-    </div>` : '';
-
-  const roundsHtml = rounds.map(round => {
-    const roundMatches = matches.filter(m=>m.round===round).sort((a,b)=>a.match_number-b.match_number);
-    const doneCount = roundMatches.filter(m=>m.status==='complete').length;
-
-    const matchesHtml = roundMatches.map(m => {
-      const p1 = m.player1_id ? db.players.find(p=>p.id===m.player1_id) : null;
-      const p2 = m.player2_id ? db.players.find(p=>p.id===m.player2_id) : null;
-      const w  = m.winner_id  ? m.winner_id : null;
-
-      if (m.is_bye) {
-        return `<div class="ko-match">
-          <div class="ko-bye">
-            <div class="avatar">${p1?initials(p1.name):'?'}</div>
-            <div class="ko-player-info">
-              <div class="ko-player-name">${p1?p1.name:'TBD'}</div>
-              <div class="ko-player-hcp">Hcp ${p1?parseFloat(p1.handicap_index).toFixed(1):'—'}</div>
+  el.innerHTML = setupBtn +
+    (winner ? `<div class="card" style="margin-bottom:1rem;border-color:var(--amber);background:var(--gold-light)">
+      <div style="text-align:center;padding:0.5rem">
+        <div style="font-size:28px;margin-bottom:4px">🏆</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--gold)">${winner.name}</div>
+        <div style="font-size:13px;color:var(--gold);margin-top:2px">2026 Knockout Champion</div>
+      </div>
+    </div>` : '') +
+    rounds.map(round => {
+      const roundMatches = matches.filter(m=>m.round===round).sort((a,b)=>a.match_number-b.match_number);
+      return `<div class="card" style="margin-bottom:1rem">
+        <div class="card-title">${roundNames[round]||'Round '+round}</div>
+        ${roundMatches.map(m=>{
+          const p1 = m.player1_id ? db.players.find(p=>p.id===m.player1_id) : null;
+          const p2 = m.player2_id ? db.players.find(p=>p.id===m.player2_id) : null;
+          const winner = m.winner_id ? db.players.find(p=>p.id===m.winner_id) : null;
+          if (m.is_bye) {
+            return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
+              <div class="avatar" style="flex-shrink:0">${p1?initials(p1.name):'?'}</div>
+              <div style="flex:1"><div style="font-size:14px;font-weight:500">${p1?p1.name:'TBD'}</div></div>
+              <span class="badge green">Bye</span>
+            </div>`;
+          }
+          const statusBadge = m.status==='complete'
+            ? `<span class="badge green">Done</span>`
+            : m.status==='in_progress'
+            ? `<span class="badge blue">In progress</span>`
+            : `<span class="badge gray">Pending</span>`;
+          return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+                <div class="avatar" style="flex-shrink:0;${winner&&winner.id===m.player1_id?'background:var(--gold-light);color:var(--gold)':''}">${p1?initials(p1.name):'?'}</div>
+                <div style="min-width:0">
+                  <div style="font-size:13px;font-weight:${winner&&winner.id===m.player1_id?'600':'400'};color:var(--text)">${p1?p1.name:'TBD'}</div>
+                  <div style="font-size:11px;color:var(--text-3)">Hcp ${p1?parseFloat(p1.handicap_index).toFixed(1):'—'}</div>
+                </div>
+              </div>
+              <div style="font-size:11px;color:var(--text-3);flex-shrink:0">vs</div>
+              <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;justify-content:flex-end">
+                <div style="min-width:0;text-align:right">
+                  <div style="font-size:13px;font-weight:${winner&&winner.id===m.player2_id?'600':'400'};color:var(--text)">${p2?p2.name:'TBD'}</div>
+                  <div style="font-size:11px;color:var(--text-3)">Hcp ${p2?parseFloat(p2.handicap_index).toFixed(1):'—'}</div>
+                </div>
+                <div class="avatar" style="flex-shrink:0;${winner&&winner.id===m.player2_id?'background:var(--gold-light);color:var(--gold)':''}">${p2?initials(p2.name):'?'}</div>
+              </div>
             </div>
-            <span class="badge green">Bye</span>
-          </div>
-        </div>`;
-      }
-
-      const p1Won = w && w===m.player1_id;
-      const p2Won = w && w===m.player2_id;
-
-      const statusBadge = m.status==='complete'
-        ? `<span class="badge green">Done</span>`
-        : m.status==='in_progress'
-        ? `<span class="badge blue">In progress</span>`
-        : `<span class="badge gray">Pending</span>`;
-
-      const adminBtn = isAdmin
-        ? (m.status!=='complete' && p1 && p2
-          ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">Enter result</button>`
-          : m.status==='complete'
-          ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">Edit</button>`
-          : '')
-        : '';
-
-      return `<div class="ko-match${m.status==='complete'?' complete':''}">
-        <div class="ko-player">
-          <div class="avatar${p1Won?' gold':''}">${p1?initials(p1.name):'?'}</div>
-          <div class="ko-player-info">
-            <div class="ko-player-name${p1Won?' winner':p2Won?' loser':''}">${p1?p1.name:'TBD'}</div>
-            <div class="ko-player-hcp">Hcp ${p1?parseFloat(p1.handicap_index).toFixed(1):'—'}</div>
-          </div>
-          ${p1Won ? '<span class="ko-winner-tick">✓</span>' : ''}
-        </div>
-        <div class="ko-player">
-          <div class="avatar${p2Won?' gold':''}">${p2?initials(p2.name):'?'}</div>
-          <div class="ko-player-info">
-            <div class="ko-player-name${p2Won?' winner':p1Won?' loser':''}">${p2?p2.name:'TBD'}</div>
-            <div class="ko-player-hcp">Hcp ${p2?parseFloat(p2.handicap_index).toFixed(1):'—'}</div>
-          </div>
-          ${p2Won ? '<span class="ko-winner-tick">✓</span>' : ''}
-        </div>
-        <div class="ko-match-footer">
-          ${statusBadge}
-          ${m.result ? `<span class="badge gray">${m.result}</span>` : ''}
-          ${m.holes ? `<span class="badge gray">${m.holes} holes</span>` : ''}
-          ${adminBtn}
-        </div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              ${statusBadge}
+              ${m.result ? `<span class="badge gray">${m.result}</span>` : ''}
+              ${m.holes ? `<span class="badge gray">${m.holes} holes</span>` : ''}
+              ${isAdmin && m.status!=='complete' && p1 && p2 ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">Enter scores</button>` : ''}
+              ${isAdmin && m.status==='complete' ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">Edit</button>` : ''}
+            </div>
+          </div>`;
+        }).join('')}
       </div>`;
     }).join('');
-
-    return `<div class="ko-round">
-      <div class="ko-round-header">
-        <span class="ko-round-title">${roundNames[round]||'Round '+round}</span>
-        <span class="ko-round-count">${doneCount}/${roundMatches.length} complete</span>
-      </div>
-      ${matchesHtml}
-    </div>`;
-  }).join('');
-
-  el.innerHTML = adminBtns + championHtml + roundsHtml;
 }
-
-// ── Knockout draw setup state ──
-let _koDrawSlots = []; // [{p1Id, p2Id, isBye}] x16
-let _koDrawActiveSlot = null; // {matchNum, position} — which slot+position is being filled
-let _koDrawExisting = [];
 
 function showKnockoutSetup() {
-  _koDrawExisting = db.knockout_matches.filter(m=>m.round===1);
-  // Initialise slots from existing data or blank
-  _koDrawSlots = [];
+  const rounds = [...new Set(db.knockout_matches.map(m=>m.round))];
+  const existing = db.knockout_matches.filter(m=>m.round===1);
+  const playerOpts = db.players.map(p=>`<option value="${p.id}">${p.name} (${parseFloat(p.handicap_index).toFixed(1)})</option>`).join('');
+
+  // Build 16 match slots for round of 32
+  let matchSlots = '';
   for (let i=1; i<=16; i++) {
-    const m = _koDrawExisting.find(x=>x.match_number===i);
-    _koDrawSlots.push({
-      p1Id: m?.player1_id || null,
-      p2Id: m?.player2_id || null,
-      isBye: m?.is_bye || false
-    });
-  }
-  _koDrawActiveSlot = null;
-  _renderKoSetup();
-}
-
-function _koAssignedIds() {
-  const ids = new Set();
-  _koDrawSlots.forEach(s => {
-    if (s.p1Id) ids.add(s.p1Id);
-    if (s.p2Id) ids.add(s.p2Id);
-  });
-  return ids;
-}
-
-function _renderKoSetup() {
-  const el = document.getElementById('knockout-content');
-  if (!el) return;
-  const assigned = _koAssignedIds();
-  const players = [...db.players].sort((a,b)=>a.name.localeCompare(b.name));
-  const byeCount = _koDrawSlots.filter(s=>s.isBye).length;
-
-  // Player pool chips
-  const poolHtml = players.map(p => {
-    const isAssigned = assigned.has(p.id);
-    const isSelected = _koDrawActiveSlot && (
-      (_koDrawActiveSlot.position===1 && _koDrawSlots[_koDrawActiveSlot.matchNum-1]?.p1Id===p.id) ||
-      (_koDrawActiveSlot.position===2 && _koDrawSlots[_koDrawActiveSlot.matchNum-1]?.p2Id===p.id)
-    );
-    return `<div class="ko-chip${isAssigned?' assigned':''}${isSelected?' selected':''}"
-      onclick="koChipTap('${p.id}')">${p.name}</div>`;
-  }).join('');
-
-  // Match slots
-  const slotsHtml = _koDrawSlots.map((s, idx) => {
-    const matchNum = idx + 1;
-    const p1 = s.p1Id ? db.players.find(p=>p.id===s.p1Id) : null;
-    const p2 = s.p2Id ? db.players.find(p=>p.id===s.p2Id) : null;
-    const isActive = _koDrawActiveSlot?.matchNum === matchNum;
-    const activePos = isActive ? _koDrawActiveSlot.position : 0;
-
-    return `<div class="ko-slot${isActive?' active':''}">
-      <div class="ko-slot-hdr">
-        <div class="ko-slot-num">${matchNum}</div>
-        Match ${matchNum}
-        ${s.isBye ? '<span class="badge green" style="margin-left:auto">Bye</span>' : ''}
+    const m = existing.find(x=>x.match_number===i);
+    const p1 = m?.player1_id || '';
+    const p2 = m?.player2_id || '';
+    const isBye = m?.is_bye || false;
+    matchSlots += `<div style="background:var(--bg);border-radius:var(--radius);padding:10px;margin-bottom:8px">
+      <div style="font-size:11px;color:var(--text-3);font-weight:500;margin-bottom:6px">Match ${i}</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <select id="ko-p1-${i}" style="flex:1;height:34px;font-size:12px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);padding:0 8px;font-family:'DM Sans',sans-serif">
+          <option value="">— Player 1 —</option>
+          ${playerOpts}
+        </select>
+        <span style="font-size:12px;color:var(--text-3)">vs</span>
+        <select id="ko-p2-${i}" style="flex:1;height:34px;font-size:12px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);padding:0 8px;font-family:'DM Sans',sans-serif">
+          <option value="">— Bye —</option>
+          ${playerOpts}
+        </select>
       </div>
-      <div class="ko-slot-players">
-        <div class="ko-slot-player${activePos===1?' active':''}" onclick="koSlotTap(${matchNum},1)">
-          <div class="avatar" style="${activePos===1?'background:var(--amber);color:#3a2000':''}">
-            ${p1?initials(p1.name):'?'}
-          </div>
-          <div class="ko-slot-player-name${p1?'':' empty'}">${p1?p1.name:'Tap to assign player 1'}</div>
-          ${p1 ? `<span class="ko-slot-player-clear" onclick="event.stopPropagation();koSlotClear(${matchNum},1)">✕</span>` : ''}
-        </div>
-        ${!s.isBye ? `<div class="ko-slot-player${activePos===2?' active':''}" onclick="koSlotTap(${matchNum},2)">
-          <div class="avatar" style="${activePos===2?'background:var(--amber);color:#3a2000':''}">
-            ${p2?initials(p2.name):'?'}
-          </div>
-          <div class="ko-slot-player-name${p2?'':' empty'}">${p2?p2.name:'Tap to assign player 2'}</div>
-          ${p2 ? `<span class="ko-slot-player-clear" onclick="event.stopPropagation();koSlotClear(${matchNum},2)">✕</span>` : ''}
-        </div>` : ''}
-      </div>
-      <div class="ko-slot-bye-row">
-        <label class="ko-bye-toggle">
-          <input type="checkbox" ${s.isBye?'checked':''} onchange="koToggleBye(${matchNum},this.checked)">
-          Bye match
-        </label>
-        ${s.isBye && p1 ? `<span style="font-size:11px;color:var(--text-3)">${p1.name} advances</span>` : ''}
-      </div>
+      <label style="font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="ko-bye-${i}" ${isBye?'checked':''} onchange="document.getElementById('ko-p2-${i}').disabled=this.checked"> This is a bye match
+      </label>
     </div>`;
-  }).join('');
-
-  const byeWarning = byeCount !== 5
-    ? `<div style="font-size:12px;color:${byeCount>5?'#A32D2D':'var(--text-3)'};margin-top:4px">
-        ${byeCount}/5 byes set ${byeCount>5?'— too many byes!':''}
-       </div>` : `<div style="font-size:12px;color:var(--green-dark);margin-top:4px">✓ 5 byes set</div>`;
-
-  el.innerHTML = `<div class="ko-setup">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
-      <button class="btn sm" onclick="renderKnockout()">← Back</button>
-      <span style="font-size:15px;font-weight:600;color:var(--text)">Set up draw</span>
-    </div>
-    <div class="ko-setup-intro">
-      Tap a match slot position, then tap a player from the pool to assign them.
-      Tap ✕ to remove. Tick "Bye match" for walkovers — you need exactly 5 byes.
-      ${byeWarning}
-    </div>
-    <div class="ko-pool-section">
-      <div class="ko-pool-label">Player pool — tap a slot first, then tap a player</div>
-      <div class="ko-pool">${poolHtml}</div>
-    </div>
-    <div class="ko-slots-label">Match slots</div>
-    ${slotsHtml}
-    <div class="ko-setup-save">
-      <button class="btn primary" onclick="saveKnockoutDraw()" style="width:100%">Save draw</button>
-    </div>
-  </div>`;
-}
-
-function koSlotTap(matchNum, position) {
-  // Toggle active slot — tap same again to deselect
-  if (_koDrawActiveSlot?.matchNum===matchNum && _koDrawActiveSlot?.position===position) {
-    _koDrawActiveSlot = null;
-  } else {
-    _koDrawActiveSlot = { matchNum, position };
   }
-  _renderKoSetup();
-  // Scroll pool into view
-  setTimeout(() => {
-    document.querySelector('.ko-pool')?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+  // Pre-fill existing values
+  document.getElementById('modal-title').textContent = 'Set up knockout draw';
+  document.getElementById('modal-body').innerHTML = `
+    <p style="font-size:13px;color:var(--text-2);margin-bottom:1rem">Set up the Round of 32 draw. 5 matches should be byes (leaving 27 players). Winners automatically advance.</p>
+    ${matchSlots}
+    <button class="btn primary" onclick="saveKnockoutDraw()" style="width:100%;margin-top:8px">Save draw</button>
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
+
+  // Pre-fill after render
+  setTimeout(()=>{
+    existing.forEach(m=>{
+      const p1el = document.getElementById('ko-p1-'+m.match_number);
+      const p2el = document.getElementById('ko-p2-'+m.match_number);
+      const byeEl = document.getElementById('ko-bye-'+m.match_number);
+      if (p1el && m.player1_id) p1el.value = m.player1_id;
+      if (p2el && m.player2_id) p2el.value = m.player2_id;
+      if (byeEl && m.is_bye) { byeEl.checked = true; if(p2el) p2el.disabled = true; }
+    });
   }, 50);
 }
 
-function koChipTap(playerId) {
-  if (!_koDrawActiveSlot) return;
-  const { matchNum, position } = _koDrawActiveSlot;
-  const slot = _koDrawSlots[matchNum-1];
-  // Remove this player from any other slot first
-  _koDrawSlots.forEach(s => {
-    if (s.p1Id === playerId) s.p1Id = null;
-    if (s.p2Id === playerId) s.p2Id = null;
-  });
-  if (position === 1) slot.p1Id = playerId;
-  else slot.p2Id = playerId;
-  // Auto-advance to next empty position
-  const next = _findNextEmpty(matchNum, position);
-  _koDrawActiveSlot = next;
-  _renderKoSetup();
-}
-
-function _findNextEmpty(matchNum, position) {
-  // Try next position in same slot first, then next slots
-  const slot = _koDrawSlots[matchNum-1];
-  if (position === 1 && !slot.isBye && !slot.p2Id) return { matchNum, position:2 };
-  for (let i=matchNum; i<=16; i++) {
-    const s = _koDrawSlots[i-1];
-    if (!s.p1Id) return { matchNum:i, position:1 };
-    if (!s.isBye && !s.p2Id) return { matchNum:i, position:2 };
-  }
-  return null; // all filled
-}
-
-function koSlotClear(matchNum, position) {
-  const slot = _koDrawSlots[matchNum-1];
-  if (position === 1) slot.p1Id = null;
-  else slot.p2Id = null;
-  _renderKoSetup();
-}
-
-function koToggleBye(matchNum, isBye) {
-  const slot = _koDrawSlots[matchNum-1];
-  slot.isBye = isBye;
-  if (isBye) slot.p2Id = null;
-  _renderKoSetup();
-}
-
 async function saveKnockoutDraw() {
-  const existing = _koDrawExisting;
-  // Validate — warn but don't block if byes aren't exactly 5
-  const byeCount = _koDrawSlots.filter(s=>s.isBye).length;
-  if (byeCount !== 5) {
-    if (!confirm(`You have ${byeCount} bye${byeCount!==1?'s':''} — expected 5 for a 29-player draw. Save anyway?`)) return;
-  }
+  const existing = db.knockout_matches.filter(m=>m.round===1);
   try {
     for (let i=1; i<=16; i++) {
-      const s = _koDrawSlots[i-1];
-      if (!s.p1Id) continue;
-      const data = {
-        round:1, match_number:i,
-        player1_id: s.p1Id,
-        player2_id: s.isBye ? null : (s.p2Id || null),
-        is_bye: s.isBye,
-        status: s.isBye ? 'complete' : 'pending',
-        winner_id: s.isBye ? s.p1Id : null
-      };
+      const p1 = document.getElementById('ko-p1-'+i)?.value || null;
+      const p2 = document.getElementById('ko-p2-'+i)?.value || null;
+      const isBye = document.getElementById('ko-bye-'+i)?.checked || false;
+      if (!p1) continue;
+      const data = { round:1, match_number:i, player1_id:p1, player2_id:isBye?null:p2, is_bye:isBye, status: isBye?'complete':'pending', winner_id: isBye?p1:null };
       const existing_m = existing.find(m=>m.match_number===i);
       if (existing_m) {
         await patch(`knockout_matches?id=eq.${existing_m.id}`, data);
       } else {
+        if (!p1) continue;
         await post('knockout_matches', data);
       }
     }
     toast('Draw saved!', 'success');
+    closeModal();
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
