@@ -2138,17 +2138,19 @@ async function verifyAllRounds(eid) {
   const ev = db.events.find(e=>e.id===eid);
   const isOuting = ev && ev.event_type === 'outing_18';
   try {
-    // Calculate all positions at once using full sorted list
+    // Use assignLeaguePts to get tiebreaker-correct positions for all rounds
     const allRounds = db.rounds.filter(r=>r.event_id===eid);
-    const sortedPts = [...allRounds].sort((a,b)=>b.stableford_points-a.stableford_points);
+    const ranked = assignLeaguePts(allRounds.map(r=>({...r})));
+    // Build a position map by round id
+    const posMap = {};
+    ranked.forEach((r, i) => { posMap[r.id] = i + 1; });
 
     for (const r of unverified) {
+      const pos = posMap[r.id] || 99;
       let newHcp;
       if (isOuting) {
-        const pos = sortedPts.findIndex(x=>x.id===r.id) + 1;
         newHcp = calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points, pos);
       } else {
-        const pos = sortedPts.findIndex(x=>x.id===r.id) + 1;
         newHcp = calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos);
       }
       await patch(`rounds?id=eq.${r.id}`, { verified: true, handicap_after: newHcp });
@@ -2165,15 +2167,17 @@ async function recalcHandicaps(eid) {
   const isOuting = ev && ev.event_type === 'outing_18';
   const rounds = db.rounds.filter(r=>r.event_id===eid && r.verified);
   if (!rounds.length) { toast('No verified rounds found', 'error'); return; }
-  const sortedPts = [...rounds].sort((a,b)=>b.stableford_points-a.stableford_points);
+  // Use assignLeaguePts for tiebreaker-correct positions
+  const ranked = assignLeaguePts(rounds.map(r=>({...r})));
+  const posMap = {};
+  ranked.forEach((r, i) => { posMap[r.id] = i + 1; });
   try {
     for (const r of rounds) {
+      const pos = posMap[r.id] || 99;
       let newHcp;
       if (isOuting) {
-        const pos = sortedPts.findIndex(x=>x.id===r.id) + 1;
         newHcp = calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points, pos);
       } else {
-        const pos = sortedPts.findIndex(x=>x.id===r.id) + 1;
         newHcp = calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos);
       }
       await patch(`rounds?id=eq.${r.id}`, { handicap_after: newHcp });
