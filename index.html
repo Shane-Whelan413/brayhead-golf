@@ -4237,6 +4237,7 @@ function showFixturePost() {
     </label>`;
   }).join('');
   const allIds = pending.map(m=>m.id);
+  window._fixturePostIds = allIds;
   document.getElementById('modal-title').textContent = "Post this week's fixtures";
   document.getElementById('modal-body').innerHTML = `
     <div class="form-group" style="margin-bottom:1rem">
@@ -4247,12 +4248,13 @@ function showFixturePost() {
     ${matchChecks}
     <div style="display:flex;gap:8px;margin-top:1rem">
       <button class="btn sm" onclick="document.querySelectorAll('[id^=fix-m-]').forEach(cb=>cb.checked=true)" style="flex:1">Select all</button>
-      <button class="btn primary" onclick="saveFixturePost(${JSON.stringify(allIds)})" style="flex:2">Post to home</button>
+      <button class="btn primary" onclick="saveFixturePost()" style="flex:2">Post to home</button>
     </div>`;
   document.getElementById('modal-overlay').classList.add('open');
 }
 
-async function saveFixturePost(allIds) {
+async function saveFixturePost() {
+  const allIds = window._fixturePostIds || [];
   const selected = allIds.filter(id=>document.getElementById('fix-m-'+id)?.checked);
   if (!selected.length) { toast('Select at least one match','error'); return; }
   const note = document.getElementById('fix-note').value.trim()||null;
