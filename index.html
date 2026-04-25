@@ -2841,6 +2841,21 @@ function generateResultsCard(eid) {
 }
 
 function generateFixtureCard(matches, note) {
+  // Load logo from the already-rendered topbar image
+  const logoImg = document.getElementById('topbar-logo');
+  const doRender = (logo) => _renderFixtureCard(matches, note, logo);
+  if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+    doRender(logoImg);
+  } else {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => doRender(img);
+    img.onerror = () => doRender(null);
+    img.src = 'icon-192.png';
+  }
+}
+
+function _renderFixtureCard(matches, note, logoImg) {
   const S = 3;
   const W = 580, PAD = 28;
   const NAVY = '#0a1628', GOLD = '#C9A84C', WHITE = '#ffffff';
@@ -2877,15 +2892,28 @@ function generateFixtureCard(matches, note) {
   // ── Header ──
   const hdrMid = HEADER_H / 2;
 
-  // Left gold ball/icon
-  ctx.fillStyle = GOLD;
+  // Left logo circle
+  ctx.save();
   ctx.beginPath();
   ctx.arc(PAD + 34, hdrMid, 30, 0, Math.PI*2);
-  ctx.fill();
-  ctx.fillStyle = NAVY;
-  ctx.font = '26px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('⛳', PAD + 34, hdrMid + 9);
+  ctx.clip();
+  if (logoImg) {
+    ctx.drawImage(logoImg, PAD + 4, hdrMid - 30, 60, 60);
+  } else {
+    ctx.fillStyle = GOLD;
+    ctx.fill();
+    ctx.fillStyle = NAVY;
+    ctx.font = '22px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('BH', PAD + 34, hdrMid + 8);
+  }
+  ctx.restore();
+  // Gold ring around logo
+  ctx.strokeStyle = GOLD;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(PAD + 34, hdrMid, 30, 0, Math.PI*2);
+  ctx.stroke();
 
   // Header text
   const htx = PAD + 76;
