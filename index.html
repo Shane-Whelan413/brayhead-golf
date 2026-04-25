@@ -2475,7 +2475,13 @@ function renderHome() {
         ${matchRows}
         <div class="fixture-post-footer">
           <span style="font-size:11px;color:rgba(255,255,255,0.3)">${matches.length} match${matches.length!==1?'es':''} this week</span>
-          <button onclick="showTab('knockout')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:600">View full draw →</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button onclick="generateFixtureCard(${JSON.stringify(matches).replace(/"/g,'&quot;')},${JSON.stringify(n.custom_text||'').replace(/"/g,'&quot;')})" style="background:#C9A84C;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#0a1628;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:5px">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#0a1628" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M5 8l3 3 3-3"/><rect x="2" y="12" width="12" height="2" rx="1"/></svg>
+              Share card
+            </button>
+            <button onclick="showTab('knockout')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:600">View draw →</button>
+          </div>
         </div>
       </div>`;
     }
@@ -2832,6 +2838,185 @@ function generateResultsCard(eid) {
   link.href = canvas.toDataURL('image/png');
   link.click();
   toast('Results card downloaded — share to WhatsApp!', 'success');
+}
+
+function generateFixtureCard(matches, note) {
+  const S = 3;
+  const W = 580, PAD = 32;
+  const NAVY = '#0c1c2e', GOLD = '#C9A84C', WHITE = '#ffffff';
+  const LIGHTER = 'rgba(255,255,255,0.10)';
+  const HEADER_H = 160;
+  const ROW_H = 72;
+  const PLAYOFF_STRIP_H = 28;
+  const FOOTER_H = 80;
+  const NOTE_H = note ? 48 : 0;
+
+  // Calculate total height
+  let contentH = 0;
+  matches.forEach(m => { contentH += ROW_H + (m.isPlayoff ? PLAYOFF_STRIP_H : 0); });
+  const H = HEADER_H + 16 + contentH + NOTE_H + FOOTER_H;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = W * S;
+  canvas.height = H * S;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(S, S);
+
+  // Background
+  ctx.fillStyle = NAVY;
+  ctx.fillRect(0, 0, W, H);
+
+  // Gold top bar
+  ctx.fillStyle = GOLD;
+  ctx.fillRect(0, 0, W, 6);
+  ctx.fillRect(0, H-6, W, 6);
+
+  // Header
+  ctx.fillStyle = LIGHTER;
+  ctx.beginPath();
+  ctx.roundRect(PAD, 18, W-PAD*2, HEADER_H-24, 14);
+  ctx.fill();
+
+  // Trophy icon area
+  const cx = PAD + 52, cy = 18 + (HEADER_H-24)/2;
+  ctx.fillStyle = GOLD;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 36, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = NAVY;
+  ctx.font = 'bold 26px DM Sans,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('⛳', cx, cy + 9);
+
+  const tx = PAD + 104;
+  ctx.fillStyle = WHITE;
+  ctx.font = 'bold 24px DM Sans,sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Bray Head Golf Society', tx, cy - 22);
+  ctx.fillStyle = GOLD;
+  ctx.font = '600 20px DM Sans,sans-serif';
+  ctx.fillText('Knockout Fixtures', tx, cy + 4);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '15px DM Sans,sans-serif';
+  ctx.fillText('2026 Competition', tx, cy + 28);
+
+  // Divider
+  ctx.fillStyle = 'rgba(201,168,76,0.25)';
+  ctx.fillRect(PAD, HEADER_H, W-PAD*2, 1.5);
+
+  // Match rows
+  let curY = HEADER_H + 16;
+  const roundNames = {1:'R32',2:'R16',3:'QF',4:'SF',5:'Final'};
+
+  matches.forEach((m, idx) => {
+    const rowY = curY;
+
+    // Row background (alternating subtle)
+    ctx.fillStyle = idx % 2 === 0 ? 'rgba(255,255,255,0.04)' : 'transparent';
+    ctx.fillRect(PAD, rowY, W-PAD*2, ROW_H);
+
+    const midY = rowY + ROW_H/2;
+
+    // Round badge
+    const roundLabel = roundNames[m.round] || `R${m.round}`;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.beginPath();
+    ctx.roundRect(PAD+8, midY-11, 36, 22, 6);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '600 10px DM Sans,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(roundLabel, PAD+26, midY+4);
+
+    // Player 1 avatar
+    const av1x = PAD + 52;
+    ctx.fillStyle = 'rgba(201,168,76,0.2)';
+    ctx.beginPath();
+    ctx.arc(av1x, midY, 18, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = GOLD;
+    ctx.font = 'bold 11px DM Sans,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(m.p1Name.split(' ').map(w=>w[0]).join('').slice(0,2), av1x, midY+4);
+
+    // Player 1 name
+    ctx.fillStyle = WHITE;
+    ctx.font = '500 16px DM Sans,sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(m.p1Name, PAD+76, midY+6);
+
+    // VS in centre
+    const vsX = W/2;
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.font = '700 11px DM Sans,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('VS', vsX, midY+4);
+
+    // Player 2 name (right aligned)
+    ctx.fillStyle = WHITE;
+    ctx.font = '500 16px DM Sans,sans-serif';
+    ctx.textAlign = 'right';
+    const av2x = W - PAD - 18;
+    ctx.fillText(m.p2Name, av2x - 28, midY+6);
+
+    // Player 2 avatar
+    ctx.fillStyle = 'rgba(201,168,76,0.2)';
+    ctx.beginPath();
+    ctx.arc(av2x, midY, 18, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = GOLD;
+    ctx.font = 'bold 11px DM Sans,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(m.p2Name.split(' ').map(w=>w[0]).join('').slice(0,2), av2x, midY+4);
+
+    // Divider
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(PAD, rowY + ROW_H - 1, W-PAD*2, 1);
+
+    curY += ROW_H;
+
+    // Playoff strip
+    if (m.isPlayoff) {
+      ctx.fillStyle = 'rgba(201,168,76,0.15)';
+      ctx.fillRect(PAD, curY, W-PAD*2, PLAYOFF_STRIP_H);
+      ctx.fillStyle = GOLD;
+      ctx.font = '600 12px DM Sans,sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('⚡ Playoff match', PAD+16, curY + PLAYOFF_STRIP_H/2 + 4);
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(PAD, curY + PLAYOFF_STRIP_H - 1, W-PAD*2, 1);
+      curY += PLAYOFF_STRIP_H;
+    }
+  });
+
+  // Note
+  if (note) {
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(PAD, curY, W-PAD*2, NOTE_H);
+    ctx.fillStyle = GOLD;
+    ctx.font = '500 14px DM Sans,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(note, W/2, curY + NOTE_H/2 + 5);
+    curY += NOTE_H;
+  }
+
+  // Footer
+  const footY = H - FOOTER_H;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(PAD, footY, W-PAD*2, 1);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '15px DM Sans,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Bray Head Golf Society · 2026 Season', W/2, footY + 28);
+  ctx.fillStyle = GOLD;
+  ctx.font = '500 14px DM Sans,sans-serif';
+  ctx.fillText('www.golfsoc.ie', W/2, footY + 52);
+
+  const link = document.createElement('a');
+  link.download = 'bhgs-knockout-fixtures.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  toast('Fixture card downloaded — share to WhatsApp!', 'success');
 }
 
 function closeAdminModal() { document.getElementById('admin-modal').classList.remove('open'); }
