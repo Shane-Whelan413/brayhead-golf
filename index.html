@@ -2444,6 +2444,60 @@ function renderHome() {
     return;
   }
   feed.innerHTML = db.noticeboard.map(n => {
+    // Knockout results post
+    if (n.post_type === 'knockout_results') {
+      const matches = n.fixture_matches || [];
+      const completed = matches.filter(m=>m.status==='complete'&&!m.isBye).length;
+      const total = matches.filter(m=>!m.isBye).length;
+      const allDone = completed === total;
+
+      const matchRows = matches.filter(m=>!m.isBye).map(m=>{
+        const isComplete = m.status==='complete';
+        const isPlayoff = m.status==='playoff';
+        const isPending = !isComplete && !isPlayoff;
+        return `<div class="fixture-row" style="${isComplete?'background:rgba(201,168,76,0.06)':''}">
+          <div class="fixture-player">
+            <div class="fixture-avatar" style="${isComplete&&m.winnerName===m.p1Name?'background:#C9A84C;color:#3a2000':''}">${m.p1Name.split(' ').map(w=>w[0]).join('').slice(0,2)}</div>
+            <div>
+              <div class="fixture-player-name${isComplete&&m.winnerName===m.p1Name?'" style="color:#C9A84C;font-weight:700':''}">${m.p1Name}${isComplete&&m.winnerName===m.p1Name?' 🏆':''}</div>
+            </div>
+          </div>
+          <div class="fixture-vs">${isPlayoff?'⚡':isPending?'VS':'VS'}</div>
+          <div class="fixture-player" style="justify-content:flex-end">
+            <div style="text-align:right">
+              <div class="fixture-player-name${isComplete&&m.winnerName===m.p2Name?'" style="color:#C9A84C;font-weight:700':''}">${isComplete&&m.winnerName===m.p2Name?'🏆 ':''}${m.p2Name}</div>
+              ${isComplete&&m.result?`<div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:1px">${m.result}</div>`:''}
+              ${isPlayoff?`<div style="font-size:10px;color:#C9A84C;margin-top:1px">Playoff</div>`:''}
+            </div>
+            <div class="fixture-avatar" style="${isComplete&&m.winnerName===m.p2Name?'background:#C9A84C;color:#3a2000':''}">${m.p2Name.split(' ').map(w=>w[0]).join('').slice(0,2)}</div>
+          </div>
+        </div>`;
+      }).join('');
+
+      return `<div class="fixture-post">
+        <div class="fixture-post-hdr">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:36px;height:36px;border-radius:8px;background:rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">🏆</div>
+            <div>
+              <div class="fixture-post-title">Round 1 Results</div>
+              <div class="fixture-post-note">${completed}/${total} matches complete${allDone?' · Round 1 done!':''}</div>
+            </div>
+          </div>
+        </div>
+        ${matchRows}
+        <div class="fixture-post-footer">
+          <span style="font-size:11px;color:rgba(255,255,255,0.3)">${total - completed} match${total-completed!==1?'es':''} still to play</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button onclick="generateKnockoutResultsCard(${JSON.stringify(matches).replace(/"/g,'&quot;')})" style="background:#C9A84C;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#0a1628;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:5px">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#0a1628" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M5 8l3 3 3-3"/><rect x="2" y="12" width="12" height="2" rx="1"/></svg>
+              Share card
+            </button>
+            <button onclick="showTab('knockout')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:600">View draw →</button>
+          </div>
+        </div>
+      </div>`;
+    }
+
     // Fixture post — different layout
     if (n.post_type === 'fixtures') {
       const matches = n.fixture_matches || [];
@@ -2838,6 +2892,175 @@ function generateResultsCard(eid) {
   link.href = canvas.toDataURL('image/png');
   link.click();
   toast('Results card downloaded — share to WhatsApp!', 'success');
+}
+
+function generateKnockoutResultsCard(matches) {
+  const logoImg = document.getElementById('topbar-logo');
+  const doRender = (logo) => _renderKnockoutResultsCard(matches, logo);
+  if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+    doRender(logoImg);
+  } else {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => doRender(img);
+    img.onerror = () => doRender(null);
+    img.src = 'icon-192.png';
+  }
+}
+
+function _renderKnockoutResultsCard(matches, logoImg) {
+  const S = 3;
+  const W = 580, PAD = 28;
+  const NAVY = '#0a1628', GOLD = '#C9A84C', WHITE = '#ffffff';
+  const DIVIDER = 'rgba(255,255,255,0.08)';
+  const nonBye = matches.filter(m=>!m.isBye);
+
+  const HEADER_H = 140;
+  const ROW_H = 76;
+  const FOOTER_H = 72;
+  const H = HEADER_H + 12 + nonBye.length * (ROW_H + 1) + FOOTER_H;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = W * S;
+  canvas.height = H * S;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(S, S);
+
+  // Background
+  ctx.fillStyle = NAVY;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = GOLD;
+  ctx.fillRect(0, 0, W, 5);
+  ctx.fillRect(0, H-5, W, 5);
+
+  // Header
+  const hdrMid = HEADER_H / 2;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(PAD + 34, hdrMid, 30, 0, Math.PI*2);
+  ctx.clip();
+  if (logoImg) {
+    ctx.drawImage(logoImg, PAD + 4, hdrMid - 30, 60, 60);
+  } else {
+    ctx.fillStyle = GOLD; ctx.fill();
+  }
+  ctx.restore();
+  ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(PAD + 34, hdrMid, 30, 0, Math.PI*2); ctx.stroke();
+
+  const htx = PAD + 76;
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '600 11px DM Sans,sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('BRAY HEAD GOLF SOCIETY', htx, hdrMid - 26);
+  ctx.fillStyle = WHITE;
+  ctx.font = 'bold 26px DM Sans,sans-serif';
+  ctx.fillText('Round 1', htx, hdrMid + 4);
+  const r1w = ctx.measureText('Round 1 ').width;
+  ctx.fillStyle = GOLD;
+  ctx.fillText('Results', htx + r1w, hdrMid + 4);
+  const completed = nonBye.filter(m=>m.status==='complete').length;
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = '14px DM Sans,sans-serif';
+  ctx.fillText(`${completed} of ${nonBye.length} complete · 2026`, htx, hdrMid + 26);
+
+  ctx.fillStyle = 'rgba(201,168,76,0.3)';
+  ctx.fillRect(PAD, HEADER_H - 1, W - PAD*2, 1.5);
+
+  // Match rows
+  let curY = HEADER_H + 12;
+
+  nonBye.forEach((m, idx) => {
+    const rowMid = curY + ROW_H / 2;
+    const isComplete = m.status === 'complete';
+    const isPlayoff = m.status === 'playoff';
+    const p1Won = isComplete && m.winnerName === m.p1Name;
+    const p2Won = isComplete && m.winnerName === m.p2Name;
+
+    // Row tint
+    if (isComplete) {
+      ctx.fillStyle = 'rgba(201,168,76,0.05)';
+      ctx.fillRect(PAD, curY, W - PAD*2, ROW_H);
+    } else if (idx % 2 === 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.02)';
+      ctx.fillRect(PAD, curY, W - PAD*2, ROW_H);
+    }
+
+    // P1 avatar
+    const av1x = PAD + 22;
+    ctx.fillStyle = p1Won ? GOLD : 'rgba(201,168,76,0.15)';
+    ctx.beginPath(); ctx.arc(av1x, rowMid, 20, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = p1Won ? NAVY : GOLD;
+    ctx.font = 'bold 11px DM Sans,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(m.p1Name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(), av1x, rowMid + 4);
+
+    // P1 name
+    ctx.fillStyle = p1Won ? GOLD : p2Won ? 'rgba(255,255,255,0.35)' : WHITE;
+    ctx.font = p1Won ? 'bold 16px DM Sans,sans-serif' : '500 16px DM Sans,sans-serif';
+    ctx.textAlign = 'left';
+    let p1d = m.p1Name; while(ctx.measureText(p1d).width > 165 && p1d.length>3) p1d=p1d.slice(0,-1);
+    if(p1d!==m.p1Name) p1d=p1d.trim()+'…';
+    ctx.fillText(p1d + (p1Won?' 🏆':''), av1x + 28, rowMid + (isComplete&&m.result?2:6));
+    if (isComplete && m.result && p1Won) {
+      ctx.fillStyle = 'rgba(201,168,76,0.5)';
+      ctx.font = '11px DM Sans,sans-serif';
+      ctx.fillText(m.result, av1x + 28, rowMid + 18);
+    }
+
+    // Centre label
+    const vsX = W / 2;
+    if (isPlayoff) {
+      ctx.fillStyle = GOLD; ctx.font = '700 11px DM Sans,sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('⚡', vsX, rowMid + 4);
+    } else if (isComplete) {
+      ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.font = '600 10px DM Sans,sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('DONE', vsX, rowMid + 4);
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.font = '700 11px DM Sans,sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('VS', vsX, rowMid + 4);
+    }
+
+    // P2 avatar
+    const av2x = W - PAD - 22;
+    ctx.fillStyle = p2Won ? GOLD : 'rgba(201,168,76,0.15)';
+    ctx.beginPath(); ctx.arc(av2x, rowMid, 20, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = p2Won ? NAVY : GOLD;
+    ctx.font = 'bold 11px DM Sans,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(m.p2Name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(), av2x, rowMid + 4);
+
+    // P2 name
+    ctx.fillStyle = p2Won ? GOLD : p1Won ? 'rgba(255,255,255,0.35)' : WHITE;
+    ctx.font = p2Won ? 'bold 16px DM Sans,sans-serif' : '500 16px DM Sans,sans-serif';
+    ctx.textAlign = 'right';
+    let p2d = m.p2Name; while(ctx.measureText(p2d).width > 165 && p2d.length>3) p2d=p2d.slice(0,-1);
+    if(p2d!==m.p2Name) p2d=p2d.trim()+'…';
+    ctx.fillText((p2Won?'🏆 ':'')+p2d, av2x - 28, rowMid + (isComplete&&m.result?2:6));
+    if (isComplete && m.result && p2Won) {
+      ctx.fillStyle = 'rgba(201,168,76,0.5)';
+      ctx.font = '11px DM Sans,sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText(m.result, av2x - 28, rowMid + 18);
+    }
+
+    curY += ROW_H;
+    ctx.fillStyle = DIVIDER;
+    ctx.fillRect(PAD, curY, W - PAD*2, 1);
+    curY += 1;
+  });
+
+  // Footer
+  const footY = H - FOOTER_H + 10;
+  ctx.fillStyle = DIVIDER; ctx.fillRect(PAD, footY, W - PAD*2, 1);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '14px DM Sans,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Bray Head Golf Society \u00b7 2026 Season', W/2, footY + 26);
+  ctx.fillStyle = GOLD; ctx.font = '500 13px DM Sans,sans-serif';
+  ctx.fillText('www.golfsoc.ie', W/2, footY + 48);
+
+  const link = document.createElement('a');
+  link.download = 'bhgs-round1-results.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  toast('Results card downloaded \u2014 share to WhatsApp!', 'success');
 }
 
 function generateFixtureCard(matches, note) {
@@ -4218,6 +4441,7 @@ function renderKnockout() {
       ${matches.length===0 ? `<button class="btn primary" onclick="showKnockoutSetup()">Set up draw</button>` : ''}
       ${matches.length>0 ? `<button class="btn" onclick="showKnockoutSetup()">Edit draw</button>` : ''}
       ${matches.length>0 ? `<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="showFixturePost()">📋 Post fixtures</button>` : ''}
+      ${matches.length>0 ? `<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="postKnockoutResults()">📊 Post Round 1 results</button>` : ''}
     </div>` : '';
 
   if (!matches.length) {
@@ -4488,6 +4712,43 @@ async function saveFixturePost() {
     await post('noticeboard',{ post_type:'fixtures', custom_text:note, fixture_matches:matchData });
     toast("Fixtures posted!",'success');
     closeModal();
+    await loadAll(); renderAll();
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+async function postKnockoutResults() {
+  // Build Round 1 results data
+  const round1 = db.knockout_matches.filter(m=>m.round===1).sort((a,b)=>a.match_number-b.match_number);
+  if (!round1.length) { toast('No Round 1 matches found','error'); return; }
+
+  const matchData = round1.map(m=>{
+    const p1 = db.players.find(p=>p.id===m.player1_id);
+    const p2 = db.players.find(p=>p.id===m.player2_id);
+    const winner = m.winner_id ? db.players.find(p=>p.id===m.winner_id) : null;
+    return {
+      matchId: m.id,
+      p1Name: p1?.name||'?',
+      p2Name: p2?.name||'?',
+      winnerName: winner?.name||null,
+      result: m.result||null,
+      status: m.status,
+      isBye: m.is_bye||false
+    };
+  });
+
+  const completed = round1.filter(m=>m.status==='complete'&&!m.is_bye).length;
+  const total = round1.filter(m=>!m.is_bye).length;
+
+  try {
+    // Check if a knockout_results post already exists — if so update it
+    const existing = db.noticeboard.find(n=>n.post_type==='knockout_results');
+    if (existing) {
+      await patch(`noticeboard?id=eq.${existing.id}`, { fixture_matches: matchData });
+      toast(`Round 1 results updated — ${completed}/${total} complete`, 'success');
+    } else {
+      await post('noticeboard', { post_type:'knockout_results', fixture_matches: matchData });
+      toast(`Round 1 results posted — ${completed}/${total} complete`, 'success');
+    }
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
