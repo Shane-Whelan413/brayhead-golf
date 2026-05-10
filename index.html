@@ -2491,16 +2491,20 @@ function viewEventResults(eid) {
   document.getElementById('modal-overlay').classList.add('open');
 }
 
+let scheduleShowPast = false;
+
 function renderSchedule() {
   const seasonDates = getSeasonDates();
-  const byDate  = {};
+  const byDate = {};
   db.events.forEach(e=>{ byDate[e.event_date]=e; });
   const t = new Date();
   const today = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
-  const outingsLogged = db.events.filter(e=>e.event_type==='outing_18').length;
-  const sundaysLogged = db.events.filter(e=>e.event_type==='sunday_9').length;
 
-  // Find next upcoming outing
+  // Split into past and upcoming
+  const pastDates     = seasonDates.filter(e => e.date < today && byDate[e.date]?.published);
+  const upcomingDates = seasonDates.filter(e => e.date >= today || !byDate[e.date]?.published);
+
+  // Find next upcoming outing for countdown
   const nextOuting = Object.entries(OUTINGS)
     .filter(([d]) => d >= today)
     .sort(([a],[b]) => a.localeCompare(b))[0];
@@ -2521,68 +2525,85 @@ function renderSchedule() {
       </div>`;
   }
 
+  const renderRow = (entry, i, isPastSection) => {
+    const { date: d, isOuting, course: outingCourse } = entry;
+    const ev = byDate[d];
+    const isPublished = ev && ev.published;
+    const isNextRound = ev && !ev.published && [...db.events]
+      .filter(e=>!e.published)
+      .sort((a,b)=>a.event_date.localeCompare(b.event_date))[0]?.id === ev.id;
+    const courseName = ev ? ev.course_name : isOuting ? outingCourse : null;
+    const typeLabel  = (ev ? ev.event_type : isOuting ? 'outing_18' : 'sunday_9') === 'outing_18'
+      ? `<span style="font-size:10px;font-weight:600;color:#3C3489;background:#EEEDFE;padding:2px 8px;border-radius:99px">Outing</span>`
+      : `<span style="font-size:10px;font-weight:600;color:#1a3c6e;background:#edf2fa;padding:2px 8px;border-radius:99px">Sunday 9</span>`;
+
+    if (isPastSection || isPublished) {
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
+        <div style="width:24px;height:24px;border-radius:50%;background:#f0ece4;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;color:#8a8070;font-weight:700">✓</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--text-3)">${fmtDate(d)}</div>
+          ${courseName?`<div style="font-size:14px;font-weight:500;color:var(--text-2);margin-top:1px">${courseName}</div>`:''}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${typeLabel}
+          ${ev?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="font-size:11px">Results</button>`:''}
+        </div>
+      </div>`;
+    }
+
+    if (isNextRound) {
+      return `<div style="display:flex;align-items:center;gap:10px;padding:12px;background:#f0f7ee;border-radius:10px;border:1.5px solid #a8c89a;margin-bottom:4px">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:50%;background:#2a6b1a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white">▶</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            ${typeLabel}
+            <span style="font-size:10px;font-weight:700;color:#2a6b1a;background:#d4edcc;padding:2px 8px;border-radius:99px">Next round</span>
+          </div>
+          <div style="font-size:13px;color:#2a6b1a;font-weight:500">${fmtDate(d)}</div>
+          ${courseName?`<div style="font-size:15px;font-weight:700;color:#1a4a0a;margin-top:2px">${courseName}</div>`:''}
+        </div>
+      </div>`;
+    }
+
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">
+      <div style="width:24px;font-size:12px;font-weight:600;color:var(--text-3);text-align:center;flex-shrink:0">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">${typeLabel}</div>
+        <div style="font-size:13px;color:var(--text-2)">${fmtDate(d)}</div>
+        ${courseName?`<div style="font-size:15px;font-weight:600;color:var(--text);margin-top:2px">${courseName}</div>`:''}
+      </div>
+      ${ev?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0">Results</button>`:''}
+    </div>`;
+  };
+
+  const pastHtml = scheduleShowPast
+    ? `<div id="past-events-list">
+        ${pastDates.map((e,i) => renderRow(e, i, true)).join('')}
+      </div>`
+    : '';
+
+  const toggleBtn = pastDates.length ? `
+    <button onclick="togglePastEvents()" style="width:100%;padding:11px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text-2);font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:1rem;display:flex;align-items:center;justify-content:center;gap:6px" id="past-toggle-btn">
+      <span id="past-toggle-icon">${scheduleShowPast ? '▲' : '▼'}</span>
+      ${scheduleShowPast ? 'Hide' : 'Show'} past events (${pastDates.length})
+    </button>` : '';
+
   document.getElementById('schedule-table').innerHTML = `
     ${countdownHtml}
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
-      <span class="badge gray">${seasonDates.length} events in season</span>
-      <span class="badge green">${sundaysLogged} Sundays logged</span>
-      <span class="badge purple">${outingsLogged} / 7 outings logged</span>
-    </div>
-    ${seasonDates.map((entry,i)=>{
-      const { date: d, isOuting, course: outingCourse } = entry;
-      const ev        = byDate[d];
-      const isPast    = d < today;
-      const isTdy     = d === today;
-      const isPublished = ev && ev.published;
+    ${pastHtml}
+    ${upcomingDates.map((e,i) => renderRow(e, i, false)).join('')}
+    ${toggleBtn}`;
+}
 
-      // Find next unpublished event with rounds or just next event in calendar
-      const isNextRound = ev && !ev.published && [...db.events]
-        .filter(e=>!e.published)
-        .sort((a,b)=>a.event_date.localeCompare(b.event_date))[0]?.id === ev.id;
-
-      const courseName = ev ? ev.course_name : isOuting ? outingCourse : null;
-      const typeLabel  = (ev ? ev.event_type : isOuting ? 'outing_18' : 'sunday_9') === 'outing_18'
-        ? `<span style="font-size:10px;font-weight:600;color:#3C3489;background:#EEEDFE;padding:2px 8px;border-radius:99px">18-hole outing</span>`
-        : `<span style="font-size:10px;font-weight:600;color:#1a3c6e;background:#edf2fa;padding:2px 8px;border-radius:99px">Sunday 9</span>`;
-
-      if (isPublished) {
-        // DONE — faded with tick
-        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border);opacity:0.5">
-          <div style="width:24px;height:24px;border-radius:50%;background:#fef8e6;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;color:#8a6a1a;font-weight:700">✓</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;color:var(--text-2)">${fmtDate(d)}</div>
-            ${courseName?`<div style="font-size:14px;font-weight:600;color:var(--text);margin-top:2px">${courseName}</div>`:''}
-          </div>
-          <button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0;font-size:11px">Results</button>
-        </div>`;
-      }
-
-      if (isNextRound) {
-        // NEXT ROUND — green highlight
-        return `<div style="display:flex;align-items:center;gap:10px;padding:12px;background:#f0f7ee;border-radius:10px;border:1.5px solid #a8c89a;margin-bottom:4px">
-          <div style="flex-shrink:0;width:36px;height:36px;border-radius:50%;background:#2a6b1a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white">${i+1}</div>
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-              ${typeLabel}
-              <span style="font-size:10px;font-weight:700;color:#2a6b1a;background:#d4edcc;padding:2px 8px;border-radius:99px">Next round</span>
-            </div>
-            <div style="font-size:13px;color:#2a6b1a;font-weight:500">${fmtDate(d)}</div>
-            ${courseName?`<div style="font-size:15px;font-weight:700;color:#1a4a0a;margin-top:2px">${courseName}</div>`:''}
-          </div>
-        </div>`;
-      }
-
-      // UPCOMING — plain
-      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">
-        <div style="width:24px;font-size:12px;font-weight:600;color:var(--text-3);text-align:center;flex-shrink:0">${i+1}</div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">${typeLabel}</div>
-          <div style="font-size:13px;color:var(--text-2)">${fmtDate(d)}</div>
-          ${courseName?`<div style="font-size:15px;font-weight:600;color:var(--text);margin-top:2px">${courseName}</div>`:''}
-        </div>
-        ${ev?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0">Results</button>`:''}
-      </div>`;
-    }).join('')}`;
+function togglePastEvents() {
+  scheduleShowPast = !scheduleShowPast;
+  renderSchedule();
+  if (scheduleShowPast) {
+    setTimeout(() => {
+      const el = document.getElementById('past-events-list');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }
 }
 
 function renderHome() {
