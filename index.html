@@ -1193,7 +1193,7 @@ function fmtDate(d) {
 }
 
 function calcStableford(score, par, allowance) { return Math.max(0, par - (score - allowance) + 2); }
-function calcCourseHcp(idx, slope, cr, par) { return Math.round(idx); }
+function calcCourseHcp(idx, slope, cr, par) { return Math.min(18, Math.round(idx)); }
 function calcNewHcp(hcpIdx, totalPts, position) {
   if (totalPts >= 18) {
     return Math.max(0, parseFloat((hcpIdx - 1).toFixed(1)));
@@ -1226,12 +1226,12 @@ function getPreviousOutingPositions() {
 }
 
 function calcOutingCourseHcp(hcpIdx, slope, cr, par, playerId) {
-  // Base: handicap index x2 + 2 for everyone
-  const base = Math.round(hcpIdx) * 2 + 2;
+  // Base: handicap index x2 + 2 for everyone, capped at 36
+  const base = Math.min(36, Math.round(hcpIdx) * 2 + 2);
   // Apply penalty from previous outing finish (1st=-4, 2nd=-3, 3rd=-2)
   const penalties = getPreviousOutingPositions();
   const penalty = (playerId && penalties[playerId]) ? penalties[playerId] : 0;
-  return base - penalty;
+  return Math.max(0, base - penalty);
 }
 
 function calcHolePts(r, holeIndex) {
