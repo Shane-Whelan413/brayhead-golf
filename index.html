@@ -725,21 +725,17 @@
 
   <!-- LEADERBOARD -->
   <div id="leaderboard" class="section">
-    <div class="stat-grid">
-      <div class="stat"><div class="stat-label">Members</div><div class="stat-value" id="s-members">—</div></div>
-      <div class="stat"><div class="stat-label">Events played</div><div class="stat-value" id="s-events">—</div></div>
-      <div class="stat"><div class="stat-label">Rounds logged</div><div class="stat-value" id="s-rounds">—</div></div>
-      <div class="stat"><div class="stat-label">Sundays left</div><div class="stat-value" id="s-remaining">—</div></div>
-    </div>
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:10px">
         <span class="card-title" style="margin:0">Season standings</span>
-        <select id="lb-filter" onchange="renderLeaderboard()" style="height:34px;font-size:12px;border-radius:10px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);padding:0 10px;font-family:'DM Sans',sans-serif">
-          <option value="all">All events</option>
-          <option value="sunday_9">Sundays only</option>
-          <option value="outing_18">Outings only</option>
-        </select>
+        <div style="display:flex;gap:6px">
+          <button id="lbf-all" onclick="setLbFilter('all')" style="padding:6px 12px;border-radius:99px;border:1px solid var(--border-strong);background:#0a1628;color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">All</button>
+          <button id="lbf-sunday_9" onclick="setLbFilter('sunday_9')" style="padding:6px 12px;border-radius:99px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Sundays</button>
+          <button id="lbf-outing_18" onclick="setLbFilter('outing_18')" style="padding:6px 12px;border-radius:99px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Outings</button>
+        </div>
       </div>
+      <div id="lb-season-sub" style="font-size:11px;color:var(--text-3);margin-bottom:1rem"></div>
+      <input type="hidden" id="lb-filter-val" value="all" />
       <div id="lb-penalty-box" style="display:none;margin-bottom:1rem"></div>
       <div class="pts-bar" id="pts-bar"></div>
       <div class="tbl-wrap" id="lb-table"><div class="empty">Loading…</div></div>
@@ -1373,10 +1369,35 @@ function getLeaderboardPositions(publishedEids) {
   return positions;
 }
 
+function setLbFilter(val) {
+  ['all','sunday_9','outing_18'].forEach(v => {
+    const btn = document.getElementById('lbf-'+v);
+    if (!btn) return;
+    btn.style.background = v===val ? '#0a1628' : 'var(--bg)';
+    btn.style.color = v===val ? '#C9A84C' : 'var(--text-2)';
+    btn.style.borderColor = v===val ? '#0a1628' : 'var(--border-strong)';
+  });
+  // Store in hidden input for renderLeaderboard to read
+  const existing = document.getElementById('lb-filter-val');
+  if (existing) existing.value = val;
+  renderLeaderboard();
+}
+
 function renderLeaderboard() {
-  const filter = document.getElementById('lb-filter').value;
+  // Read active filter from pill buttons
+  const filterValEl = document.getElementById('lb-filter-val');
+  const filter = filterValEl ? filterValEl.value : 'all';
   const evs = filter === 'all' ? db.events : db.events.filter(e=>e.event_type===filter);
   const publishedEids = new Set(evs.filter(e=>e.published).map(e=>e.id));
+
+  // Update season sub line with sundays remaining
+  const sub = document.getElementById('lb-season-sub');
+  if (sub) {
+    const today = new Date().toISOString().split('T')[0];
+    const remaining = db.events.filter(e=>e.event_type==='sunday_9' && e.event_date > today).length;
+    const filterLabel = filter==='all' ? 'All events' : filter==='sunday_9' ? 'Sundays only' : 'Outings only';
+    sub.textContent = `${filterLabel} · ${remaining} Sunday${remaining!==1?'s':''} remaining this season`;
+  }
 
   const lbPositions = getLeaderboardPositions(publishedEids);
 
@@ -1395,13 +1416,7 @@ function renderLeaderboard() {
     return { ...p, lp, pos, rounds: playerRounds.length, best, avg, penalty, movement };
   }).sort((a,b) => a.pos - b.pos || b.lp - a.lp);
 
-  const sundays = getSundays();
-  const eventsPlayed = db.events.filter(e=>e.published).length;
-  const verifiedRounds = db.rounds.filter(r=>r.verified).length;
-  document.getElementById('s-members').textContent   = db.players.length;
-  document.getElementById('s-events').textContent    = eventsPlayed;
-  document.getElementById('s-rounds').textContent    = verifiedRounds;
-  document.getElementById('s-remaining').textContent = Math.max(0, sundays.length - eventsPlayed);
+
 
   document.getElementById('pts-bar').innerHTML = '';
 
