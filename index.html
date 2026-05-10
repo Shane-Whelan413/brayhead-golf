@@ -2525,6 +2525,10 @@ function renderSchedule() {
       </div>`;
   }
 
+  // Pre-build outing number and sunday number lookups from full season
+  const allOutingDates = seasonDates.filter(e=>e.isOuting).map(e=>e.date).sort();
+  const allSundayDates = seasonDates.filter(e=>!e.isOuting).map(e=>e.date).sort();
+
   const renderRow = (entry, i, isPastSection) => {
     const { date: d, isOuting, course: outingCourse } = entry;
     const ev = byDate[d];
@@ -2533,13 +2537,39 @@ function renderSchedule() {
       .filter(e=>!e.published)
       .sort((a,b)=>a.event_date.localeCompare(b.event_date))[0]?.id === ev.id;
     const courseName = ev ? ev.course_name : isOuting ? outingCourse : null;
-    const typeLabel  = (ev ? ev.event_type : isOuting ? 'outing_18' : 'sunday_9') === 'outing_18'
+    const evType = (ev ? ev.event_type : isOuting ? 'outing_18' : 'sunday_9');
+    const isOutingRow = evType === 'outing_18';
+
+    // Number label — outing number or sunday week number
+    const outingNum = isOutingRow ? allOutingDates.indexOf(d) + 1 : null;
+    const sundayNum = !isOutingRow ? allSundayDates.indexOf(d) + 1 : null;
+    const numLabel = isOutingRow
+      ? `<div style="flex-shrink:0;text-align:center;min-width:36px">
+          <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Outing</div>
+          <div style="font-size:16px;font-weight:700;color:#C9A84C;line-height:1">${outingNum}</div>
+         </div>`
+      : `<div style="flex-shrink:0;text-align:center;min-width:36px">
+          <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-2);line-height:1">${sundayNum}</div>
+         </div>`;
+
+    const typeLabel = isOutingRow
       ? `<span style="font-size:10px;font-weight:600;color:#3C3489;background:#EEEDFE;padding:2px 8px;border-radius:99px">Outing</span>`
       : `<span style="font-size:10px;font-weight:600;color:#1a3c6e;background:#edf2fa;padding:2px 8px;border-radius:99px">Sunday 9</span>`;
 
+    const pastNumLabel = isOutingRow
+      ? `<div style="flex-shrink:0;text-align:center;min-width:32px">
+          <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Out</div>
+          <div style="font-size:14px;font-weight:700;color:#b8986a;line-height:1">${outingNum}</div>
+         </div>`
+      : `<div style="flex-shrink:0;text-align:center;min-width:32px">
+          <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text-3);line-height:1">${sundayNum}</div>
+         </div>`;
+
     if (isPastSection || isPublished) {
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
-        <div style="width:24px;height:24px;border-radius:50%;background:#f0ece4;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;color:#8a8070;font-weight:700">✓</div>
+        ${pastNumLabel}
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;color:var(--text-3)">${fmtDate(d)}</div>
           ${courseName?`<div style="font-size:14px;font-weight:500;color:var(--text-2);margin-top:1px">${courseName}</div>`:''}
@@ -2553,7 +2583,7 @@ function renderSchedule() {
 
     if (isNextRound) {
       return `<div style="display:flex;align-items:center;gap:10px;padding:12px;background:#f0f7ee;border-radius:10px;border:1.5px solid #a8c89a;margin-bottom:4px">
-        <div style="flex-shrink:0;width:36px;height:36px;border-radius:50%;background:#2a6b1a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white">▶</div>
+        ${numLabel}
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
             ${typeLabel}
@@ -2566,7 +2596,7 @@ function renderSchedule() {
     }
 
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">
-      <div style="width:24px;font-size:12px;font-weight:600;color:var(--text-3);text-align:center;flex-shrink:0">${i+1}</div>
+      ${numLabel}
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">${typeLabel}</div>
         <div style="font-size:13px;color:var(--text-2)">${fmtDate(d)}</div>
