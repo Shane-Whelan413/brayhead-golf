@@ -1171,25 +1171,30 @@ function calcNewHcpOuting(hcpIdx, totalPts, position) {
   return Math.min(54, parseFloat((hcpIdx + 0.2).toFixed(1)));
 }
 
-function getPreviousOutingWinnerId() {
-  // Find the last published outing event
+function getPreviousOutingPositions() {
+  // Returns { playerId: penalty } for 1st(4), 2nd(3), 3rd(2) of last published outing
   const outings = db.events
     .filter(e => e.event_type === 'outing_18' && e.published)
     .sort((a,b) => b.event_date.localeCompare(a.event_date));
-  if (!outings.length) return null;
+  if (!outings.length) return {};
   const lastOuting = outings[0];
   const outingRounds = db.rounds.filter(r => r.event_id === lastOuting.id && r.verified);
-  if (!outingRounds.length) return null;
+  if (!outingRounds.length) return {};
   const sorted = assignLeaguePts(outingRounds.map(r=>({...r})));
-  return sorted[0]?.player_id || null;
+  const penalties = {};
+  if (sorted[0]) penalties[sorted[0].player_id] = 4;
+  if (sorted[1]) penalties[sorted[1].player_id] = 3;
+  if (sorted[2]) penalties[sorted[2].player_id] = 2;
+  return penalties;
 }
 
 function calcOutingCourseHcp(hcpIdx, slope, cr, par, playerId) {
-  const base = calcCourseHcp(hcpIdx, slope, cr, par) * 2;
-  const prevWinner = getPreviousOutingWinnerId();
-  // Previous outing winner skips the +2
-  if (prevWinner && prevWinner === playerId) return base;
-  return base + 2;
+  // Base: handicap index x2 + 2 for everyone
+  const base = Math.round(hcpIdx) * 2 + 2;
+  // Apply penalty from previous outing finish (1st=-4, 2nd=-3, 3rd=-2)
+  const penalties = getPreviousOutingPositions();
+  const penalty = (playerId && penalties[playerId]) ? penalties[playerId] : 0;
+  return base - penalty;
 }
 
 function calcHolePts(r, holeIndex) {
@@ -1304,8 +1309,8 @@ async function loadAll() {
   }
 }
 
-function getLeaderboardPositions(publishedEids) {
-  if (!publishedEids) publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+function getLeaderboardPositions() {
+  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
   const byEvent = {};
   for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) {
     if (!byEvent[r.event_id]) byEvent[r.event_id]=[];
@@ -1345,7 +1350,7 @@ function renderLeaderboard() {
   const evs = filter === 'all' ? db.events : db.events.filter(e=>e.event_type===filter);
   const publishedEids = new Set(evs.filter(e=>e.published).map(e=>e.id));
 
-  const lbPositions = getLeaderboardPositions(publishedEids);
+  const lbPositions = getLeaderboardPositions();
 
   const rows = db.players.map(p => {
     const pos = lbPositions[p.id]?.pos || 0;
@@ -1947,7 +1952,16 @@ function updateRoundSummary() {
   if (hcpEl)   hcpEl.value  = hcp.toFixed(1);
   if (chcpEl)  chcpEl.textContent = courseHcp + (indexLabel==='W'?' W':'');
   const hcpSubEl = document.getElementById('sb-hcp-sub');
-  if (hcpSubEl) hcpSubEl.textContent = 'Hcp ' + hcp.toFixed(1) + (indexLabel==='W'?' (W)':'');
+  if (hcpSubEl) {
+    if (isOuting && p) {
+      const penalties = getPreviousOutingPositions();
+      const penalty = penalties[p.id];
+      const penaltyLabel = penalty === 4 ? ' ⚠️ −4 (prev 1st)' : penalty === 3 ? ' ⚠️ −3 (prev 2nd)' : penalty === 2 ? ' ⚠️ −2 (prev 3rd)' : '';
+      hcpSubEl.textContent = 'Hcp ' + hcp.toFixed(1) + (indexLabel==='W'?' (W)':'') + penaltyLabel;
+    } else {
+      hcpSubEl.textContent = 'Hcp ' + hcp.toFixed(1) + (indexLabel==='W'?' (W)':'');
+    }
+  }
   if (holesEl) holesEl.textContent= `${holes}/${n}`;
   if (ptsEl2)  { ptsEl2.textContent = pts; ptsEl2.style.color = pts > 0 ? '#C9A84C' : 'rgba(255,255,255,0.5)'; }
 
@@ -1957,8 +1971,13 @@ function updateRoundSummary() {
     const allPts = [...eventRounds.map(r=>r.stableford_points), pts].sort((a,b)=>b-a);
     const pos = allPts.indexOf(pts) + 1;
     const newH = calcNewHcp(hcp, pts, pos);
+    const newHOuting = calcNewHcpOuting(hcp, pts, pos);
     const hcpNote = isOuting
-      ? (pts >= 37 ? `Hcp ${hcp} → ${parseFloat((hcp-1).toFixed(1))} (broke par)` : `Hcp ${hcp} → ${parseFloat((hcp+0.2).toFixed(1))} (+0.2)`)
+      ? pos === 1 ? `Hcp ${hcp} → ${newHOuting} (1st −1.0)`
+      : pos === 2 ? `Hcp ${hcp} → ${newHOuting} (2nd −0.5)`
+      : pos === 3 ? `Hcp ${hcp} → ${newHOuting} (3rd −0.3)`
+      : pts >= 37 ? `Hcp ${hcp} → ${newHOuting} (37+ pts −1.0)`
+      : `Hcp ${hcp} → ${newHOuting} (+0.2)`
       : pts >= 18
         ? `Hcp ${hcp} → ${newH} (−1)`
         : pos <= 3
@@ -2007,7 +2026,10 @@ async function saveRound() {
   const gross = scores.reduce((a,b)=>a+(b||0),0);
   let newHcp;
   if (isOuting) {
-    newHcp = calcNewHcpOuting(hcpIdx, totalPts);
+    const outingRounds = db.rounds.filter(r=>r.event_id===eid);
+    const allOutingPts = [...outingRounds.map(r=>r.stableford_points), totalPts].sort((a,b)=>b-a);
+    const outingPos = allOutingPts.indexOf(totalPts) + 1;
+    newHcp = calcNewHcpOuting(hcpIdx, totalPts, outingPos);
   } else {
     const eventRounds = db.rounds.filter(r=>r.event_id===eid);
     const allPts = [...eventRounds.map(r=>r.stableford_points), totalPts].sort((a,b)=>b-a);
