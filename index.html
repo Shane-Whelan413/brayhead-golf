@@ -1401,6 +1401,7 @@ function getLeaderboardPositions(publishedEids) {
 }
 
 function setLbFilter(val) {
+  haptic();
   ['all','sunday_9','outing_18'].forEach(v => {
     const btn = document.getElementById('lbf-'+v);
     if (!btn) return;
@@ -2723,6 +2724,7 @@ function renderSchedule() {
 }
 
 function togglePastEvents() {
+  haptic();
   scheduleShowPast = !scheduleShowPast;
   renderSchedule();
   if (scheduleShowPast) {
@@ -3731,7 +3733,7 @@ function _renderFixtureCard(matches, note, logoImg) {
 
 function closeAdminModal() { document.getElementById('admin-modal').classList.remove('open'); }
 function maybeCloseAdminModal(e) { if(e.target===document.getElementById('admin-modal')) closeAdminModal(); }
-function closePostModal() { document.getElementById('post-update-modal').classList.remove('open'); }
+function closePostModal() { haptic(); document.getElementById('post-update-modal').classList.remove('open'); }
 function maybeClosePostModal(e) { if(e.target===document.getElementById('post-update-modal')) closePostModal(); }
 
 // ── Close-out wizard state ──
@@ -3768,6 +3770,7 @@ function showPostUpdate(eid) {
 }
 
 function showWizardStep(step) {
+  haptic();
   wizardStep = step;
   const eid = wizardEid;
   const ev = db.events.find(e=>e.id===eid);
@@ -3904,6 +3907,7 @@ function showWizardStep(step) {
 }
 
 function toggleBirdie(pid, name) {
+  haptic();
   const btn = document.getElementById('birdie-'+pid);
   if (!btn) return;
   if (selectedBirdies.has(name)) {
@@ -4467,6 +4471,7 @@ function editRound(rid) {
 }
 
 function erSwitchTab(which) {
+  haptic();
   document.getElementById('er-tab-front').style.background = which==='front'?'#fef8e6':'white';
   document.getElementById('er-tab-front').style.color = which==='front'?'#0a1628':'#9a9080';
   document.getElementById('er-tab-front').style.borderBottomColor = which==='front'?'#C9A84C':'transparent';
@@ -4745,6 +4750,7 @@ function renderProfile() {
 }
 
 function setHcpRange(range) {
+  haptic();
   window._hcpChartRange = range;
   ['10','20','All'].forEach(v => {
     const btn = document.getElementById('hcp-range-'+v);
@@ -5728,6 +5734,7 @@ function onFabClick() {
 }
 
 function showTab(name) {
+  haptic();
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(name).classList.add('active');
@@ -5748,7 +5755,7 @@ function showTab(name) {
   try { localStorage.setItem('bhgs_last_tab', name); } catch(e) {}
 }
 
-function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function closeModal() { haptic(); document.getElementById('modal-overlay').classList.remove('open'); }
 function maybeCloseModal(e) { if (e.target===document.getElementById('modal-overlay')) closeModal(); }
 
 function toast(msg, type='') {
