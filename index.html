@@ -1454,7 +1454,7 @@ function renderLeaderboard() {
             <div class="lb-card-name" style="color:var(--text)">${p.name}</div>
             ${movHtml}
           </div>
-          <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)} · ${p.rounds} round${p.rounds!==1?'s':''} · Best ${p.best||'—'} · Avg ${p.avg}</div>
+          <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
           ${hasPenalty ? `<div style="margin-top:4px"><span style="display:inline-flex;align-items:center;gap:4px;background:#fef8e6;border:1px solid #C9A84C;color:#8a6a1a;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:0.03em">⚠️ −${p.penalty} next outing</span></div>` : ''}
         </div>
       </button>
