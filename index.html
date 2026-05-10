@@ -859,9 +859,10 @@
           <div class="ar-stat-label">Holes</div>
           <div class="ar-stat-val" id="sb-holes">0/9</div>
         </div>
-        <div class="ar-stat">
+        <div class="ar-stat" id="sb-pts-stat" style="position:relative;overflow:hidden">
           <div class="ar-stat-label">Points</div>
-          <div class="ar-stat-val gold" id="sb-pts">0</div>
+          <div style="font-size:34px;font-weight:800;color:#C9A84C;line-height:1;transition:transform 0.1s" id="sb-pts">0</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.3);margin-top:2px" id="sb-pts-sub">stableford</div>
         </div>
       </div>
     </div>
@@ -1327,6 +1328,15 @@ async function loadAll() {
   }
 }
 
+function getPreviousLeaderboardPositions(publishedEids) {
+  // Get positions excluding the most recent published event
+  const sortedEvents = db.events.filter(e=>e.published && publishedEids.has(e.id))
+    .sort((a,b)=>b.event_date.localeCompare(a.event_date));
+  if (sortedEvents.length < 2) return {};
+  const prevEids = new Set(sortedEvents.slice(1).map(e=>e.id));
+  return getLeaderboardPositions(prevEids);
+}
+
 function getLeaderboardPositions(publishedEids) {
   if (!publishedEids) publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
   const byEvent = {};
@@ -1371,6 +1381,7 @@ function renderLeaderboard() {
   const lbPositions = getLeaderboardPositions(publishedEids);
 
   const outingPenalties = filter !== 'sunday_9' ? getPreviousOutingPositions() : {};
+  const prevPositions = filter === 'all' ? getPreviousLeaderboardPositions(publishedEids) : {};
   const rows = db.players.map(p => {
     const pos = lbPositions[p.id]?.pos || 0;
     const lp  = lbPositions[p.id]?.lp  || 0;
@@ -1379,7 +1390,9 @@ function renderLeaderboard() {
     const best = playerRounds.length ? Math.max(...playerRounds.map(r=>r.stableford_points)) : 0;
     const avg  = playerRounds.length ? (stab/playerRounds.length).toFixed(1) : '—';
     const penalty = outingPenalties[p.id] || 0;
-    return { ...p, lp, pos, rounds: playerRounds.length, best, avg, penalty };
+    const prevPos = prevPositions[p.id]?.pos;
+    const movement = (prevPos && pos && pos !== prevPos) ? prevPos - pos : 0;
+    return { ...p, lp, pos, rounds: playerRounds.length, best, avg, penalty, movement };
   }).sort((a,b) => a.pos - b.pos || b.lp - a.lp);
 
   const sundays = getSundays();
@@ -1427,12 +1440,20 @@ function renderLeaderboard() {
     const rankClass = pos===1?'r1':pos===2?'r2':pos===3?'r3':'rn';
     const posStr = pos===1?'1st':pos===2?'2nd':pos===3?'3rd':pos+'th';
     const hasPenalty = p.penalty > 0 && filter !== 'sunday_9';
+    const movHtml = p.movement > 0
+      ? `<span style="font-size:10px;font-weight:700;color:#2a6b1a;background:#eaf3de;padding:2px 6px;border-radius:99px;flex-shrink:0">▲${p.movement}</span>`
+      : p.movement < 0
+      ? `<span style="font-size:10px;font-weight:700;color:#A32D2D;background:#FCEBEB;padding:2px 6px;border-radius:99px;flex-shrink:0">▼${Math.abs(p.movement)}</span>`
+      : '';
     return `<div class="lb-card" style="${hasPenalty ? 'border-color:#C9A84C;background:rgba(201,168,76,0.06);' : ''}">
       <div class="rank ${rankClass}">${posStr}</div>
       <button onclick="showPlayerProfile('${p.id}')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;background:none;border:none;cursor:pointer;padding:0;text-align:left">
         ${avatarHtml(p, 34, 12)}
         <div class="lb-card-info">
-          <div class="lb-card-name" style="color:var(--text)">${p.name}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="lb-card-name" style="color:var(--text)">${p.name}</div>
+            ${movHtml}
+          </div>
           <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)} · ${p.rounds} round${p.rounds!==1?'s':''} · Best ${p.best||'—'} · Avg ${p.avg}</div>
           ${hasPenalty ? `<div style="margin-top:4px"><span style="display:inline-flex;align-items:center;gap:4px;background:#fef8e6;border:1px solid #C9A84C;color:#8a6a1a;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:0.03em">⚠️ −${p.penalty} next outing</span></div>` : ''}
         </div>
@@ -1671,7 +1692,12 @@ function selectScorecardHole(hole) {
   }
 }
 
+function haptic() {
+  try { if (navigator.vibrate) navigator.vibrate(8); } catch(e) {}
+}
+
 function adjustScore(hole, delta) {
+  haptic();
   const inp     = document.getElementById('h'+hole);
   const display = document.getElementById('sc-score'+hole);
   const current = parseInt(inp.value)||0;
@@ -2011,7 +2037,15 @@ function updateRoundSummary() {
     }
   }
   if (holesEl) holesEl.textContent= `${holes}/${n}`;
-  if (ptsEl2)  { ptsEl2.textContent = pts; ptsEl2.style.color = pts > 0 ? '#C9A84C' : 'rgba(255,255,255,0.5)'; }
+  if (ptsEl2) {
+    const prevPts = parseInt(ptsEl2.textContent) || 0;
+    ptsEl2.textContent = pts;
+    ptsEl2.style.color = pts > 0 ? '#C9A84C' : 'rgba(255,255,255,0.5)';
+    if (pts !== prevPts) {
+      ptsEl2.style.transform = 'scale(1.25)';
+      setTimeout(() => { ptsEl2.style.transform = 'scale(1)'; }, 120);
+    }
+  }
 
   // Summary bar
   if (holes > 0) {
@@ -2761,62 +2795,92 @@ function renderHome() {
     const ev = db.events.find(e=>e.id===n.event_id);
     const eventRounds = db.rounds.filter(r=>r.event_id===n.event_id);
     const ranked = assignLeaguePts(eventRounds.map(r=>({...r}))).slice(0,3);
-    const podium = ranked.map((r,i)=>{
-      const p = db.players.find(x=>x.id===r.player_id);
-      const medals = ['🥇','🥈','🥉'];
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)">
-        <span style="font-size:20px">${medals[i]}</span>
-        <div>
-          <div style="font-weight:500;font-size:14px">${p?p.name:'Unknown'}</div>
-          <div style="font-size:12px;color:var(--text-2)">${r.stableford_points} stableford pts · ${r._lp} league pts</div>
-        </div>
-      </div>`;
-    }).join('');
-    const birdies = n.birdies && n.birdies.length ? `
-      <div style="margin-top:10px">
-        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Birdies</div>
-        <div style="font-size:13px">🐦 ${n.birdies.join(', ')}</div>
-      </div>` : '';
-    const ctp = n.closest_to_pin ? `
-      <div style="margin-top:10px">
-        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Closest to pin</div>
-        <div style="font-size:13px">📍 ${n.closest_to_pin}</div>
-      </div>` : '';
-    const custom = n.custom_text ? `
-      <div style="margin-top:10px;font-size:13px;color:var(--text-2);font-style:italic;border-left:3px solid var(--green);padding-left:10px">${n.custom_text}</div>` : '';
     const isOutingPost = ev && ev.event_type === 'outing_18';
-    const frontBack = isOutingPost && (n.best_front_9 || n.best_back_9) ? `
-      <div style="margin-top:10px">
-        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Best front &amp; back 9</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <div style="background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--border)">
-            <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Front 9</div>
-            <div style="font-size:13px;font-weight:600;color:var(--text)">⛳ ${n.best_front_9 || '—'}</div>
-          </div>
-          <div style="background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--border)">
-            <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Back 9</div>
-            <div style="font-size:13px;font-weight:600;color:var(--text)">⛳ ${n.best_back_9 || '—'}</div>
-          </div>
+    const totalRounds = eventRounds.length;
+
+    // Rich podium
+    const podiumOrder = [1, 0, 2]; // 2nd left, 1st centre, 3rd right
+    const podiumColors = [
+      { bg:'rgba(211,209,199,0.15)', border:'rgba(211,209,199,0.25)', pts:'#D3D1C7', avatar:'#1a3050', scale:'1' },
+      { bg:'rgba(201,168,76,0.12)',  border:'rgba(201,168,76,0.5)',   pts:'#C9A84C', avatar:'#C9A84C', scale:'1.05' },
+      { bg:'rgba(240,153,123,0.12)', border:'rgba(240,153,123,0.25)', pts:'#F0997B', avatar:'#1a3050', scale:'1' },
+    ];
+    const medals = ['🥇','🥈','🥉'];
+    const podiumHtml = ranked.length ? `
+      <div style="display:grid;grid-template-columns:1fr 1.1fr 1fr;gap:6px;margin-bottom:14px;align-items:end">
+        ${podiumOrder.map(idx => {
+          const r = ranked[idx];
+          if (!r) return '<div></div>';
+          const p = db.players.find(x=>x.id===r.player_id);
+          const col = podiumColors[idx];
+          const initls = p ? p.name.split(' ').map(w=>w[0]).join('').slice(0,2) : '?';
+          const avatarBg = idx===1 ? '#C9A84C' : '#1a3050';
+          const avatarCol = idx===1 ? '#0a1628' : '#C9A84C';
+          const avatarSize = idx===1 ? 40 : 34;
+          return `<div style="background:${col.bg};border-radius:12px;padding:${idx===1?'14px':'10px'} 8px;text-align:center;border:1px solid ${col.border}">
+            <div style="font-size:${idx===1?'26px':'20px'};margin-bottom:6px">${medals[idx]}</div>
+            <div style="width:${avatarSize}px;height:${avatarSize}px;border-radius:50%;background:${avatarBg};color:${avatarCol};font-size:${idx===1?'13':'11'}px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">${initls}</div>
+            <div style="font-size:${idx===1?'13':'12'}px;font-weight:${idx===1?'700':'600'};color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p?p.name.split(' ')[0]:'?'}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p?p.name.split(' ').slice(1).join(' '):''}</div>
+            <div style="font-size:${idx===1?'22':'18'}px;font-weight:700;color:${col.pts};margin-top:6px">${r.stableford_points}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.35)">pts</div>
+          </div>`;
+        }).join('')}
+      </div>` : '';
+
+    const frontBackHtml = isOutingPost && (n.best_front_9 || n.best_back_9) ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px">
+          <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Front 9</div>
+          <div style="font-size:13px;font-weight:600;color:white">⛳ ${n.best_front_9||'—'}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px">
+          <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Back 9</div>
+          <div style="font-size:13px;font-weight:600;color:white">⛳ ${n.best_back_9||'—'}</div>
         </div>
       </div>` : '';
-    return `<div class="card" style="margin-bottom:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-        <div>
-          <div style="font-family:'DM Serif Display',serif;font-size:17px">${ev ? ev.course_name : 'Event'}</div>
-          <div style="font-size:12px;color:var(--text-3)">${ev ? fmtDate(ev.event_date) : ''}</div>
+
+    const ctpHtml = n.closest_to_pin ? `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.07)">
+        <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Closest to pin</div>
+        <div style="font-size:13px;font-weight:600;color:white">📍 ${n.closest_to_pin}</div>
+      </div>` : '';
+
+    const birdiesHtml = !isOutingPost && n.birdies && n.birdies.length ? `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.07)">
+        <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Birdies</div>
+        <div style="font-size:13px;font-weight:600;color:white">🐦 ${n.birdies.join(', ')}</div>
+      </div>` : '';
+
+    const customHtml = n.custom_text ? `
+      <div style="font-size:12px;color:rgba(255,255,255,0.45);font-style:italic;border-left:2px solid #C9A84C;padding-left:10px;margin-bottom:10px">${n.custom_text}</div>` : '';
+
+    return `<div style="background:#0a1628;border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1rem;border:1px solid rgba(201,168,76,0.3)">
+      <div style="background:linear-gradient(135deg,#0f2040,#162338);padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:8px;background:rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">⛳</div>
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:17px;color:white">${ev?ev.course_name:'Event'}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">${ev?fmtDate(ev.event_date):''} · ${isOutingPost?'Outing':'Sunday 9'}</div>
+          </div>
         </div>
-        <span class="badge ${ev&&ev.event_type==='outing_18'?'purple':'green'}">${ev&&ev.event_type==='outing_18'?'Outing':'Sunday 9'}</span>
       </div>
-      ${ranked.length ? `<div style="margin-bottom:4px">${podium}</div>` : ''}
-      ${frontBack}${ctp}${birdies}${custom}
-      <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-        ${ev ? `<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C;font-weight:600">View full results →</button>` : '<span></span>'}
-        <div style="display:flex;gap:6px;align-items:center">
-          <button class="btn sm" onclick="generateResultsCard('${n.event_id}')" style="background:#0c1c2e;color:#C9A84C;border-color:#0c1c2e;display:flex;align-items:center;gap:5px">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M5 8l3 3 3-3"/><rect x="2" y="12" width="12" height="2" rx="1"/></svg>
+      <div style="padding:14px 16px">
+        ${podiumHtml}
+        ${frontBackHtml}
+        ${ctpHtml}
+        ${birdiesHtml}
+        ${customHtml}
+      </div>
+      <div style="padding:10px 16px 14px;border-top:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;color:rgba(255,255,255,0.3)">${totalRounds} round${totalRounds!==1?'s':''} submitted</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${ev ? `<button onclick="viewEventResults('${ev.id}')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:600">Full results →</button>` : ''}
+          <button onclick="generateResultsCard('${n.event_id}')" style="background:#C9A84C;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#0a1628;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:5px">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#0a1628" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M5 8l3 3 3-3"/><rect x="2" y="12" width="12" height="2" rx="1"/></svg>
             Share card
           </button>
-          ${isAdmin ? `<button class="btn sm danger" onclick="deleteNotice('${n.id}')">Remove</button>` : ''}
+          ${isAdmin ? `<button onclick="deleteNotice('${n.id}')" style="background:none;border:none;font-size:12px;color:rgba(255,255,255,0.3);font-family:'DM Sans',sans-serif;cursor:pointer">Remove</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -5510,6 +5574,7 @@ function showTab(name) {
   if (name === 'add-round') safeRender(renderAddRound);
   if (name === 'knockout') safeRender(renderKnockout);
   if (name === 'events') renderSavedCourseDropdown();
+  try { localStorage.setItem('bhgs_last_tab', name); } catch(e) {}
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
@@ -5720,7 +5785,9 @@ function updateUIForRole() {
   // Hide add-round section entirely for viewers
   const addRoundSection = document.getElementById('add-round');
   if (addRoundSection) addRoundSection.style.display = (role === 'viewer' || !currentUser) ? 'none' : '';
-  showTab('home');
+  const lastTab = localStorage.getItem('bhgs_last_tab');
+  const validTabs = ['home','leaderboard','profile','schedule','knockout'];
+  showTab(lastTab && validTabs.includes(lastTab) ? lastTab : 'home');
   renderAll();
 }
 
