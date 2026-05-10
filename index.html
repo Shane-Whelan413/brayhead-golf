@@ -2798,30 +2798,38 @@ function renderHome() {
     const isOutingPost = ev && ev.event_type === 'outing_18';
     const totalRounds = eventRounds.length;
 
-    // Rich podium — order: 2nd left, 1st centre, 3rd right
+    // Rich podium — visual slots: [2nd, 1st, 3rd] left to right
+    // finishIdx = actual finish (0=1st, 1=2nd, 2=3rd)
+    // slotCfg drives SIZE by visual slot position (centre is biggest)
     const medals = ['🥇','🥈','🥉'];
     const podiumHtml = ranked.length ? (() => {
-      const order = [1, 0, 2];
-      const cfg = [
-        { bg:'rgba(211,209,199,0.12)', border:'rgba(211,209,199,0.2)', pts:'#D3D1C7', mt:'24px', pad:'10px 8px', medal:'20px', avatar:32, nameSize:'12px', ptsSize:'17px' },
-        { bg:'rgba(201,168,76,0.15)',  border:'rgba(201,168,76,0.6)',  pts:'#C9A84C', mt:'0px',  pad:'16px 8px', medal:'30px', avatar:44, nameSize:'14px', ptsSize:'24px' },
-        { bg:'rgba(240,153,123,0.12)', border:'rgba(240,153,123,0.2)', pts:'#F0997B', mt:'36px', pad:'10px 8px', medal:'20px', avatar:32, nameSize:'12px', ptsSize:'17px' },
+      const visualOrder = [1, 0, 2]; // which finishIdx goes in each visual slot
+      // Size config per visual slot (0=left/2nd, 1=centre/1st, 2=right/3rd)
+      const slotSize = [
+        { mt:'24px', pad:'10px 8px', medal:'20px', avatar:32, nameSize:'12px', ptsSize:'17px' },
+        { mt:'0px',  pad:'16px 8px', medal:'30px', avatar:44, nameSize:'14px', ptsSize:'24px' },
+        { mt:'36px', pad:'10px 8px', medal:'20px', avatar:32, nameSize:'12px', ptsSize:'17px' },
+      ];
+      // Colour config per finish position (0=1st gold, 1=2nd silver, 2=3rd bronze)
+      const finishCol = [
+        { bg:'rgba(201,168,76,0.15)',  border:'rgba(201,168,76,0.6)',  pts:'#C9A84C', avatarBg:'#C9A84C', avatarCol:'#0a1628', nameCol:'#C9A84C', avatarBorder:'border:2px solid rgba(201,168,76,0.5)' },
+        { bg:'rgba(211,209,199,0.12)', border:'rgba(211,209,199,0.2)', pts:'#D3D1C7', avatarBg:'#1a3050', avatarCol:'#C9A84C', nameCol:'rgba(255,255,255,0.85)', avatarBorder:'' },
+        { bg:'rgba(240,153,123,0.12)', border:'rgba(240,153,123,0.2)', pts:'#F0997B', avatarBg:'#1a3050', avatarCol:'#C9A84C', nameCol:'rgba(255,255,255,0.85)', avatarBorder:'' },
       ];
       return `<div style="display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:6px;margin-bottom:14px;align-items:start">
-        ${order.map(idx => {
-          const r = ranked[idx];
+        ${visualOrder.map((finishIdx, slotIdx) => {
+          const r = ranked[finishIdx];
           if (!r) return '<div></div>';
           const p = db.players.find(x=>x.id===r.player_id);
-          const c = cfg[idx];
+          const sz = slotSize[slotIdx];
+          const col = finishCol[finishIdx];
           const initls = p ? p.name.split(' ').map(w=>w[0]).join('').slice(0,2) : '?';
-          const avatarBg = idx===1 ? '#C9A84C' : '#1a3050';
-          const avatarCol = idx===1 ? '#0a1628' : '#C9A84C';
-          return `<div style="background:${c.bg};border-radius:12px;padding:${c.pad};text-align:center;border:1.5px solid ${c.border};margin-top:${c.mt}">
-            <div style="font-size:${c.medal};margin-bottom:6px">${medals[idx]}</div>
-            <div style="width:${c.avatar}px;height:${c.avatar}px;border-radius:50%;background:${avatarBg};color:${avatarCol};font-size:${idx===1?'14':'11'}px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;${idx===1?'border:2px solid rgba(201,168,76,0.5)':''}">${initls}</div>
-            <div style="font-size:${c.nameSize};font-weight:700;color:${idx===1?'#C9A84C':'rgba(255,255,255,0.85)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p?p.name.split(' ')[0]:'?'}</div>
+          return `<div style="background:${col.bg};border-radius:12px;padding:${sz.pad};text-align:center;border:1.5px solid ${col.border};margin-top:${sz.mt}">
+            <div style="font-size:${sz.medal};margin-bottom:6px">${medals[finishIdx]}</div>
+            <div style="width:${sz.avatar}px;height:${sz.avatar}px;border-radius:50%;background:${col.avatarBg};color:${col.avatarCol};font-size:${finishIdx===0?'14':'11'}px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;${col.avatarBorder}">${initls}</div>
+            <div style="font-size:${sz.nameSize};font-weight:700;color:${col.nameCol};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p?p.name.split(' ')[0]:'?'}</div>
             <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p?p.name.split(' ').slice(1).join(' '):''}</div>
-            <div style="font-size:${c.ptsSize};font-weight:800;color:${c.pts};margin-top:8px;line-height:1">${r.stableford_points}</div>
+            <div style="font-size:${sz.ptsSize};font-weight:800;color:${col.pts};margin-top:8px;line-height:1">${r.stableford_points}</div>
             <div style="font-size:9px;color:rgba(255,255,255,0.3);margin-top:2px">pts</div>
           </div>`;
         }).join('')}
