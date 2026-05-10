@@ -1200,7 +1200,7 @@ function calcNewHcp(hcpIdx, totalPts, position) {
   } else if (position && position <= 3) {
     return hcpIdx;
   } else {
-    return Math.min(54, parseFloat((hcpIdx + 0.2).toFixed(1)));
+    return Math.min(18, parseFloat((hcpIdx + 0.2).toFixed(1)));
   }
 }
 
@@ -1211,7 +1211,7 @@ function calcNewHcpOuting(hcpIdx, totalPts, position) {
   if (position === 3) return Math.max(0, parseFloat((hcpIdx - 0.3).toFixed(1)));
   // Everyone else: score-based (37+ pts = -1, otherwise +0.2)
   if (totalPts >= 37) return Math.max(0, parseFloat((hcpIdx - 1).toFixed(1)));
-  return Math.min(54, parseFloat((hcpIdx + 0.2).toFixed(1)));
+  return Math.min(36, parseFloat((hcpIdx + 0.2).toFixed(1)));
 }
 
 function getPreviousOutingPositions() {
