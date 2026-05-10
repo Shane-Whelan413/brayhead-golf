@@ -3499,139 +3499,232 @@ function maybeCloseAdminModal(e) { if(e.target===document.getElementById('admin-
 function closePostModal() { document.getElementById('post-update-modal').classList.remove('open'); }
 function maybeClosePostModal(e) { if(e.target===document.getElementById('post-update-modal')) closePostModal(); }
 
+// ── Close-out wizard state ──
+let wizardEid = null;
+let wizardStep = 1;
+const selectedBirdies = new Set();
+
+function getAutoBirdies(eid) {
+  const ev = db.events.find(e=>e.id===eid);
+  if (!ev) return [];
+  const rounds = db.rounds.filter(r=>r.event_id===eid && r.hole_scores);
+  const n = ev.event_type==='outing_18' ? 18 : 9;
+  const birdieNames = new Set();
+  for (const r of rounds) {
+    const pl = db.players.find(p=>p.id===r.player_id);
+    if (!pl) continue;
+    const parVals = getParValues(n, ev, pl);
+    for (let i=0; i<n; i++) {
+      const score = r.hole_scores[i];
+      const par = parVals[i] || 4;
+      if (score != null && score === par - 1) birdieNames.add(pl.name);
+    }
+  }
+  return [...birdieNames];
+}
+
 function showPostUpdate(eid) {
   if (!isAdmin) { showAdminLogin(); return; }
-  const ev = db.events.find(e=>e.id===eid);
-  if (!ev) return;
-  const existing = db.noticeboard.find(n=>n.event_id===eid);
-  // Pre-populate selected birdies
+  wizardEid = eid;
+  wizardStep = 1;
   selectedBirdies.clear();
-  if (existing && existing.birdies) existing.birdies.forEach(b=>selectedBirdies.add(b));
-  const ranked = assignLeaguePts(db.rounds.filter(r=>r.event_id===eid).map(r=>({...r}))).slice(0,3);
-  const podiumHtml = ranked.length ? ranked.map((r,i)=>{
-    const p = db.players.find(x=>x.id===r.player_id);
-    const medals=['🥇','🥈','🥉'];
-    return `<div style="font-size:13px;padding:4px 0">${medals[i]} ${p?p.name:'?'} — ${r.stableford_points} pts</div>`;
-  }).join('') : '<div style="font-size:13px;color:var(--text-3)">No rounds recorded yet</div>';
-
-  const playerOptions = db.players.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
-  const existingBirdies = existing&&existing.birdies ? existing.birdies : [];
-  const birdieButtons = db.players.map(p=>{
-    const selected = existingBirdies.includes(p.name);
-    return `<button type="button" id="birdie-${p.id}" onclick="toggleBirdie('${p.id}','${p.name.replace(/'/g,"\\'")}')" style="padding:6px 10px;border-radius:99px;border:1px solid ${selected?'var(--green)':'var(--border-strong)'};background:${selected?'var(--green-light)':'var(--bg)'};color:${selected?'var(--green-dark)':'var(--text)'};font-size:12px;font-family:var(--font-sans);cursor:pointer;transition:all 0.15s">${p.name.split(' ')[0]}</button>`;
-  }).join('');
-
-  const isOuting = ev.event_type === 'outing_18';
-  const outingRounds = db.rounds.filter(r=>r.event_id===eid && r.verified);
-
-  // Front/back 9 — outings only
-  let frontBest = null, backBest = null;
-  if (isOuting && outingRounds.length) {
-    const top3Ids = new Set(assignLeaguePts(outingRounds.map(r=>({...r}))).slice(0,3).map(r=>r.player_id));
-    frontBest = calcBestHalf(outingRounds, 'front', top3Ids);
-    backBest  = calcBestHalf(outingRounds, 'back',  top3Ids);
-  }
-
-  const frontBackHtml = isOuting ? `
-    <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-bottom:1rem">
-      <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Best front &amp; back 9 (auto)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div style="background:white;border-radius:8px;padding:10px;border:1px solid var(--border)">
-          <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Front 9</div>
-          <div style="font-size:14px;font-weight:600;color:var(--text)">${frontBest ? frontBest.name.split(' ')[0] + ' ' + frontBest.name.split(' ').slice(1).join(' ') : '—'}</div>
-          <div style="font-size:12px;color:#8a6a1a;font-weight:500">${frontBest ? frontBest.pts + ' pts' : ''}</div>
-        </div>
-        <div style="background:white;border-radius:8px;padding:10px;border:1px solid var(--border)">
-          <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Back 9</div>
-          <div style="font-size:14px;font-weight:600;color:var(--text)">${backBest ? backBest.name.split(' ')[0] + ' ' + backBest.name.split(' ').slice(1).join(' ') : '—'}</div>
-          <div style="font-size:12px;color:#8a6a1a;font-weight:500">${backBest ? backBest.pts + ' pts' : ''}</div>
-        </div>
-      </div>
-    </div>` : '';
-
-  document.getElementById('post-update-title').textContent = `Post update — ${ev.course_name} (${fmtDate(ev.event_date)})`;
-  document.getElementById('post-update-body').innerHTML = `
-    <div style="margin-bottom:1rem">
-      <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Results (auto from scores)</div>
-      ${podiumHtml}
-    </div>
-    ${frontBackHtml}
-    <div class="form-group" style="margin-bottom:12px">
-      <label>Closest to pin</label>
-      <select id="pu-ctp" style="width:100%">
-        <option value="">— none —</option>
-        ${playerOptions}
-      </select>
-    </div>
-    <div class="form-group" style="margin-bottom:1rem">
-      <label>Birdies <span style="font-weight:400;color:var(--text-3)">— tap to select multiple</span></label>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px" id="birdie-selector">
-        ${birdieButtons}
-      </div>
-    </div>
-    <div class="form-group" style="margin-bottom:1rem">
-      <label>Custom announcement <span style="font-weight:400;color:var(--text-3)">(optional)</span></label>
-      <input id="pu-custom" placeholder="e.g. Great turnout today, next week at Bray!" value="${existing&&existing.custom_text?existing.custom_text:''}" />
-    </div>
-    <button class="btn primary" onclick="saveNotice('${eid}','${existing?existing.id:''}')" style="width:100%">${existing?'Update post':'Post to home page'}</button>
-  `;
-
-  // Set existing CTP
-  if (existing && existing.closest_to_pin) {
-    const sel = document.getElementById('pu-ctp');
-    if (sel) sel.value = existing.closest_to_pin;
-  }
-
+  showWizardStep(1);
   document.getElementById('post-update-modal').classList.add('open');
 }
 
-const selectedBirdies = new Set();
+function showWizardStep(step) {
+  wizardStep = step;
+  const eid = wizardEid;
+  const ev = db.events.find(e=>e.id===eid);
+  if (!ev) return;
+  const isOuting = ev.event_type === 'outing_18';
+  const existing = db.noticeboard.find(n=>n.event_id===eid);
+  const totalSteps = 4;
+  const allRounds = db.rounds.filter(r=>r.event_id===eid);
+  const ranked = assignLeaguePts(allRounds.map(r=>({...r})));
+  const playerOptions = '<option value="">— none —</option>' + db.players.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
+
+  const stepIndicator = `
+    <div style="display:flex;align-items:center;gap:4px;margin-bottom:1rem">
+      ${Array.from({length:totalSteps},(_,i)=>`<div style="flex:1;height:3px;border-radius:2px;background:${i+1<=step?'#C9A84C':'var(--border)'}"></div>`).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--text-3);margin-bottom:1rem">Step ${step} of ${totalSteps}</div>`;
+
+  let body = stepIndicator;
+  const medals = ['🥇','🥈','🥉'];
+
+  if (step === 1) {
+    document.getElementById('post-update-title').textContent = `Close out — ${ev.course_name}`;
+    body += `
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">Confirm results</div>
+      ${ranked.length ? ranked.map((r,i)=>{
+        const p = db.players.find(x=>x.id===r.player_id);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:18px;width:28px;flex-shrink:0">${i<3?medals[i]:i+1}</span>
+          ${avatarHtml(p||{name:'?'},30,10)}
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:500;color:var(--text)">${p?p.name:'Unknown'}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:1px">${r.stableford_points} pts · Hcp ${r.course_handicap} · ${r.verified?'<span style="color:#2a6b1a">✓ Verified</span>':'<span style="color:#A32D2D">Pending</span>'}</div>
+          </div>
+          <span style="font-size:13px;font-weight:600;color:var(--green-mid);flex-shrink:0">${r._lp} lp</span>
+        </div>`;
+      }).join('') : '<div class="empty">No rounds submitted yet</div>'}
+      <button class="btn primary" onclick="showWizardStep(2)" style="width:100%;margin-top:1rem">Looks good → Next</button>`;
+
+  } else if (step === 2) {
+    if (isOuting) {
+      document.getElementById('post-update-title').textContent = 'Front & Back 9';
+      const verifiedRounds = db.rounds.filter(r=>r.event_id===eid && r.verified);
+      const top3Ids = new Set(ranked.slice(0,3).map(r=>r.player_id));
+      const frontBest = calcBestHalf(verifiedRounds, 'front', top3Ids);
+      const backBest  = calcBestHalf(verifiedRounds, 'back',  top3Ids);
+      body += `
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Best front &amp; back 9</div>
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">Auto-calculated excluding top 3. Override if needed.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem">
+          <div style="background:var(--bg);border-radius:var(--radius);padding:12px;border:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Front 9</div>
+            <div style="font-size:14px;font-weight:600;color:var(--text)">${frontBest?frontBest.name:'—'}</div>
+            <div style="font-size:12px;color:#8a6a1a">${frontBest?frontBest.pts+' pts':''}</div>
+          </div>
+          <div style="background:var(--bg);border-radius:var(--radius);padding:12px;border:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Back 9</div>
+            <div style="font-size:14px;font-weight:600;color:var(--text)">${backBest?backBest.name:'—'}</div>
+            <div style="font-size:12px;color:#8a6a1a">${backBest?backBest.pts+' pts':''}</div>
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:500;color:var(--text-2);margin-bottom:6px">Override front 9 winner</div>
+        <select id="wiz-front" style="width:100%;height:40px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;padding:0 11px;margin-bottom:12px">${playerOptions}</select>
+        <div style="font-size:12px;font-weight:500;color:var(--text-2);margin-bottom:6px">Override back 9 winner</div>
+        <select id="wiz-back" style="width:100%;height:40px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;padding:0 11px;margin-bottom:1.25rem">${playerOptions}</select>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="showWizardStep(1)" style="flex:1">← Back</button>
+          <button class="btn primary" onclick="showWizardStep(3)" style="flex:2">Next →</button>
+        </div>`;
+      setTimeout(()=>{
+        const f=document.getElementById('wiz-front'); const b=document.getElementById('wiz-back');
+        if(f&&frontBest) f.value=frontBest.name; if(b&&backBest) b.value=backBest.name;
+      },50);
+    } else {
+      document.getElementById('post-update-title').textContent = 'Birdies';
+      const autoBirdies = getAutoBirdies(eid);
+      autoBirdies.forEach(name=>selectedBirdies.add(name));
+      body += `
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Birdies scored</div>
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:12px">Auto-detected from scorecards. Tap to toggle.</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.25rem" id="birdie-selector">
+          ${db.players.map(p=>{
+            const sel = autoBirdies.includes(p.name);
+            return `<button type="button" id="birdie-${p.id}" onclick="toggleBirdie('${p.id}','${p.name.replace(/'/g,"\'")}')"
+              style="padding:8px 14px;border-radius:99px;border:1px solid ${sel?'var(--green)':'var(--border-strong)'};background:${sel?'var(--green-light)':'var(--surface)'};color:${sel?'var(--green-dark)':'var(--text)'};font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:${sel?'600':'400'}">
+              ${sel?'🐦 ':''}${p.name.split(' ')[0]}
+            </button>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="showWizardStep(1)" style="flex:1">← Back</button>
+          <button class="btn primary" onclick="showWizardStep(3)" style="flex:2">Next →</button>
+        </div>`;
+    }
+
+  } else if (step === 3) {
+    document.getElementById('post-update-title').textContent = 'Closest to Pin';
+    body += `
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Closest to pin</div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">Select the winner, or leave blank if none.</div>
+      <select id="wiz-ctp" style="width:100%;height:44px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:15px;font-family:'DM Sans',sans-serif;padding:0 11px;margin-bottom:1.25rem">${playerOptions}</select>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="showWizardStep(2)" style="flex:1">← Back</button>
+        <button class="btn primary" onclick="showWizardStep(4)" style="flex:2">Next →</button>
+      </div>`;
+    setTimeout(()=>{
+      const sel=document.getElementById('wiz-ctp');
+      if(sel&&existing&&existing.closest_to_pin) sel.value=existing.closest_to_pin;
+    },50);
+
+  } else if (step === 4) {
+    document.getElementById('post-update-title').textContent = 'Post & Publish';
+    body += `
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Custom announcement</div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:10px">Optional message for the home feed.</div>
+      <input id="wiz-custom" placeholder="e.g. Great day out, see you next week!"
+        value="${existing&&existing.custom_text?existing.custom_text:''}"
+        style="width:100%;height:44px;padding:0 12px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:1.25rem" />
+      <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-bottom:1.25rem">
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">Ready to post</div>
+        <div style="font-size:12px;color:var(--text-2);display:flex;flex-direction:column;gap:4px">
+          <div>✓ ${allRounds.length} round${allRounds.length!==1?'s':''} in results</div>
+          ${!isOuting ? `<div>🐦 Birdies: ${selectedBirdies.size>0?[...selectedBirdies].join(', '):'none detected'}</div>` : ''}
+          ${isOuting ? '<div>⛳ Front & back 9 winners saved</div>' : ''}
+          <div>📍 CTP: will be saved from previous step</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="showWizardStep(3)" style="flex:1">← Back</button>
+        <button class="btn primary" id="wiz-post-btn" onclick="saveWizard()" style="flex:2">✓ Post to home page</button>
+      </div>`;
+  }
+
+  document.getElementById('post-update-body').innerHTML = body;
+}
 
 function toggleBirdie(pid, name) {
   const btn = document.getElementById('birdie-'+pid);
   if (!btn) return;
   if (selectedBirdies.has(name)) {
     selectedBirdies.delete(name);
-    btn.style.border = '1px solid var(--border-strong)';
-    btn.style.background = 'var(--bg)';
-    btn.style.color = 'var(--text)';
+    btn.style.border='1px solid var(--border-strong)'; btn.style.background='var(--surface)';
+    btn.style.color='var(--text)'; btn.style.fontWeight='400';
+    btn.innerHTML=name.split(' ')[0];
   } else {
     selectedBirdies.add(name);
-    btn.style.border = '1px solid var(--green)';
-    btn.style.background = 'var(--green-light)';
-    btn.style.color = 'var(--green-dark)';
+    btn.style.border='1px solid var(--green)'; btn.style.background='var(--green-light)';
+    btn.style.color='var(--green-dark)'; btn.style.fontWeight='600';
+    btn.innerHTML='🐦 '+name.split(' ')[0];
   }
 }
 
-async function saveNotice(eid, existingId) {
-  const ev      = db.events.find(e=>e.id===eid);
+async function saveWizard() {
+  const eid = wizardEid;
+  const ev = db.events.find(e=>e.id===eid);
   const isOuting = ev && ev.event_type === 'outing_18';
-  const ctp     = document.getElementById('pu-ctp').value || null;
-  const birdies = [...selectedBirdies];
-  const custom  = document.getElementById('pu-custom').value.trim() || null;
+  const existing = db.noticeboard.find(n=>n.event_id===eid);
+  const btn = document.getElementById('wiz-post-btn');
+  if (btn) { btn.disabled=true; btn.textContent='Posting…'; }
 
-  // Recalculate front/back 9 at save time for outings
+  const ctp = document.getElementById('wiz-ctp')?.value || null;
+  const custom = document.getElementById('wiz-custom')?.value.trim() || null;
+  const birdies = isOuting ? [] : [...selectedBirdies];
+
   let best_front_9 = null, best_back_9 = null;
   if (isOuting) {
-    const outingRounds = db.rounds.filter(r=>r.event_id===eid && r.verified);
-    const top3Ids = new Set(assignLeaguePts(outingRounds.map(r=>({...r}))).slice(0,3).map(r=>r.player_id));
-    const front = calcBestHalf(outingRounds, 'front', top3Ids);
-    const back  = calcBestHalf(outingRounds, 'back',  top3Ids);
-    if (front) best_front_9 = `${front.name} (${front.pts} pts)`;
-    if (back)  best_back_9  = `${back.name} (${back.pts} pts)`;
+    const verifiedRounds = db.rounds.filter(r=>r.event_id===eid && r.verified);
+    const ranked = assignLeaguePts(verifiedRounds.map(r=>({...r})));
+    const top3Ids = new Set(ranked.slice(0,3).map(r=>r.player_id));
+    const frontOverride = document.getElementById('wiz-front')?.value;
+    const backOverride  = document.getElementById('wiz-back')?.value;
+    const frontAuto = calcBestHalf(verifiedRounds,'front',top3Ids);
+    const backAuto  = calcBestHalf(verifiedRounds,'back',top3Ids);
+    const frontName = frontOverride || (frontAuto?frontAuto.name:null);
+    const backName  = backOverride  || (backAuto?backAuto.name:null);
+    if (frontName) best_front_9 = frontOverride ? frontName : `${frontName} (${frontAuto.pts} pts)`;
+    if (backName)  best_back_9  = backOverride  ? backName  : `${backName} (${backAuto.pts} pts)`;
   }
 
   try {
-    if (existingId) {
-      await patch(`noticeboard?id=eq.${existingId}`, { closest_to_pin:ctp, birdies, custom_text:custom, best_front_9, best_back_9 });
+    if (existing) {
+      await patch(`noticeboard?id=eq.${existing.id}`, {closest_to_pin:ctp, birdies, custom_text:custom, best_front_9, best_back_9});
     } else {
-      await post('noticeboard', { event_id:eid, closest_to_pin:ctp, birdies, custom_text:custom, best_front_9, best_back_9 });
+      await post('noticeboard', {event_id:eid, closest_to_pin:ctp, birdies, custom_text:custom, best_front_9, best_back_9});
     }
-    toast('Update posted to home page!', 'success');
+    toast('Posted to home page! 🎉', 'success');
     selectedBirdies.clear();
     closePostModal();
     await loadAll(); renderAll();
-  } catch(e) { toast('Error: '+e.message, 'error'); }
+  } catch(e) {
+    toast('Error: '+e.message, 'error');
+    if (btn) { btn.disabled=false; btn.textContent='✓ Post to home page'; }
+  }
 }
 
 async function deleteNotice(id) {
