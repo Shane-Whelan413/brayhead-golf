@@ -703,6 +703,23 @@
   <div id="ptr-spinner"></div>
   <span id="ptr-label">Refreshing…</span>
 </div>
+
+<div id="install-banner" style="display:none;position:fixed;bottom:calc(70px + env(safe-area-inset-bottom, 0px));left:12px;right:12px;z-index:300;background:#0a1628;border-radius:16px;border:1px solid rgba(201,168,76,0.4);padding:14px 16px;box-shadow:0 4px 24px rgba(0,0,0,0.3)">
+  <button onclick="dismissInstallBanner()" style="position:absolute;top:10px;right:12px;background:none;border:none;color:rgba(255,255,255,0.4);font-size:18px;cursor:pointer;padding:4px;line-height:1">✕</button>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="width:44px;height:44px;border-radius:12px;background:#C9A84C;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <img src="icon-192.png" style="width:44px;height:44px;border-radius:12px;object-fit:cover" onerror="this.style.display='none'">
+    </div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:700;color:white;margin-bottom:2px">Add to Home Screen</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.55);line-height:1.4">Tap <span style="color:#C9A84C;font-weight:600">Share</span> then <span style="color:#C9A84C;font-weight:600">Add to Home Screen</span> for the full app experience</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08)">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13M7 7l5-5 5 5"/><path d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/></svg>
+    <span style="font-size:12px;color:rgba(255,255,255,0.5)">Tap the share icon at the bottom of Safari</span>
+  </div>
+</div>
 <div class="content" id="main-content">
 
   <!-- HOME / NOTICEBOARD -->
@@ -6461,6 +6478,27 @@ function openApiKeyModal() {
   } else {
     toast('Invalid — key should start with sk-ant-', 'error');
   }
+}
+
+// ── Install banner ───────────────────────────────────────
+(function() {
+  // Only show on iOS Safari, not in standalone mode, not dismissed before
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true;
+  const isDismissed = localStorage.getItem('bhgs_install_dismissed');
+  if (isIOS && !isStandalone && !isDismissed) {
+    // Show after a short delay so the app loads first
+    setTimeout(() => {
+      const banner = document.getElementById('install-banner');
+      if (banner) banner.style.display = 'block';
+    }, 3000);
+  }
+})();
+
+function dismissInstallBanner() {
+  const banner = document.getElementById('install-banner');
+  if (banner) banner.style.display = 'none';
+  try { localStorage.setItem('bhgs_install_dismissed', '1'); } catch(e) {}
 }
 
 // ── Pull to refresh ──────────────────────────────────────
