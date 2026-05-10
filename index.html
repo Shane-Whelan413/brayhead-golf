@@ -1352,6 +1352,7 @@ function renderLeaderboard() {
 
   const lbPositions = getLeaderboardPositions(publishedEids);
 
+  const outingPenalties = filter !== 'sunday_9' ? getPreviousOutingPositions() : {};
   const rows = db.players.map(p => {
     const pos = lbPositions[p.id]?.pos || 0;
     const lp  = lbPositions[p.id]?.lp  || 0;
@@ -1359,7 +1360,8 @@ function renderLeaderboard() {
     const stab = playerRounds.reduce((s,r)=>s+r.stableford_points,0);
     const best = playerRounds.length ? Math.max(...playerRounds.map(r=>r.stableford_points)) : 0;
     const avg  = playerRounds.length ? (stab/playerRounds.length).toFixed(1) : '—';
-    return { ...p, lp, pos, rounds: playerRounds.length, best, avg };
+    const penalty = outingPenalties[p.id] || 0;
+    return { ...p, lp, pos, rounds: playerRounds.length, best, avg, penalty };
   }).sort((a,b) => a.pos - b.pos || b.lp - a.lp);
 
   const sundays = getSundays();
@@ -1387,6 +1389,7 @@ function renderLeaderboard() {
         <div class="lb-card-info">
           <div class="lb-card-name" style="color:var(--text)">${p.name}</div>
           <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)} · ${p.rounds} round${p.rounds!==1?'s':''} · Best ${p.best||'—'} · Avg ${p.avg}</div>
+          ${p.penalty ? `<div style="margin-top:4px"><span style="display:inline-flex;align-items:center;gap:4px;background:#fef8e6;border:1px solid #C9A84C;color:#8a6a1a;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:0.03em">⚠️ −${p.penalty} next outing</span></div>` : ''}
         </div>
       </button>
       <div class="lb-card-pts">${p.lp}</div>
