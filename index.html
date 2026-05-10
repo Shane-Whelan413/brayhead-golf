@@ -717,6 +717,7 @@
           <option value="outing_18">Outings only</option>
         </select>
       </div>
+      <div id="lb-penalty-box" style="display:none;margin-bottom:1rem"></div>
       <div class="pts-bar" id="pts-bar"></div>
       <div class="tbl-wrap" id="lb-table"><div class="empty">Loading…</div></div>
     </div>
@@ -1378,18 +1379,55 @@ function renderLeaderboard() {
     ).join('') + `<span class="pts-pip">rest = 6</span>`;
 
   if (!rows.length) { document.getElementById('lb-table').innerHTML='<div class="empty">No players yet — add some in the Players tab</div>'; return; }
+
+  // Penalty callout box
+  const penaltyBox = document.getElementById('lb-penalty-box');
+  const penaltyPlayers = rows.filter(p => p.penalty > 0).sort((a,b) => b.penalty - a.penalty);
+  if (penaltyPlayers.length && filter !== 'sunday_9') {
+    const medalIcon = p => p.penalty === 4 ? '🥇' : p.penalty === 3 ? '🥈' : '🥉';
+    penaltyBox.style.display = 'block';
+    penaltyBox.innerHTML = `
+      <div style="background:#0a1628;border-radius:var(--radius-lg);overflow:hidden;border:1.5px solid #C9A84C">
+        <div style="background:linear-gradient(135deg,#0f2040,#162338);padding:12px 16px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:20px">⚠️</span>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:white">Next Outing Penalties</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">Applied to course handicap at next outing</div>
+          </div>
+        </div>
+        ${penaltyPlayers.map(p => `
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-top:1px solid rgba(255,255,255,0.07)">
+            <span style="font-size:20px;flex-shrink:0">${medalIcon(p)}</span>
+            ${avatarHtml(p, 32, 11)}
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">Won last outing · Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
+            </div>
+            <div style="flex-shrink:0;text-align:right">
+              <div style="font-size:22px;font-weight:800;color:#C9A84C;line-height:1">−${p.penalty}</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">shots</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  } else {
+    penaltyBox.style.display = 'none';
+    penaltyBox.innerHTML = '';
+  }
+
   document.getElementById('lb-table').innerHTML = rows.map((p)=>{
     const pos = p.pos || 0;
     const rankClass = pos===1?'r1':pos===2?'r2':pos===3?'r3':'rn';
     const posStr = pos===1?'1st':pos===2?'2nd':pos===3?'3rd':pos+'th';
-    return `<div class="lb-card">
+    const hasPenalty = p.penalty > 0 && filter !== 'sunday_9';
+    return `<div class="lb-card" style="${hasPenalty ? 'border-color:#C9A84C;background:rgba(201,168,76,0.06);' : ''}">
       <div class="rank ${rankClass}">${posStr}</div>
       <button onclick="showPlayerProfile('${p.id}')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;background:none;border:none;cursor:pointer;padding:0;text-align:left">
         ${avatarHtml(p, 34, 12)}
         <div class="lb-card-info">
           <div class="lb-card-name" style="color:var(--text)">${p.name}</div>
           <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)} · ${p.rounds} round${p.rounds!==1?'s':''} · Best ${p.best||'—'} · Avg ${p.avg}</div>
-          ${p.penalty ? `<div style="margin-top:4px"><span style="display:inline-flex;align-items:center;gap:4px;background:#fef8e6;border:1px solid #C9A84C;color:#8a6a1a;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:0.03em">⚠️ −${p.penalty} next outing</span></div>` : ''}
+          ${hasPenalty ? `<div style="margin-top:4px"><span style="display:inline-flex;align-items:center;gap:4px;background:#fef8e6;border:1px solid #C9A84C;color:#8a6a1a;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:0.03em">⚠️ −${p.penalty} next outing</span></div>` : ''}
         </div>
       </button>
       <div class="lb-card-pts">${p.lp}</div>
