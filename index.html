@@ -2525,9 +2525,10 @@ function renderSchedule() {
       </div>`;
   }
 
-  // Pre-build outing number and sunday number lookups from full season
+  // Week number = sequential position across ALL events sorted by date
+  const allSortedDates = seasonDates.map(e=>e.date).sort();
+  // Outing number = which outing number it is
   const allOutingDates = seasonDates.filter(e=>e.isOuting).map(e=>e.date).sort();
-  const allSundayDates = seasonDates.filter(e=>!e.isOuting).map(e=>e.date).sort();
 
   const renderRow = (entry, i, isPastSection) => {
     const { date: d, isOuting, course: outingCourse } = entry;
@@ -2540,32 +2541,24 @@ function renderSchedule() {
     const evType = (ev ? ev.event_type : isOuting ? 'outing_18' : 'sunday_9');
     const isOutingRow = evType === 'outing_18';
 
-    // Number label — outing number or sunday week number
+    // Week number is position across all events chronologically
+    const weekNum = allSortedDates.indexOf(d) + 1;
+    // Outing number is which outing it is
     const outingNum = isOutingRow ? allOutingDates.indexOf(d) + 1 : null;
-    const sundayNum = !isOutingRow ? allSundayDates.indexOf(d) + 1 : null;
-    const numLabel = isOutingRow
-      ? `<div style="flex-shrink:0;text-align:center;min-width:36px">
-          <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Outing</div>
-          <div style="font-size:16px;font-weight:700;color:#C9A84C;line-height:1">${outingNum}</div>
-         </div>`
-      : `<div style="flex-shrink:0;text-align:center;min-width:36px">
-          <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
-          <div style="font-size:16px;font-weight:700;color:var(--text-2);line-height:1">${sundayNum}</div>
-         </div>`;
 
     const typeLabel = isOutingRow
-      ? `<span style="font-size:10px;font-weight:600;color:#3C3489;background:#EEEDFE;padding:2px 8px;border-radius:99px">Outing</span>`
+      ? `<span style="font-size:10px;font-weight:600;color:#3C3489;background:#EEEDFE;padding:2px 8px;border-radius:99px">Outing ${outingNum}</span>`
       : `<span style="font-size:10px;font-weight:600;color:#1a3c6e;background:#edf2fa;padding:2px 8px;border-radius:99px">Sunday 9</span>`;
 
-    const pastNumLabel = isOutingRow
-      ? `<div style="flex-shrink:0;text-align:center;min-width:32px">
-          <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Out</div>
-          <div style="font-size:14px;font-weight:700;color:#b8986a;line-height:1">${outingNum}</div>
-         </div>`
-      : `<div style="flex-shrink:0;text-align:center;min-width:32px">
-          <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
-          <div style="font-size:14px;font-weight:600;color:var(--text-3);line-height:1">${sundayNum}</div>
-         </div>`;
+    const numLabel = `<div style="flex-shrink:0;text-align:center;min-width:36px">
+        <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
+        <div style="font-size:16px;font-weight:700;color:${isOutingRow?'#C9A84C':'var(--text-2)'};line-height:1">${weekNum}</div>
+       </div>`;
+
+    const pastNumLabel = `<div style="flex-shrink:0;text-align:center;min-width:32px">
+        <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text-3);line-height:1">${weekNum}</div>
+       </div>`;
 
     if (isPastSection || isPublished) {
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
