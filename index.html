@@ -4157,55 +4157,124 @@ function viewPlayerRounds(pid, name) {
 
 function editRound(rid) {
   const r = db.rounds.find(x=>x.id===rid);
-  const ev = db.events.find(e=>e.id===r.event_id);
-  const p = db.players.find(x=>x.id===r.player_id);
+  const ev = db.events.find(e=>e.id===r?.event_id);
+  const p = db.players.find(x=>x.id===r?.player_id);
   if (!r || !ev) return;
   const n = ev.event_type==='outing_18' ? 18 : 9;
   const parVals = getParValues(n, ev, p || null);
-  document.getElementById('modal-title').textContent = `Edit round — ${p?p.name:'?'} · ${ev.course_name}`;
+  const siVals  = getSIValues(n, ev, p || null);
+  const courseHcp = ev.event_type==='outing_18'
+    ? calcOutingCourseHcp(parseFloat(r.handicap_before), 113, 35, 36, p?.id)
+    : calcCourseHcp(parseFloat(r.handicap_before), 113, 35, 36);
 
-  // Build vertical scorecard rows
-  let rows = '';
-  for (let i=1; i<=n; i++) {
-    rows += `<div style="display:grid;grid-template-columns:36px 36px 1fr;align-items:center;gap:4px;padding:6px 12px;border-bottom:0.5px solid var(--border)">
-      <div style="font-size:13px;font-weight:700;color:var(--text-3);text-align:center">${i}</div>
-      <div style="font-size:13px;color:var(--text-2);text-align:center;font-weight:500">${parVals[i-1]||4}</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:8px">
-        <button onclick="erAdj(${i},-1)" style="width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:20px;font-weight:300;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:'DM Sans',sans-serif">−</button>
-        <div id="er-display${i}" style="font-size:22px;font-weight:700;color:var(--text);min-width:32px;text-align:center">${r.hole_scores&&r.hole_scores[i-1]?r.hole_scores[i-1]:'—'}</div>
-        <button onclick="erAdj(${i},1)" style="width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:20px;font-weight:300;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:'DM Sans',sans-serif">+</button>
-        <input type="hidden" id="er-h${i}" value="${r.hole_scores&&r.hole_scores[i-1]?r.hole_scores[i-1]:''}" />
+  document.getElementById('modal-title').textContent = `Edit round — ${p?p.name:'?'}`;
+
+  const makeRows = (from, to) => {
+    let html = '';
+    for (let i=from; i<=to; i++) {
+      const par = parVals[i-1] || 4;
+      const si  = siVals[i-1] || i;
+      const score = r.hole_scores && r.hole_scores[i-1] ? r.hole_scores[i-1] : null;
+      const pts = score != null ? calcStableford(score, par, getStrokeAllowance(courseHcp, si, n)) : null;
+      const ptsBg = pts===null?'transparent':pts>=3?'#C9A84C':pts===2?'#2a6b1a':pts===1?'#9a9080':'#A32D2D';
+      html += `<div style="display:grid;grid-template-columns:32px 28px 28px 1fr 36px;align-items:center;min-height:52px;border-bottom:1px solid var(--border);background:var(--surface)">
+        <div style="font-size:12px;font-weight:700;color:var(--text-3);text-align:center">${i}</div>
+        <div style="font-size:12px;color:var(--text-2);text-align:center">${par}</div>
+        <div style="font-size:11px;color:var(--text-3);text-align:center">${si}</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:4px">
+          <button ontouchstart="event.preventDefault();erAdj(${i},-1,${par})" onclick="erAdj(${i},-1,${par})"
+            style="width:38px;height:38px;border-radius:10px;border:1.5px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:22px;font-weight:300;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;-webkit-tap-highlight-color:transparent">−</button>
+          <div id="er-display${i}" style="font-size:22px;font-weight:700;color:${score?'var(--text)':'#ccc'};min-width:30px;text-align:center">${score||'—'}</div>
+          <button ontouchstart="event.preventDefault();erAdj(${i},1,${par})" onclick="erAdj(${i},1,${par})"
+            style="width:38px;height:38px;border-radius:10px;border:1.5px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:22px;font-weight:300;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;-webkit-tap-highlight-color:transparent">+</button>
+          <input type="hidden" id="er-h${i}" value="${score||''}" />
+        </div>
+        <div id="er-pts${i}" style="width:32px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;background:${ptsBg};margin:0 4px">${pts!==null?pts:''}</div>
+      </div>`;
+    }
+    return html;
+  };
+
+  let scoreContent = '';
+  if (n === 18) {
+    scoreContent = `
+      <div style="display:flex;border-bottom:1px solid var(--border)">
+        <button id="er-tab-front" onclick="erSwitchTab('front')"
+          style="flex:1;padding:10px;font-size:14px;font-weight:600;text-align:center;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;background:#fef8e6;color:#0a1628;border-bottom:3px solid #C9A84C">Front 9</button>
+        <button id="er-tab-back" onclick="erSwitchTab('back')"
+          style="flex:1;padding:10px;font-size:14px;font-weight:600;text-align:center;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;background:white;color:#9a9080;border-bottom:3px solid transparent">Back 9</button>
       </div>
-    </div>`;
+      <div id="er-panel-front">${makeRows(1,9)}</div>
+      <div id="er-panel-back" style="display:none">${makeRows(10,18)}</div>`;
+  } else {
+    scoreContent = makeRows(1,9);
   }
 
   document.getElementById('modal-body').innerHTML = `
-    <div style="background:#0a1628;border-radius:8px 8px 0 0;padding:8px 12px;display:grid;grid-template-columns:36px 36px 1fr;gap:4px">
-      <span style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;text-align:center;font-weight:600">#</span>
-      <span style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;text-align:center;font-weight:600">Par</span>
-      <span style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;text-align:center;font-weight:600">Score</span>
+    <div style="background:#0a1628;padding:8px 12px;border-radius:8px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:12px;color:rgba(255,255,255,0.5)">${ev.course_name} · ${fmtDate(ev.event_date)}</div>
+      <div style="font-size:13px;font-weight:600;color:#C9A84C" id="er-total-display">${r.stableford_points} pts</div>
     </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;margin-bottom:12px">${rows}</div>
-    <button class="btn primary" onclick="saveEditedRound('${rid}')" style="width:100%">Save changes</button>`;
+    <div style="display:grid;grid-template-columns:32px 28px 28px 1fr 36px;background:#162338;padding:6px 0;border-radius:6px 6px 0 0">
+      <span style="font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;text-align:center;font-weight:700">#</span>
+      <span style="font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;text-align:center;font-weight:700">Par</span>
+      <span style="font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;text-align:center;font-weight:700">SI</span>
+      <span style="font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;text-align:center;font-weight:700">Score</span>
+      <span style="font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;text-align:center;font-weight:700">Pts</span>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;margin-bottom:12px">${scoreContent}</div>
+    ${r.verified ? '<div style="background:#fef8e6;border:1px solid #C9A84C;border-radius:var(--radius);padding:9px 12px;font-size:12px;color:#8a6a1a;margin-bottom:10px">⚠️ This round is verified — saving will mark it as pending re-verification</div>' : ''}
+    <button class="btn primary" onclick="saveEditedRound('${rid}')" style="width:100%;padding:13px;font-size:15px;font-weight:700;border-radius:12px">Save changes</button>`;
+
   document.getElementById('modal-overlay').classList.add('open');
+  // Store context for live recalc
+  window._erContext = { rid, n, parVals, siVals, courseHcp };
 }
 
-function erAdj(hole, delta) {
-  const inp = document.getElementById('er-h'+hole);
+function erSwitchTab(which) {
+  document.getElementById('er-tab-front').style.background = which==='front'?'#fef8e6':'white';
+  document.getElementById('er-tab-front').style.color = which==='front'?'#0a1628':'#9a9080';
+  document.getElementById('er-tab-front').style.borderBottomColor = which==='front'?'#C9A84C':'transparent';
+  document.getElementById('er-tab-back').style.background = which==='back'?'#fef8e6':'white';
+  document.getElementById('er-tab-back').style.color = which==='back'?'#0a1628':'#9a9080';
+  document.getElementById('er-tab-back').style.borderBottomColor = which==='back'?'#C9A84C':'transparent';
+  document.getElementById('er-panel-front').style.display = which==='front'?'block':'none';
+  document.getElementById('er-panel-back').style.display = which==='back'?'block':'none';
+}
+
+function erAdj(hole, delta, par) {
+  const inp  = document.getElementById('er-h'+hole);
   const disp = document.getElementById('er-display'+hole);
-  const cur = parseInt(inp.value)||0;
+  const pts  = document.getElementById('er-pts'+hole);
+  const cur  = parseInt(inp.value)||0;
   if (cur===0 && delta<0) return;
-  const parEl = disp.closest('[style*="grid"]')?.previousElementSibling;
-  const newVal = cur===0 && delta>0 ? 4 : Math.max(1, Math.min(15, cur+delta));
+  const newVal = cur===0 && delta>0 ? par : Math.max(1, Math.min(15, cur+delta));
   inp.value = newVal;
   disp.textContent = newVal;
   disp.style.color = 'var(--text)';
+
+  // Recalc pts for this hole
+  if (window._erContext) {
+    const { n, parVals, siVals, courseHcp } = window._erContext;
+    const holePts = calcStableford(newVal, parVals[hole-1], getStrokeAllowance(courseHcp, siVals[hole-1], n));
+    const bg = holePts>=3?'#C9A84C':holePts===2?'#2a6b1a':holePts===1?'#9a9080':'#A32D2D';
+    if (pts) { pts.textContent=holePts; pts.style.background=bg; }
+
+    // Recalc total
+    let total = 0;
+    for (let i=1; i<=n; i++) {
+      const v = parseInt(document.getElementById('er-h'+i)?.value);
+      if (!isNaN(v) && v>0) total += calcStableford(v, parVals[i-1], getStrokeAllowance(courseHcp, siVals[i-1], n));
+    }
+    const td = document.getElementById('er-total-display');
+    if (td) td.textContent = total + ' pts';
+  }
 }
 
 async function saveEditedRound(rid) {
   const r = db.rounds.find(x=>x.id===rid);
-  const ev = db.events.find(e=>e.id===r.event_id);
-  const pl = db.players.find(x=>x.id===r.player_id);
+  const ev = db.events.find(e=>e.id===r?.event_id);
+  const pl = db.players.find(x=>x.id===r?.player_id);
   if (!r||!ev||!pl) return;
   const n = ev.event_type==='outing_18' ? 18 : 9;
   const scores = [];
@@ -4219,12 +4288,7 @@ async function saveEditedRound(rid) {
   const hcpIdx = parseFloat(r.handicap_before);
   const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
   const isOuting = ev.event_type === 'outing_18';
-  let courseHcp;
-  if (isOuting) {
-    courseHcp = calcOutingCourseHcp(hcpIdx, slope, cr, par, pl.id);
-  } else {
-    courseHcp = calcCourseHcp(hcpIdx, slope, cr, par);
-  }
+  const courseHcp = isOuting ? calcOutingCourseHcp(hcpIdx, slope, cr, par, pl.id) : calcCourseHcp(hcpIdx, slope, cr, par);
   let totalPts=0;
   for (let i=0;i<n;i++) {
     if (scores[i]!==null) totalPts += calcStableford(scores[i], parVals[i], getStrokeAllowance(courseHcp, siVals[i], n));
@@ -4232,19 +4296,27 @@ async function saveEditedRound(rid) {
   const gross = scores.reduce((a,b)=>a+(b||0),0);
   let newHcp;
   if (isOuting) {
-    newHcp = calcNewHcpOuting(hcpIdx, totalPts);
+    const allOutingRounds = db.rounds.filter(x=>x.event_id===r.event_id && x.id!==rid);
+    const allPts = [...allOutingRounds.map(x=>x.stableford_points), totalPts].sort((a,b)=>b-a);
+    const pos = allPts.indexOf(totalPts) + 1;
+    newHcp = calcNewHcpOuting(hcpIdx, totalPts, pos);
   } else {
     const eventRounds = db.rounds.filter(x=>x.event_id===r.event_id && x.id!==rid);
     const allPts = [...eventRounds.map(x=>x.stableford_points), totalPts].sort((a,b)=>b-a);
     const position = allPts.indexOf(totalPts) + 1;
     newHcp = calcNewHcp(hcpIdx, totalPts, position);
   }
+  const btn = document.querySelector('#modal-body .btn.primary');
+  if (btn) { btn.disabled=true; btn.textContent='Saving…'; }
   try {
-    await patch(`rounds?id=eq.${rid}`, { hole_scores:scores, stableford_points:totalPts, gross_score:gross, course_handicap:courseHcp, handicap_after:newHcp, verified:false });
-    toast(`Round updated! ${totalPts} pts · Needs re-verification`, 'success');
+    await patch(`rounds?id=eq.${rid}`, {hole_scores:scores, stableford_points:totalPts, gross_score:gross, course_handicap:courseHcp, handicap_after:newHcp, verified:false});
+    toast(`Round updated — ${totalPts} pts · Needs re-verification`, 'success');
     closeModal();
     await loadAll(); renderAll();
-  } catch(e) { toast('Error: '+e.message, 'error'); }
+  } catch(e) {
+    toast('Error: '+e.message, 'error');
+    if (btn) { btn.disabled=false; btn.textContent='Save changes'; }
+  }
 }
 
 async function verifyRound(rid) {
