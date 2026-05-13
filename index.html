@@ -1445,28 +1445,33 @@ function renderLeaderboard() {
 
   if (!rows.length) { document.getElementById('lb-table').innerHTML='<div class="empty">No players yet — add some in the Players tab</div>'; return; }
 
-  // Penalty callout box
+  // Penalty callout box — collapsible pill
   const penaltyBox = document.getElementById('lb-penalty-box');
   const penaltyPlayers = rows.filter(p => p.penalty > 0).sort((a,b) => b.penalty - a.penalty);
   if (penaltyPlayers.length && filter !== 'sunday_9') {
     const posLabel = p => p.penalty === 4 ? '1st at last outing' : p.penalty === 3 ? '2nd at last outing' : '3rd at last outing';
     penaltyBox.style.display = 'block';
     penaltyBox.innerHTML = `
-      <div style="background:var(--surface);border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border)">
-        <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
-          <span style="font-size:14px">⚠️</span>
-          <span style="font-size:12px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:0.05em">Next Outing Penalties</span>
-        </div>
-        ${penaltyPlayers.map(p => `
-          <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border)">
-            ${avatarHtml(p, 30, 10)}
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
-              <div style="font-size:11px;color:var(--text-3);margin-top:1px">${posLabel(p)}</div>
-            </div>
-            <span style="font-size:12px;font-weight:700;color:#8a6a1a;background:#fef8e6;border:1px solid #C9A84C;padding:2px 9px;border-radius:99px;flex-shrink:0">−${p.penalty} shots</span>
+      <div style="border-radius:var(--radius-lg);overflow:hidden;border:1px solid #C9A84C">
+        <button onclick="togglePenaltyBox()" style="width:100%;background:#fef8e6;border:none;cursor:pointer;padding:9px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'DM Sans',sans-serif">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:13px">⚠️</span>
+            <span style="font-size:12px;font-weight:600;color:#8a6a1a">Next outing penalties · ${penaltyPlayers.length} player${penaltyPlayers.length!==1?'s':''}</span>
           </div>
-        `).join('')}
+          <span id="penalty-chevron" style="font-size:11px;color:#8a6a1a;transition:transform 0.2s">▼</span>
+        </button>
+        <div id="penalty-body" style="display:none">
+          ${penaltyPlayers.map(p => `
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid #C9A84C;background:var(--surface)">
+              ${avatarHtml(p, 30, 10)}
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+                <div style="font-size:11px;color:var(--text-3);margin-top:1px">${posLabel(p)}</div>
+              </div>
+              <span style="font-size:12px;font-weight:700;color:#8a6a1a;background:#fef8e6;border:1px solid #C9A84C;padding:2px 9px;border-radius:99px;flex-shrink:0">−${p.penalty} shots</span>
+            </div>
+          `).join('')}
+        </div>
       </div>`;
   } else {
     penaltyBox.style.display = 'none';
@@ -4823,6 +4828,16 @@ function togglePrizeSection(id) {
   haptic();
   const body = document.getElementById('prize-body-'+id);
   const chevron = document.getElementById('chevron-'+id);
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+function togglePenaltyBox() {
+  haptic();
+  const body = document.getElementById('penalty-body');
+  const chevron = document.getElementById('penalty-chevron');
   if (!body) return;
   const open = body.style.display === 'none';
   body.style.display = open ? '' : 'none';
