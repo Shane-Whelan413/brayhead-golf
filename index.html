@@ -4714,6 +4714,19 @@ function renderProfile() {
         <div class="stat"><div class="stat-label">Rounds played</div><div class="stat-value">${totalRounds}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">${attendance}% attendance</div></div>
         <div class="stat"><div class="stat-label">Best score</div><div class="stat-value">${bestScore||'—'}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">Avg: ${avgScore}</div></div>
       </div>
+      ${outingEvents.length ? `
+      <div class="card">
+        <div class="card-title">Outings ranking</div>
+        <div class="stat" style="background:${outingPosColor};border-radius:var(--radius)">
+          <div class="stat-label" style="color:${outingPosText}">Outing rank</div>
+          <div class="stat-value" style="color:${outingPosText}">${outingPosLabel}</div>
+          <div style="font-size:11px;color:${outingPosText};margin-top:2px">${myOutingPts} league pts from ${myOutingRounds.length} outing${myOutingRounds.length!==1?'s':''}</div>
+        </div>
+      </div>` : ''}
+    </div>
+
+    <!-- PRIZES TAB -->
+    <div id="ptab-content-prizes" style="display:none">
       <div class="card" style="margin-bottom:1rem">
         <div class="card-title">Podium finishes</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">
@@ -4730,25 +4743,6 @@ function renderProfile() {
             <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:2px">3rd place</div>
           </div>
         </div>
-      </div>
-      ${outingEvents.length ? `
-      <div class="card">
-        <div class="card-title">Outings ranking</div>
-        <div class="stat" style="background:${outingPosColor};border-radius:var(--radius)">
-          <div class="stat-label" style="color:${outingPosText}">Outing rank</div>
-          <div class="stat-value" style="color:${outingPosText}">${outingPosLabel}</div>
-          <div style="font-size:11px;color:${outingPosText};margin-top:2px">${myOutingPts} league pts from ${myOutingRounds.length} outing${myOutingRounds.length!==1?'s':''}</div>
-        </div>
-      </div>` : ''}
-    </div>
-
-    <!-- PRIZES TAB -->
-    <div id="ptab-content-prizes" style="display:none">
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:1rem;text-align:center">
-        <div class="stat"><div class="stat-label">Front 9</div><div class="stat-value" style="color:${front9Wins.length?'#C9A84C':'var(--text-3)'}">${front9Wins.length}</div></div>
-        <div class="stat"><div class="stat-label">Back 9</div><div class="stat-value" style="color:${back9Wins.length?'#C9A84C':'var(--text-3)'}">${back9Wins.length}</div></div>
-        <div class="stat"><div class="stat-label">Closest to Pin</div><div class="stat-value" style="color:${ctpWins.length?'#C9A84C':'var(--text-3)'}">${ctpWins.length}</div></div>
-        <div class="stat"><div class="stat-label">Sunday Birdies</div><div class="stat-value" style="color:${birdieWins.length?'#C9A84C':'var(--text-3)'}">${birdieWins.length}</div></div>
       </div>
       <div class="card">
         ${prizeAccordion('front9','⛳','Front 9 wins', front9Wins)}
