@@ -4635,10 +4635,14 @@ function renderProfile() {
   const posColor = lbPos===1?'#FAC775':lbPos===2?'#D3D1C7':lbPos===3?'#F0997B':'var(--green-light)';
   const posText  = lbPos===1?'#633806':lbPos===2?'#444441':lbPos===3?'#4A1B0C':'var(--green-dark)';
 
-  // --- Prize history from noticeboard ---
-  const front9Wins = db.noticeboard.filter(n => n.best_front_9 && n.best_front_9.startsWith(player.name));
-  const back9Wins  = db.noticeboard.filter(n => n.best_back_9  && n.best_back_9.startsWith(player.name));
-  const ctpWins    = db.noticeboard.filter(n => n.closest_to_pin && n.closest_to_pin.startsWith(player.name));
+  // --- Prize history from noticeboard (Sunday events only for birdies) ---
+  const front9Wins  = db.noticeboard.filter(n => n.best_front_9 && n.best_front_9.startsWith(player.name));
+  const back9Wins   = db.noticeboard.filter(n => n.best_back_9  && n.best_back_9.startsWith(player.name));
+  const ctpWins     = db.noticeboard.filter(n => n.closest_to_pin && n.closest_to_pin.startsWith(player.name));
+  const birdieWins  = db.noticeboard.filter(n => {
+    const ev = db.events.find(e => e.id === n.event_id);
+    return ev && ev.event_type === 'sunday_9' && Array.isArray(n.birdies) && n.birdies.includes(player.name);
+  });
 
   function prizeEventRow(n) {
     const ev = db.events.find(e=>e.id===n.event_id);
@@ -4735,15 +4739,17 @@ function renderProfile() {
 
     <!-- PRIZES TAB -->
     <div id="ptab-content-prizes" style="display:none">
-      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:1rem;text-align:center">
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:1rem;text-align:center">
         <div class="stat"><div class="stat-label">Front 9</div><div class="stat-value" style="color:${front9Wins.length?'#C9A84C':'var(--text-3)'}">${front9Wins.length}</div></div>
         <div class="stat"><div class="stat-label">Back 9</div><div class="stat-value" style="color:${back9Wins.length?'#C9A84C':'var(--text-3)'}">${back9Wins.length}</div></div>
         <div class="stat"><div class="stat-label">Closest to Pin</div><div class="stat-value" style="color:${ctpWins.length?'#C9A84C':'var(--text-3)'}">${ctpWins.length}</div></div>
+        <div class="stat"><div class="stat-label">Sunday Birdies</div><div class="stat-value" style="color:${birdieWins.length?'#C9A84C':'var(--text-3)'}">${birdieWins.length}</div></div>
       </div>
       <div class="card">
         ${prizeAccordion('front9','⛳','Front 9 wins', front9Wins)}
         ${prizeAccordion('back9','⛳','Back 9 wins', back9Wins)}
         ${prizeAccordion('ctp','📍','Closest to pin', ctpWins)}
+        ${prizeAccordion('birdies','🐦','Sunday birdies', birdieWins)}
       </div>
     </div>
 
