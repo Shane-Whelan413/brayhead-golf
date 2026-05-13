@@ -4775,19 +4775,97 @@ function renderProfile() {
 
     <!-- STATS TAB -->
     <div id="ptab-content-stats" style="display:none">
-      ${myRounds.length > 1 ? `
-      <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-          <div class="card-title" style="margin:0">Handicap progression</div>
-          <div style="display:flex;gap:4px">
-            ${['10','20','All'].map(v=>`<button id="hcp-range-${v}" onclick="setHcpRange('${v}')"
-              style="padding:4px 10px;border-radius:99px;border:1px solid var(--border-strong);background:${v==='10'?'#0a1628':'var(--bg)'};color:${v==='10'?'#C9A84C':'var(--text-2)'};font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">${v}</button>`).join('')}
+      ${(() => {
+        // Rounds with hole scores only
+        const scoredRounds = myRounds.filter(r => r.hole_scores && r.hole_scores.length);
+        if (!scoredRounds.length) return '<div class="card"><div class="empty">Play more rounds to see your stats</div></div>';
+
+        // Per-round hole outcome tallies
+        let totalPars = 0, totalScratches = 0, roundsWithScores = 0;
+        const holePoints = Array.from({length:9}, () => ({ total:0, count:0 }));
+
+        for (const r of scoredRounds) {
+          const ev = db.events.find(e=>e.id===r.event_id);
+          if (!ev) continue;
+          const n = ev.event_type==='outing_18' ? 18 : 9;
+          const parVals = getParValues(n, ev, player);
+          const siVals  = getSIValues(n, ev, player);
+          let roundPars = 0, roundScratches = 0, hasScores = false;
+          for (let i=0; i<n; i++) {
+            const score = r.hole_scores[i];
+            if (score == null) continue;
+            hasScores = true;
+            const par = parVals[i] || 4;
+            if (score === par) roundPars++;
+            if (score === par) roundScratches++;  // scratch = score at par
+            // best holes — Sunday only, holes 1-9
+            if (ev.event_type === 'sunday_9' && i < 9) {
+              const pts = calcStableford(score, par, getStrokeAllowance(r.course_handicap, siVals[i], n));
+              holePoints[i].total += pts;
+              holePoints[i].count++;
+            }
+          }
+          if (hasScores) {
+            totalPars += roundPars;
+            totalScratches += roundScratches;
+            roundsWithScores++;
+          }
+        }
+
+        const avgPars      = roundsWithScores ? (totalPars / roundsWithScores).toFixed(1) : '—';
+        const avgScratches = roundsWithScores ? (totalScratches / roundsWithScores).toFixed(1) : '—';
+
+        // Best holes ranked
+        const holeAvgs = holePoints
+          .map((h, i) => ({ hole: i+1, avg: h.count >= 2 ? h.total/h.count : null, count: h.count }))
+          .filter(h => h.avg !== null)
+          .sort((a,b) => b.avg - a.avg);
+
+        const maxAvg = holeAvgs.length ? holeAvgs[0].avg : 1;
+
+        return `
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:1rem">
+          <div class="stat">
+            <div class="stat-label">Avg pars / round</div>
+            <div class="stat-value">${avgPars}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:2px">across ${roundsWithScores} rounds</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Avg scratches / round</div>
+            <div class="stat-value">${avgScratches}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:2px">scores at par</div>
           </div>
         </div>
-        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch" id="hcp-chart-scroll">
-          <canvas id="hcp-chart" style="height:180px;display:block"></canvas>
-        </div>
-      </div>` : '<div class="card"><div class="empty">Play more rounds to see your handicap chart</div></div>'}
+        ${holeAvgs.length ? `
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-title">Best holes (Sunday rounds)</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Avg stableford pts per hole · min 2 rounds</div>
+          ${holeAvgs.map((h, idx) => `
+            <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--border)">
+              <div style="width:20px;font-size:11px;font-weight:600;color:var(--text-3);text-align:center">${idx+1 <= 3 ? ['🥇','🥈','🥉'][idx] : idx+1}</div>
+              <div style="width:48px;font-size:13px;font-weight:600;color:var(--text)">Hole ${h.hole}</div>
+              <div style="flex:1;background:var(--bg);border-radius:99px;height:8px;overflow:hidden">
+                <div style="height:8px;border-radius:99px;background:${idx===0?'#B8860B':idx===1?'#707070':idx===2?'#A0522D':'#0a1628'};width:${Math.round((h.avg/maxAvg)*100)}%"></div>
+              </div>
+              <div style="width:36px;text-align:right;font-size:13px;font-weight:600;color:var(--text)">${h.avg.toFixed(1)}</div>
+              <div style="width:28px;text-align:right;font-size:10px;color:var(--text-3)">${h.count}r</div>
+            </div>
+          `).join('')}
+        </div>` : ''}
+        ${myRounds.length > 1 ? `
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+            <div class="card-title" style="margin:0">Handicap progression</div>
+            <div style="display:flex;gap:4px">
+              ${['10','20','All'].map(v=>`<button id="hcp-range-${v}" onclick="setHcpRange('${v}')"
+                style="padding:4px 10px;border-radius:99px;border:1px solid var(--border-strong);background:${v==='10'?'#0a1628':'var(--bg)'};color:${v==='10'?'#C9A84C':'var(--text-2)'};font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">${v}</button>`).join('')}
+            </div>
+          </div>
+          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch" id="hcp-chart-scroll">
+            <canvas id="hcp-chart" style="height:180px;display:block"></canvas>
+          </div>
+        </div>` : ''}`;
+      })()}
     </div>
   `;
 
