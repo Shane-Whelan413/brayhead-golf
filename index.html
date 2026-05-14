@@ -1548,6 +1548,8 @@ function renderPlayers() {
         <button class="btn sm" onclick="viewPlayerRounds('${p.id}','${p.name.replace(/'/g,"\\'")}')">Rounds</button>
       </div>
       ${isAdmin ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${isAdmin ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="editPlayer('${p.id}')">✏️ Edit</button>
         <button class="btn sm" onclick="editHandicap('${p.id}','${p.name.replace(/'/g,"\\'")}',${p.handicap_index})">Edit hcp</button>
         <button class="btn sm" style="background:#EEEDFE;color:#3C3489;border-color:#AFA9EC" onclick="toggleWomensIndex('${p.id}',${!!p.plays_womens_index})">${p.plays_womens_index?'Set men\'s':'Set women\'s'}</button>
         <button class="btn sm" onclick="adminResetPin('${p.id}','${p.name.replace(/'/g,"\\'")}')">Reset PIN</button>
@@ -2197,6 +2199,61 @@ async function saveRound() {
     await loadAll(); renderAll();
   } catch(e) { toast('Error saving: '+e.message, 'error'); }
   btn.disabled=false; btn.textContent='Save round';
+}
+
+function editPlayer(pid) {
+  const p = db.players.find(x=>x.id===pid);
+  if (!p) return;
+  document.getElementById('modal-title').textContent = `Edit — ${p.name}`;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group" style="margin-bottom:1rem">
+      <label style="font-size:12px;color:var(--text-3);font-weight:500">Name</label>
+      <input id="ep-name" value="${p.name}" style="width:100%;margin-top:4px" />
+    </div>
+    <div class="form-group" style="margin-bottom:1rem">
+      <label style="font-size:12px;color:var(--text-3);font-weight:500">Handicap index</label>
+      <input id="ep-hcp" type="number" min="0" max="54" step="0.1" value="${parseFloat(p.handicap_index).toFixed(1)}" style="width:100%;margin-top:4px" />
+    </div>
+    <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-bottom:1rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">Provisional member</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:1px">Plays off 7 for first 3 Sunday rounds</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0">
+          <input type="checkbox" id="ep-provisional" ${p.provisional?'checked':''} style="opacity:0;width:0;height:0" onchange="document.getElementById('ep-prov-rounds-row').style.display=this.checked?'':'none'">
+          <span onclick="document.getElementById('ep-provisional').click()" style="position:absolute;cursor:pointer;inset:0;background:${p.provisional?'#0a1628':'#ccc'};border-radius:99px;transition:0.2s">
+            <span style="position:absolute;height:18px;width:18px;left:${p.provisional?'21px':'3px'};bottom:3px;background:white;border-radius:50%;transition:0.2s"></span>
+          </span>
+        </label>
+      </div>
+      <div id="ep-prov-rounds-row" style="display:${p.provisional?'':'none'}">
+        <label style="font-size:12px;color:var(--text-3);font-weight:500">Provisional rounds completed</label>
+        <select id="ep-prov-rounds" style="width:100%;margin-top:4px;padding:8px;border-radius:var(--radius);border:1px solid var(--border);font-family:'DM Sans',sans-serif;font-size:13px">
+          <option value="0" ${(p.provisional_rounds||0)===0?'selected':''}>0 — hasn't played yet</option>
+          <option value="1" ${(p.provisional_rounds||0)===1?'selected':''}>1 — 2 Sundays remaining</option>
+          <option value="2" ${(p.provisional_rounds||0)===2?'selected':''}>2 — 1 Sunday remaining</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" style="width:100%;background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="savePlayerEdit('${pid}')">Save changes</button>
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function savePlayerEdit(pid) {
+  const name  = document.getElementById('ep-name').value.trim();
+  const hcp   = parseFloat(document.getElementById('ep-hcp').value);
+  const provisional = document.getElementById('ep-provisional').checked;
+  const provisional_rounds = provisional ? parseInt(document.getElementById('ep-prov-rounds').value) : 0;
+  if (!name) { toast('Name cannot be empty', 'error'); return; }
+  if (isNaN(hcp)) { toast('Invalid handicap', 'error'); return; }
+  try {
+    await patch(`players?id=eq.${pid}`, { name, handicap_index: hcp, provisional, provisional_rounds });
+    closeModal();
+    toast('Player updated!', 'success');
+    await loadAll(); renderAll();
+  } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
 function toggleProvisionalUI() {
