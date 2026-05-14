@@ -340,6 +340,8 @@
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 10px 12px;
     display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    -webkit-tap-highlight-color: transparent;
   }
   .lb-card .rank { width: 28px; height: 28px; flex-shrink: 0; font-size: 12px; }
   .lb-card .avatar { width: 34px; height: 34px; font-size: 12px; flex-shrink: 0; }
@@ -1518,21 +1520,19 @@ function renderLeaderboard() {
       : hasPenalty ? 'border-color:#C9A84C;background:rgba(201,168,76,0.06);'
       : '';
 
-    return `<div class="lb-card" style="${cardStyle}">
+    return `<button onclick="showPlayerProfile('${p.id}')" class="lb-card" style="width:100%;text-align:left;${cardStyle}">
       <div class="rank ${rankClass}" style="width:${rankSize};height:${rankSize};font-size:${rankFont}">${posStr}</div>
-      <button onclick="showPlayerProfile('${p.id}')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;background:none;border:none;cursor:pointer;padding:0;text-align:left">
-        ${avatarHtml(p, avatarSize, avatarFont)}
-        <div class="lb-card-info">
-          <div style="display:flex;align-items:center;gap:6px">
-            <div class="lb-card-name" style="color:var(--text);font-size:${nameSize};font-weight:${pos<=3?'600':'500'}">${p.name}</div>
-            ${movHtml}
-          </div>
-          <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
-          ${hasPenalty ? `<div style="margin-top:4px"><span style="display:inline-flex;align-items:center;gap:4px;background:#fef8e6;border:1px solid #C9A84C;color:#8a6a1a;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:0.03em">⚠️ −${p.penalty} next outing</span></div>` : ''}
+      ${avatarHtml(p, avatarSize, avatarFont)}
+      <div class="lb-card-info">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="lb-card-name" style="color:var(--text);font-size:${nameSize};font-weight:${pos<=3?'600':'500'}">${p.name}</div>
+          ${movHtml}
         </div>
-      </button>
+        <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
+        ${hasPenalty ? `<div style="margin-top:4px"><span style="display:inline-flex;align-items:center;gap:4px;background:#fef8e6;border:1px solid #C9A84C;color:#8a6a1a;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:0.03em">⚠️ −${p.penalty} next outing</span></div>` : ''}
+      </div>
       <div class="lb-card-pts" style="font-size:${ptsSize};color:${pos===1?'#B8860B':pos===2?'#707070':pos===3?'#A0522D':'var(--green-mid)'}">${p.lp}</div>
-    </div>`;
+    </button>`;
   }).join('');
 }
 
