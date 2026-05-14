@@ -3276,21 +3276,36 @@ function showHandicapSheet(eid) {
       <div style="font-size:12px;color:var(--text-3);margin-top:2px">${fmtDate(ev.event_date)} · CR ${ev.course_rating} · Slope ${ev.slope_rating} · Par ${ev.par}</div>
     </div>
     <div class="card">
-      <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+      <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">
         <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.05em">Player</div>
-        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.05em;text-align:center;padding:0 12px">Index</div>
-        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.05em;text-align:center">Shots</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.05em;text-align:center;padding:0 8px">Index</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.05em;text-align:center;padding:0 8px">Shots</div>
+        <div style="font-size:11px;font-weight:600;color:#A32D2D;text-transform:uppercase;letter-spacing:0.05em;text-align:center">Penalty</div>
       </div>
-      ${rows.map((r, idx) => `
-        <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border)">
+      ${rows.map((r, idx) => {
+        const penalty = r.player.next_outing_penalty || 0;
+        return `
+        <div style="display:grid;grid-template-columns:1fr auto auto auto;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border);${penalty?'background:rgba(226,75,74,0.03);margin:0 -12px;padding:9px 12px;':''}">
           <div style="display:flex;align-items:center;gap:8px">
             ${avatarHtml(r.player, 30, 10)}
-            <div style="font-size:13px;font-weight:500;color:var(--text)">${r.player.name}</div>
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--text)">${r.player.name}</div>
+              ${r.player.provisional?'<div style="font-size:10px;color:#8a6a1a;font-weight:500">Provisional</div>':''}
+            </div>
           </div>
-          <div style="font-size:13px;color:var(--text-2);text-align:center;padding:0 12px">${r.hcpIdx.toFixed(1)}</div>
+          <div style="font-size:13px;color:var(--text-2);text-align:center;padding:0 8px">${r.hcpIdx.toFixed(1)}</div>
           <div style="font-size:15px;font-weight:700;color:#0a1628;text-align:center;background:${idx<3?'rgba(201,168,76,0.12)':'var(--bg)'};border-radius:6px;padding:2px 10px">${r.courseHcp}</div>
-        </div>`).join('')}
+          <div style="text-align:center">${penalty
+            ? `<span style="font-size:12px;font-weight:700;color:#A32D2D;background:#FCEBEB;padding:3px 8px;border-radius:99px">−${penalty}</span>`
+            : `<span style="font-size:12px;color:var(--text-3)">—</span>`
+          }</div>
+        </div>`;
+      }).join('')}
     </div>
+    ${rows.some(r=>r.player.next_outing_penalty>0) ? `
+    <div style="background:#FCEBEB;border-radius:var(--radius);padding:9px 12px;margin-top:1rem;font-size:11px;color:#A32D2D;font-weight:500">
+      ⚠️ ${rows.filter(r=>r.player.next_outing_penalty>0).length} player${rows.filter(r=>r.player.next_outing_penalty>0).length!==1?'s have':' has'} a shot penalty from the last outing result
+    </div>` : ''}
     <div style="font-size:11px;color:var(--text-3);text-align:center;margin-top:1rem">
       ${rows.length} players · Outing course handicap (max 36) · Provisional players play off index 7.0
     </div>
