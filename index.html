@@ -3261,11 +3261,10 @@ function showHandicapSheet(eid) {
 
   const n = 18;
   const sortedPlayers = [...db.players]
-    .filter(p => !p.provisional)
     .sort((a,b) => a.name.localeCompare(b.name));
 
   const rows = sortedPlayers.map(p => {
-    const hcpIdx = parseFloat(p.handicap_index) || 0;
+    const hcpIdx = p.provisional ? 7.0 : (parseFloat(p.handicap_index) || 0);
     const courseHcp = calcOutingCourseHcp(hcpIdx, ev.slope_rating, ev.course_rating, ev.par, p.id);
     return { player: p, hcpIdx, courseHcp };
   }).sort((a,b) => a.courseHcp - b.courseHcp);
@@ -3293,7 +3292,7 @@ function showHandicapSheet(eid) {
         </div>`).join('')}
     </div>
     <div style="font-size:11px;color:var(--text-3);text-align:center;margin-top:1rem">
-      ${rows.length} players · Outing course handicap (max 36)
+      ${rows.length} players · Outing course handicap (max 36) · Provisional players play off index 7.0
     </div>
   `;
   document.getElementById('modal-overlay').classList.add('open');
