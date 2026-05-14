@@ -3200,7 +3200,7 @@ function renderSchedule() {
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${typeLabel}
-          ${ev&&isOutingRow&&isAdmin?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋</button>`:''}
+          ${ev&&isOutingRow?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋</button>`:''}
           ${ev?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="font-size:11px">Results</button>`:''}
         </div>
       </div>`;
@@ -3217,7 +3217,7 @@ function renderSchedule() {
           <div style="font-size:13px;color:#2a6b1a;font-weight:500">${fmtDate(d)}</div>
           ${courseName?`<div style="font-size:15px;font-weight:700;color:#1a4a0a;margin-top:2px">${courseName}</div>`:''}
         </div>
-        ${ev&&isOutingRow&&isAdmin?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628;flex-shrink:0" onclick="showHandicapSheet('${ev.id}')">📋 Hcp sheet</button>`:''}
+        ${ev&&isOutingRow?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628;flex-shrink:0" onclick="showHandicapSheet('${ev.id}')">📋 Hcp sheet</button>`:''}
       </div>`;
     }
 
@@ -3229,7 +3229,7 @@ function renderSchedule() {
         ${courseName?`<div style="font-size:15px;font-weight:600;color:var(--text);margin-top:2px">${courseName}</div>`:''}
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
-        ${ev&&isOutingRow&&isAdmin?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋 Hcp sheet</button>`:''}
+        ${ev&&isOutingRow?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋 Hcp sheet</button>`:''}
         ${ev?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0">Results</button>`:''}
       </div>
     </div>`;
