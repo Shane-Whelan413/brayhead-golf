@@ -2505,70 +2505,102 @@ async function runHandicapAudit() {
 }
 
 function renderAuditStep() {
-  const { pids, playerIssues, currentIdx, skipped, approved } = window._auditState;
+  const { pids, playerIssues, currentIdx } = window._auditState;
   const pid = pids[currentIdx];
-  const { player, rounds, issues, finalHcp } = playerIssues[pid];
+  const data = playerIssues[pid];
+  const { player, rounds } = data;
   const totalPlayers = pids.length;
   const remaining = totalPlayers - currentIdx;
 
+  if (!window._auditState.posOverrides) window._auditState.posOverrides = {};
+
+  function recalcWithOverrides() {
+    let runningHcp = rounds[0].correctBefore;
+    const recalced = rounds.map(entry => {
+      const pos = window._auditState.posOverrides[entry.rid] ?? entry.pos;
+      const correctBefore = parseFloat(runningHcp.toFixed(1));
+      const correctAfter  = entry.isOuting
+        ? calcNewHcpOuting(correctBefore, entry.pts, pos)
+        : calcNewHcp(correctBefore, entry.pts, pos);
+      runningHcp = correctAfter;
+      return { ...entry, pos, correctBefore, correctAfter };
+    });
+    return { recalced, finalHcp: parseFloat(runningHcp.toFixed(1)) };
+  }
+
+  const { recalced, finalHcp } = recalcWithOverrides();
+  data.finalHcp = finalHcp;
+  data.rounds = recalced;
+
+  const currentHcp = parseFloat(player?.handicap_index || 0).toFixed(1);
+  const hcpChanged = Math.abs(parseFloat(currentHcp) - finalHcp) > 0.05;
+
   document.getElementById('modal-title').textContent = `Audit — ${currentIdx+1} of ${totalPlayers}`;
   document.getElementById('modal-body').innerHTML = `
-
-    <!-- Progress bar -->
     <div style="background:var(--bg);border-radius:99px;height:6px;margin-bottom:1rem;overflow:hidden">
-      <div style="height:6px;border-radius:99px;background:#0a1628;width:${Math.round(((currentIdx)/totalPlayers)*100)}%"></div>
+      <div style="height:6px;border-radius:99px;background:#0a1628;width:${Math.round((currentIdx/totalPlayers)*100)}%"></div>
     </div>
-
-    <!-- Player header -->
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
       ${avatarHtml(player, 40, 14)}
       <div>
         <div style="font-size:16px;font-weight:600;color:var(--text)">${player?.name||pid}</div>
-        <div style="font-size:11px;color:var(--text-3)">${issues.length} discrepanc${issues.length!==1?'ies':'y'} · Current hcp: <strong>${parseFloat(player?.handicap_index||0).toFixed(1)}</strong> → Correct: <strong style="color:${Math.abs(parseFloat(player?.handicap_index||0)-finalHcp)>0.05?'#2d7a4f':'var(--text)'}">${finalHcp.toFixed(1)}</strong></div>
+        <div style="font-size:11px;color:var(--text-3)">
+          Current hcp: <strong>${currentHcp}</strong>
+          → Correct: <strong style="color:${hcpChanged?'#2d7a4f':'var(--text)'}">${finalHcp.toFixed(1)}</strong>
+          ${hcpChanged?'<span style="font-size:10px;color:#2d7a4f;margin-left:4px">will update</span>':'<span style="font-size:10px;color:var(--text-3);margin-left:4px">no change</span>'}
+        </div>
       </div>
     </div>
-
-    <!-- Full round history for this player -->
+    <div style="background:#fef8e6;border-radius:var(--radius);padding:9px 12px;margin-bottom:1rem;font-size:11px;color:#8a6a1a">
+      💡 If a position is wrong, tap the dropdown to correct it — the handicap change updates instantly.
+    </div>
     <div class="card" style="margin-bottom:1rem">
-      <div class="card-title">All rounds — stored vs correct</div>
-      ${rounds.map(entry => {
+      <div class="card-title">Round by round</div>
+      ${recalced.map(entry => {
         const beforeWrong = Math.abs(entry.correctBefore - entry.storedBefore) > 0.05;
         const afterWrong  = Math.abs(entry.correctAfter  - entry.storedAfter)  > 0.05;
         const hasIssue = beforeWrong || afterWrong;
-        return `<div style="padding:9px 0;border-bottom:0.5px solid var(--border);${hasIssue?'background:rgba(226,75,74,0.04);margin:0 -12px;padding:9px 12px;border-radius:4px':''}">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
-            <div style="font-size:12px;font-weight:600;color:var(--text)">${fmtDate(entry.date)} · ${entry.course}</div>
-            <div style="display:flex;gap:4px">
-              <span style="font-size:10px;font-weight:600;color:#8a6a1a;background:#fef8e6;padding:1px 6px;border-radius:99px">${entry.isOuting?'Outing':'Sunday'}</span>
-              <span style="font-size:10px;font-weight:600;color:var(--text-3);background:var(--bg);padding:1px 6px;border-radius:99px">P${entry.pos} · ${entry.pts}pts</span>
-              ${hasIssue?'<span style="font-size:10px;font-weight:600;color:#A32D2D;background:#FCEBEB;padding:1px 6px;border-radius:99px">⚠ wrong</span>':'<span style="font-size:10px;font-weight:600;color:#2d7a4f;background:#e8f5ee;padding:1px 6px;border-radius:99px">✓ ok</span>'}
+        const isOverridden = window._auditState.posOverrides[entry.rid] !== undefined;
+        const hcpChange = parseFloat((entry.correctAfter - entry.correctBefore).toFixed(1));
+        const changeColour = hcpChange < 0 ? '#E24B4A' : hcpChange > 0 ? '#2d7a4f' : 'var(--text-3)';
+        const changeLabel  = hcpChange < 0 ? hcpChange.toFixed(1) : hcpChange > 0 ? '+'+hcpChange.toFixed(1) : '±0';
+        return `
+        <div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)">${fmtDate(entry.date)} · ${entry.course}</div>
+              <div style="font-size:11px;color:var(--text-3);margin-top:1px">${entry.pts} pts · ${entry.isOuting?'Outing':'Sunday'}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:13px;font-weight:700;color:${changeColour}">${changeLabel}</div>
+              <div style="font-size:10px;color:var(--text-3)">${entry.correctBefore.toFixed(1)} → ${entry.correctAfter.toFixed(1)}</div>
             </div>
           </div>
-          <div style="display:flex;gap:16px;font-size:11px">
-            <div>
-              <span style="color:var(--text-3)">Before: </span>
-              ${beforeWrong
-                ? `<span style="color:#E24B4A;text-decoration:line-through">${entry.storedBefore.toFixed(1)}</span> <span style="color:#2d7a4f;font-weight:600">→ ${entry.correctBefore.toFixed(1)}</span>`
-                : `<span style="color:var(--text-2)">${entry.storedBefore.toFixed(1)}</span>`}
-            </div>
-            <div>
-              <span style="color:var(--text-3)">After: </span>
-              ${afterWrong
-                ? `<span style="color:#E24B4A;text-decoration:line-through">${entry.storedAfter.toFixed(1)}</span> <span style="color:#2d7a4f;font-weight:600">→ ${entry.correctAfter.toFixed(1)}</span>`
-                : `<span style="color:var(--text-2)">${entry.storedAfter.toFixed(1)}</span>`}
-            </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="font-size:11px;color:var(--text-3);flex-shrink:0">Position:</div>
+            <select onchange="auditOverridePos('${entry.rid}', this.value)"
+              style="font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;padding:3px 8px;border-radius:6px;border:1px solid ${isOverridden?'#C9A84C':'var(--border)'};background:${isOverridden?'#fef8e6':'white'};color:var(--text);flex:1">
+              ${[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map(p =>
+                `<option value="${p}" ${entry.pos===p?'selected':''}>${p===entry.pos&&!isOverridden?'P'+p+' (auto)':'P'+p}</option>`
+              ).join('')}
+            </select>
+            ${hasIssue&&!isOverridden?'<span style="font-size:10px;font-weight:600;color:#A32D2D;background:#FCEBEB;padding:2px 6px;border-radius:99px;flex-shrink:0">⚠ wrong</span>':''}
+            ${isOverridden?'<span style="font-size:10px;font-weight:600;color:#8a6a1a;background:#fef8e6;padding:2px 6px;border-radius:99px;flex-shrink:0">✏ overridden</span>':''}
           </div>
         </div>`;
       }).join('')}
     </div>
-
-    <!-- Action buttons -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <button class="btn" style="background:var(--bg);color:var(--text-2);border-color:var(--border)" onclick="auditSkipPlayer()">Skip ${player?.name?.split(' ')[0]||'player'}</button>
       <button class="btn" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="auditApprovePlayer()">✓ Apply fixes</button>
     </div>
     <div style="font-size:11px;color:var(--text-3);text-align:center">${remaining-1} player${remaining-1!==1?'s':''} remaining after this</div>
   `;
+}
+
+function auditOverridePos(rid, newPos) {
+  window._auditState.posOverrides[rid] = parseInt(newPos);
+  renderAuditStep();
 }
 
 async function auditApprovePlayer() {
