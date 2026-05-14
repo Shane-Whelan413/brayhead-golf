@@ -2380,6 +2380,16 @@ async function verifyAllRounds(eid) {
   } catch(e) { toast('Error: '+e.message, 'error'); btn.disabled = false; btn.textContent = 'Verify only'; }
 }
 
+function toggleAdminTools() {
+  haptic();
+  const body = document.getElementById('admin-tools-body');
+  const chevron = document.getElementById('admin-tools-chevron');
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+}
+
 function buildHandicapTimeline() {
   // Returns { playerId: { startHcp, rounds: [{eid, rid, date, pts, pos, isOuting, correctBefore, correctAfter, storedBefore, storedAfter}] } }
   const sortedEvents = [...db.events]
@@ -3172,35 +3182,26 @@ function renderHome() {
     }
 
     // Upcoming events with no rounds yet
-    const emptyUpcoming = unpublished.filter(e => db.rounds.filter(r=>r.event_id===e.id).length === 0);
-    if (emptyUpcoming.length) {
-      dashHtml += `<div class="card" style="margin-bottom:1rem">
-        <div class="card-title" style="margin-bottom:0.75rem">📅 Upcoming events</div>
-        ${emptyUpcoming.map(e => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:500;color:var(--text)">${e.course_name}</div>
-            <div style="font-size:11px;color:var(--text-3);margin-top:1px">${fmtDate(e.event_date)} · No rounds yet</div>
-          </div>
-          <span class="badge ${e.event_type==='outing_18'?'purple':'blue'}" style="font-size:10px;flex-shrink:0">${e.event_type==='outing_18'?'Outing':'Sunday'}</span>
-        </div>`).join('')}
-      </div>`;
-    }
-
     dash.innerHTML = dashHtml || '';
 
-    // Admin tools section — always shown to admin
+    // Admin tools — collapsible dropdown
     const toolsHtml = `
       <div class="card" style="margin-bottom:1rem;border-color:#0a1628">
-        <div class="card-title" style="margin-bottom:0.75rem">🛠️ Admin tools</div>
-        <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-bottom:8px">
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Full handicap recalculation</div>
-          <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Walks every event in chronological order and recalculates all handicap_before, handicap_after, and current handicap_index values from scratch. Use this to fix any incorrect handicap cascades.</div>
-          <button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628;width:100%" onclick="runFullHandicapRecalc()">⟳ Recalculate all handicaps</button>
-        </div>
-        <div style="background:var(--bg);border-radius:var(--radius);padding:12px">
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Handicap audit log</div>
-          <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Preview what the recalculation would change before committing — shows current vs correct values for every round.</div>
-          <button class="btn sm" style="width:100%" onclick="runHandicapAudit()">🔍 Preview audit</button>
+        <button onclick="toggleAdminTools()" style="width:100%;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0;font-family:'DM Sans',sans-serif">
+          <div class="card-title" style="margin:0">🛠️ Admin tools</div>
+          <span id="admin-tools-chevron" style="font-size:11px;color:var(--text-3);transition:transform 0.2s">▼</span>
+        </button>
+        <div id="admin-tools-body" style="display:none;margin-top:1rem">
+          <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Full handicap recalculation</div>
+            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Walks every event in chronological order and recalculates all handicap values from scratch.</div>
+            <button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628;width:100%" onclick="runFullHandicapRecalc()">⟳ Recalculate all handicaps</button>
+          </div>
+          <div style="background:var(--bg);border-radius:var(--radius);padding:12px">
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Handicap audit</div>
+            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Step through every player, review and correct handicap values before committing.</div>
+            <button class="btn sm" style="width:100%" onclick="runHandicapAudit()">🔍 Preview audit</button>
+          </div>
         </div>
       </div>`;
     dash.innerHTML = (dashHtml || '') + toolsHtml;
