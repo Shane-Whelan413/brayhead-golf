@@ -772,6 +772,16 @@
         <div class="form-group"><label>Name</label><input id="p-name" placeholder="Full name" /></div>
         <div class="form-group"><label>Starting handicap index</label><input id="p-hcp" type="number" min="0" max="54" step="0.1" value="18" /></div>
       </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;padding:10px 12px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
+        <input type="checkbox" id="p-provisional" style="width:18px;height:18px;cursor:pointer;accent-color:#0a1628" onchange="toggleProvisionalUI()">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">New member — provisional handicap</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:1px">Plays off 7 for first 3 Sunday rounds. Handicap is calculated automatically after round 3.</div>
+        </div>
+      </div>
+      <div id="provisional-note" style="display:none;background:#fef8e6;border-radius:var(--radius);padding:9px 12px;margin-bottom:1rem;font-size:11px;color:#8a6a1a">
+        ⛳ Starting handicap index will be set to <strong>7.0</strong>. After 3 Sunday rounds are verified, their index will be automatically calculated from those scores.
+      </div>
       <button class="btn primary" id="btn-add-player" onclick="addPlayer()">Add player</button>
     </div>
     <div class="card">
@@ -1532,6 +1542,7 @@ function renderPlayers() {
             · ${rounds.length} round${rounds.length!==1?'s':''}
             · ${lp} pts
             ${p.plays_womens_index ? `· <span style="color:#3C3489;font-weight:500">W</span>` : ''}
+            ${p.provisional ? `· <span style="color:#8a6a1a;font-weight:600;background:#fef8e6;padding:1px 6px;border-radius:99px;font-size:10px">Provisional ${p.provisional_rounds||0}/3</span>` : ''}
           </div>
         </div>
         <button class="btn sm" onclick="viewPlayerRounds('${p.id}','${p.name.replace(/'/g,"\\'")}')">Rounds</button>
@@ -2135,13 +2146,15 @@ async function saveRound() {
   if (db.rounds.find(r=>r.event_id===eid&&r.player_id===pid)) { toast('Round already recorded for this player at this event', 'error'); return; }
   const parVals = getParValues(n, ev, pl);
   const hcpIdx = parseFloat(pl.handicap_index) || 18;
+  const isProvisional = pl.provisional === true;
+  const effectiveIdx = isProvisional ? 7.0 : hcpIdx;
   const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
   const isOuting = ev.event_type === 'outing_18';
   let courseHcp;
   if (isOuting) {
-    courseHcp = calcOutingCourseHcp(hcpIdx, slope, cr, par, pl.id);
+    courseHcp = calcOutingCourseHcp(effectiveIdx, slope, cr, par, pl.id);
   } else {
-    courseHcp = calcCourseHcp(hcpIdx, slope, cr, par);
+    courseHcp = calcCourseHcp(effectiveIdx, slope, cr, par);
   }
   const siVals = getSIValues(n, ev, pl);
   let totalPts=0;
@@ -2150,7 +2163,10 @@ async function saveRound() {
   }
   const gross = scores.reduce((a,b)=>a+(b||0),0);
   let newHcp;
-  if (isOuting) {
+  if (isProvisional && !isOuting) {
+    // Provisional players stay at 7.0 until 3 Sundays are verified
+    newHcp = 7.0;
+  } else if (isOuting) {
     const outingRounds = db.rounds.filter(r=>r.event_id===eid);
     const allOutingPts = [...outingRounds.map(r=>r.stableford_points), totalPts].sort((a,b)=>b-a);
     const outingPos = allOutingPts.indexOf(totalPts) + 1;
@@ -2183,16 +2199,70 @@ async function saveRound() {
   btn.disabled=false; btn.textContent='Save round';
 }
 
+function toggleProvisionalUI() {
+  const isProvisional = document.getElementById('p-provisional').checked;
+  const hcpInput = document.getElementById('p-hcp');
+  const note = document.getElementById('provisional-note');
+  hcpInput.disabled = isProvisional;
+  hcpInput.value = isProvisional ? '7.0' : '18';
+  note.style.display = isProvisional ? '' : 'none';
+}
+
+function calcProvisionalHandicap(provisionalRounds) {
+  // For each round, derive what handicap index would have produced exactly 18 pts
+  // i.e. how many more shots did they need = 18 - actual pts scored
+  // Add that to the provisional index (7) to get the "par index" for that round
+  const derived = provisionalRounds.map(r => {
+    const shortfall = 18 - r.stableford_points; // negative = scored above 18
+    return Math.max(0, Math.min(36, 7 + shortfall));
+  });
+  const avg = derived.reduce((a,b)=>a+b, 0) / derived.length;
+  return parseFloat(avg.toFixed(1));
+}
+
+async function checkAndFinaliseProvisional(player, newSundayRound) {
+  // Count verified Sunday rounds for this provisional player including this new one
+  const sundayEids = new Set(db.events.filter(e=>e.event_type==='sunday_9').map(e=>e.id));
+  const verifiedSundays = db.rounds.filter(r =>
+    r.player_id === player.id &&
+    r.verified &&
+    sundayEids.has(r.event_id)
+  );
+  // Include the round just verified
+  const allSundays = [...verifiedSundays, newSundayRound].filter(Boolean);
+  const count = allSundays.length;
+
+  if (count >= 3) {
+    const first3 = allSundays.slice(0, 3);
+    const newIndex = calcProvisionalHandicap(first3);
+    await patch(`players?id=eq.${player.id}`, {
+      handicap_index: newIndex,
+      provisional: false,
+      provisional_rounds: count
+    });
+    toast(`🎉 ${player.name}'s provisional period complete — new handicap index: ${newIndex}`, 'success');
+    return newIndex;
+  } else {
+    await patch(`players?id=eq.${player.id}`, { provisional_rounds: count });
+    const remaining = 3 - count;
+    toast(`${player.name} — provisional round ${count}/3 recorded. ${remaining} more Sunday${remaining!==1?'s':''} needed.`, 'success');
+    return 7.0;
+  }
+}
+
 async function addPlayer() {
   const name = document.getElementById('p-name').value.trim();
-  const hcp  = parseFloat(document.getElementById('p-hcp').value) || 18;
+  const isProvisional = document.getElementById('p-provisional').checked;
+  const hcp  = isProvisional ? 7.0 : (parseFloat(document.getElementById('p-hcp').value) || 18);
   if (!name) { toast('Enter a name', 'error'); return; }
   if (db.players.find(p=>p.name.toLowerCase()===name.toLowerCase())) { toast('Player already exists', 'error'); return; }
   const btn = document.getElementById('btn-add-player'); btn.disabled=true;
   try {
-    await post('players',{ name, handicap_index:hcp });
+    await post('players',{ name, handicap_index: hcp, provisional: isProvisional, provisional_rounds: 0 });
     document.getElementById('p-name').value='';
-    toast(`${name} added!`, 'success');
+    document.getElementById('p-provisional').checked=false;
+    toggleProvisionalUI();
+    toast(`${name} added${isProvisional?' — provisional (plays off 7 for first 3 Sundays)':''}!`, 'success');
     await loadAll(); renderAll();
   } catch(e) { toast('Error: '+e.message, 'error'); }
   btn.disabled=false;
@@ -2358,14 +2428,23 @@ async function verifyAllRounds(eid) {
     for (const r of unverified) {
       const pos = posMap[r.id];
       if (!pos) { toast(`Could not find position for a player — skipping`, 'error'); continue; }
+      const pl = db.players.find(p=>p.id===r.player_id);
+      const isProvisional = pl && pl.provisional === true;
       let newHcp;
-      if (isOuting) {
+      if (isProvisional && !isOuting) {
+        // Provisional Sunday round — keep at 7.0, finalise after 3rd
+        newHcp = 7.0;
+      } else if (isOuting) {
         newHcp = calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points, pos);
       } else {
         newHcp = calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos);
       }
       await patch(`rounds?id=eq.${r.id}`, { verified: true, handicap_after: newHcp });
-      await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp, next_outing_penalty: 0 });
+      if (isProvisional && !isOuting) {
+        await checkAndFinaliseProvisional(pl, r);
+      } else {
+        await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp, next_outing_penalty: 0 });
+      }
     }
     if (isOuting) {
       const penaltyMap = { 0: 4, 1: 3, 2: 2 };
