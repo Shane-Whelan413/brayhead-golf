@@ -1548,7 +1548,6 @@ function renderPlayers() {
         <button class="btn sm" onclick="viewPlayerRounds('${p.id}','${p.name.replace(/'/g,"\\'")}')">Rounds</button>
       </div>
       ${isAdmin ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
-      ${isAdmin ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="editPlayer('${p.id}')">✏️ Edit</button>
         <button class="btn sm" onclick="editHandicap('${p.id}','${p.name.replace(/'/g,"\\'")}',${p.handicap_index})">Edit hcp</button>
         <button class="btn sm" style="background:#EEEDFE;color:#3C3489;border-color:#AFA9EC" onclick="toggleWomensIndex('${p.id}',${!!p.plays_womens_index})">${p.plays_womens_index?'Set men\'s':'Set women\'s'}</button>
@@ -2527,22 +2526,43 @@ function toggleAdminTools() {
 }
 
 function buildHandicapTimeline() {
-  // Returns { playerId: { startHcp, rounds: [{eid, rid, date, pts, pos, isOuting, correctBefore, correctAfter, storedBefore, storedAfter}] } }
   const sortedEvents = [...db.events]
     .filter(e => e.published)
     .sort((a,b) => a.event_date.localeCompare(b.event_date));
 
-  // Seed starting handicap per player — use earliest stored handicap_before
-  const startHcp = {};
-  for (const p of db.players) startHcp[p.id] = parseFloat(p.handicap_index) || 0;
+  const sundayEids = new Set(db.events.filter(e=>e.event_type==='sunday_9').map(e=>e.id));
 
-  // For each player, find their earliest verified round's handicap_before as seed
+  // For players who completed provisional period, skip their first 3 Sunday rounds
+  // and seed from the handicap_after of their 3rd Sunday — that was manually set
+  const provisionalSkip = {};
+  const startHcp = {};
+
+  for (const p of db.players) {
+    startHcp[p.id] = parseFloat(p.handicap_index) || 0;
+    if (p.provisional === false && (p.provisional_rounds || 0) >= 3) {
+      const sundayRounds = db.rounds
+        .filter(r => r.player_id === p.id && r.verified && sundayEids.has(r.event_id))
+        .sort((a,b) => {
+          const ea = db.events.find(e=>e.id===a.event_id);
+          const eb = db.events.find(e=>e.id===b.event_id);
+          return (ea?.event_date||'').localeCompare(eb?.event_date||'');
+        });
+      const first3 = sundayRounds.slice(0, 3);
+      if (first3.length === 3) {
+        provisionalSkip[p.id] = new Set(first3.map(r=>r.id));
+        startHcp[p.id] = parseFloat(first3[2].handicap_after) || parseFloat(p.handicap_index) || 0;
+      }
+    }
+  }
+
+  // For non-provisional players seed from earliest round's handicap_before
   const playerRounds = {};
   for (const r of db.rounds.filter(r=>r.verified)) {
     if (!playerRounds[r.player_id]) playerRounds[r.player_id] = [];
     playerRounds[r.player_id].push(r);
   }
   for (const pid in playerRounds) {
+    if (provisionalSkip[pid]) continue;
     const sorted = [...playerRounds[pid]].sort((a,b) => {
       const ea = db.events.find(e=>e.id===a.event_id);
       const eb = db.events.find(e=>e.id===b.event_id);
@@ -2553,7 +2573,7 @@ function buildHandicapTimeline() {
     }
   }
 
-  const timeline = {}; // pid -> array of round results in order
+  const timeline = {};
   const currentHcp = {...startHcp};
 
   for (const ev of sortedEvents) {
@@ -2561,13 +2581,16 @@ function buildHandicapTimeline() {
     const evRounds = db.rounds.filter(r=>r.event_id===ev.id && r.verified);
     if (!evRounds.length) continue;
 
-    // Rank rounds for this event
     const ranked = assignLeaguePts(evRounds.map(r=>({...r})));
     const posMap = {};
     ranked.forEach((r,i) => { posMap[r.id] = i+1; });
 
     for (const r of evRounds) {
       const pid = r.player_id;
+
+      // Skip provisional rounds for completed provisional players
+      if (provisionalSkip[pid] && provisionalSkip[pid].has(r.id)) continue;
+
       const pos = posMap[r.id] || 99;
       const correctBefore = parseFloat((currentHcp[pid] ?? parseFloat(r.handicap_before)).toFixed(1));
       const pts = r.stableford_points;
@@ -2598,6 +2621,7 @@ function buildHandicapTimeline() {
   }
 
   return { timeline, finalHcp: currentHcp };
+}
 }
 
 async function runHandicapAudit() {
