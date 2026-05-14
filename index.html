@@ -2382,6 +2382,317 @@ async function verifyAllRounds(eid) {
   } catch(e) { toast('Error: '+e.message, 'error'); btn.disabled = false; }
 }
 
+function buildHandicapTimeline() {
+  // Returns { playerId: { startHcp, rounds: [{eid, rid, date, pts, pos, isOuting, correctBefore, correctAfter, storedBefore, storedAfter}] } }
+  const sortedEvents = [...db.events]
+    .filter(e => e.published)
+    .sort((a,b) => a.event_date.localeCompare(b.event_date));
+
+  // Seed starting handicap per player — use earliest stored handicap_before
+  const startHcp = {};
+  for (const p of db.players) startHcp[p.id] = parseFloat(p.handicap_index) || 0;
+
+  // For each player, find their earliest verified round's handicap_before as seed
+  const playerRounds = {};
+  for (const r of db.rounds.filter(r=>r.verified)) {
+    if (!playerRounds[r.player_id]) playerRounds[r.player_id] = [];
+    playerRounds[r.player_id].push(r);
+  }
+  for (const pid in playerRounds) {
+    const sorted = [...playerRounds[pid]].sort((a,b) => {
+      const ea = db.events.find(e=>e.id===a.event_id);
+      const eb = db.events.find(e=>e.id===b.event_id);
+      return (ea?.event_date||'').localeCompare(eb?.event_date||'');
+    });
+    if (sorted[0] && sorted[0].handicap_before != null) {
+      startHcp[sorted[0].player_id] = parseFloat(sorted[0].handicap_before);
+    }
+  }
+
+  const timeline = {}; // pid -> array of round results in order
+  const currentHcp = {...startHcp};
+
+  for (const ev of sortedEvents) {
+    const isOuting = ev.event_type === 'outing_18';
+    const evRounds = db.rounds.filter(r=>r.event_id===ev.id && r.verified);
+    if (!evRounds.length) continue;
+
+    // Rank rounds for this event
+    const ranked = assignLeaguePts(evRounds.map(r=>({...r})));
+    const posMap = {};
+    ranked.forEach((r,i) => { posMap[r.id] = i+1; });
+
+    for (const r of evRounds) {
+      const pid = r.player_id;
+      const pos = posMap[r.id] || 99;
+      const correctBefore = parseFloat((currentHcp[pid] ?? parseFloat(r.handicap_before)).toFixed(1));
+      const pts = r.stableford_points;
+      let correctAfter;
+      if (isOuting) {
+        correctAfter = calcNewHcpOuting(correctBefore, pts, pos);
+      } else {
+        correctAfter = calcNewHcp(correctBefore, pts, pos);
+      }
+
+      if (!timeline[pid]) timeline[pid] = [];
+      timeline[pid].push({
+        eid: ev.id,
+        rid: r.id,
+        date: ev.event_date,
+        course: ev.course_name,
+        pts,
+        pos,
+        isOuting,
+        correctBefore,
+        correctAfter,
+        storedBefore: parseFloat(r.handicap_before),
+        storedAfter:  parseFloat(r.handicap_after)
+      });
+
+      currentHcp[pid] = correctAfter;
+    }
+  }
+
+  return { timeline, finalHcp: currentHcp };
+}
+
+async function runHandicapAudit() {
+  const modal = document.getElementById('modal-overlay');
+  document.getElementById('modal-title').textContent = '🔍 Handicap audit';
+  document.getElementById('modal-body').innerHTML = '<div class="empty">Calculating…</div>';
+  modal.classList.add('open');
+  await new Promise(r=>setTimeout(r,50));
+
+  const { timeline, finalHcp } = buildHandicapTimeline();
+
+  // Group issues by player
+  const playerIssues = {};
+  for (const pid in timeline) {
+    const player = db.players.find(p=>p.id===pid);
+    const rounds = timeline[pid];
+    const issues = rounds.filter(e =>
+      Math.abs(e.correctBefore - e.storedBefore) > 0.05 ||
+      Math.abs(e.correctAfter  - e.storedAfter)  > 0.05
+    );
+    if (issues.length) {
+      playerIssues[pid] = { player, rounds, issues, finalHcp: finalHcp[pid] };
+    }
+  }
+
+  const pids = Object.keys(playerIssues);
+
+  if (!pids.length) {
+    document.getElementById('modal-body').innerHTML = `
+      <div style="text-align:center;padding:2rem 0">
+        <div style="font-size:32px;margin-bottom:8px">✅</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">All handicaps look correct</div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:4px">No discrepancies found across ${Object.values(timeline).flat().length} rounds</div>
+      </div>`;
+    return;
+  }
+
+  // Store state on window for the step-through flow
+  window._auditState = {
+    pids,
+    playerIssues,
+    timeline,
+    currentIdx: 0,
+    skipped: [],
+    approved: []
+  };
+
+  renderAuditStep();
+}
+
+function renderAuditStep() {
+  const { pids, playerIssues, currentIdx, skipped, approved } = window._auditState;
+  const pid = pids[currentIdx];
+  const { player, rounds, issues, finalHcp } = playerIssues[pid];
+  const totalPlayers = pids.length;
+  const remaining = totalPlayers - currentIdx;
+
+  document.getElementById('modal-title').textContent = `Audit — ${currentIdx+1} of ${totalPlayers}`;
+  document.getElementById('modal-body').innerHTML = `
+
+    <!-- Progress bar -->
+    <div style="background:var(--bg);border-radius:99px;height:6px;margin-bottom:1rem;overflow:hidden">
+      <div style="height:6px;border-radius:99px;background:#0a1628;width:${Math.round(((currentIdx)/totalPlayers)*100)}%"></div>
+    </div>
+
+    <!-- Player header -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
+      ${avatarHtml(player, 40, 14)}
+      <div>
+        <div style="font-size:16px;font-weight:600;color:var(--text)">${player?.name||pid}</div>
+        <div style="font-size:11px;color:var(--text-3)">${issues.length} discrepanc${issues.length!==1?'ies':'y'} · Current hcp: <strong>${parseFloat(player?.handicap_index||0).toFixed(1)}</strong> → Correct: <strong style="color:${Math.abs(parseFloat(player?.handicap_index||0)-finalHcp)>0.05?'#2d7a4f':'var(--text)'}">${finalHcp.toFixed(1)}</strong></div>
+      </div>
+    </div>
+
+    <!-- Full round history for this player -->
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-title">All rounds — stored vs correct</div>
+      ${rounds.map(entry => {
+        const beforeWrong = Math.abs(entry.correctBefore - entry.storedBefore) > 0.05;
+        const afterWrong  = Math.abs(entry.correctAfter  - entry.storedAfter)  > 0.05;
+        const hasIssue = beforeWrong || afterWrong;
+        return `<div style="padding:9px 0;border-bottom:0.5px solid var(--border);${hasIssue?'background:rgba(226,75,74,0.04);margin:0 -12px;padding:9px 12px;border-radius:4px':''}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+            <div style="font-size:12px;font-weight:600;color:var(--text)">${fmtDate(entry.date)} · ${entry.course}</div>
+            <div style="display:flex;gap:4px">
+              <span style="font-size:10px;font-weight:600;color:#8a6a1a;background:#fef8e6;padding:1px 6px;border-radius:99px">${entry.isOuting?'Outing':'Sunday'}</span>
+              <span style="font-size:10px;font-weight:600;color:var(--text-3);background:var(--bg);padding:1px 6px;border-radius:99px">P${entry.pos} · ${entry.pts}pts</span>
+              ${hasIssue?'<span style="font-size:10px;font-weight:600;color:#A32D2D;background:#FCEBEB;padding:1px 6px;border-radius:99px">⚠ wrong</span>':'<span style="font-size:10px;font-weight:600;color:#2d7a4f;background:#e8f5ee;padding:1px 6px;border-radius:99px">✓ ok</span>'}
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;font-size:11px">
+            <div>
+              <span style="color:var(--text-3)">Before: </span>
+              ${beforeWrong
+                ? `<span style="color:#E24B4A;text-decoration:line-through">${entry.storedBefore.toFixed(1)}</span> <span style="color:#2d7a4f;font-weight:600">→ ${entry.correctBefore.toFixed(1)}</span>`
+                : `<span style="color:var(--text-2)">${entry.storedBefore.toFixed(1)}</span>`}
+            </div>
+            <div>
+              <span style="color:var(--text-3)">After: </span>
+              ${afterWrong
+                ? `<span style="color:#E24B4A;text-decoration:line-through">${entry.storedAfter.toFixed(1)}</span> <span style="color:#2d7a4f;font-weight:600">→ ${entry.correctAfter.toFixed(1)}</span>`
+                : `<span style="color:var(--text-2)">${entry.storedAfter.toFixed(1)}</span>`}
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <!-- Action buttons -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <button class="btn" style="background:var(--bg);color:var(--text-2);border-color:var(--border)" onclick="auditSkipPlayer()">Skip ${player?.name?.split(' ')[0]||'player'}</button>
+      <button class="btn" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="auditApprovePlayer()">✓ Apply fixes</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-3);text-align:center">${remaining-1} player${remaining-1!==1?'s':''} remaining after this</div>
+  `;
+}
+
+async function auditApprovePlayer() {
+  const { pids, playerIssues, currentIdx, approved } = window._auditState;
+  const pid = pids[currentIdx];
+  window._auditState.approved.push(pid);
+
+  // Show applying state
+  document.getElementById('modal-body').innerHTML = '<div class="empty">Applying fixes…</div>';
+  await new Promise(r=>setTimeout(r,30));
+
+  const { rounds, finalHcp } = playerIssues[pid];
+  try {
+    for (const entry of rounds) {
+      await patch(`rounds?id=eq.${entry.rid}`, {
+        handicap_before: entry.correctBefore,
+        handicap_after:  entry.correctAfter
+      });
+    }
+    await patch(`players?id=eq.${pid}`, { handicap_index: finalHcp });
+  } catch(e) {
+    toast('Error updating '+playerIssues[pid].player?.name+': '+e.message, 'error');
+  }
+
+  auditNextPlayer();
+}
+
+function auditSkipPlayer() {
+  const { pids, currentIdx } = window._auditState;
+  window._auditState.skipped.push(pids[currentIdx]);
+  auditNextPlayer();
+}
+
+async function auditNextPlayer() {
+  window._auditState.currentIdx++;
+  const { pids, currentIdx, approved, skipped } = window._auditState;
+
+  if (currentIdx >= pids.length) {
+    // All done
+    await loadAll(); renderAll();
+    document.getElementById('modal-title').textContent = '✅ Audit complete';
+    document.getElementById('modal-body').innerHTML = `
+      <div style="text-align:center;padding:1.5rem 0">
+        <div style="font-size:32px;margin-bottom:8px">✅</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px">Audit complete</div>
+        <div style="display:flex;justify-content:center;gap:12px;margin-bottom:1rem">
+          <div class="stat" style="text-align:center;min-width:80px">
+            <div class="stat-label">Fixed</div>
+            <div class="stat-value" style="color:#2d7a4f">${approved.length}</div>
+          </div>
+          <div class="stat" style="text-align:center;min-width:80px">
+            <div class="stat-label">Skipped</div>
+            <div class="stat-value" style="color:var(--text-3)">${skipped.length}</div>
+          </div>
+        </div>
+        ${skipped.length ? `<div style="font-size:11px;color:var(--text-3)">Skipped: ${skipped.map(pid=>window._auditState.playerIssues[pid]?.player?.name||pid).join(', ')}</div>` : ''}
+      </div>
+      <button class="btn" style="width:100%;background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="closeModal()">Done</button>
+    `;
+    return;
+  }
+
+  renderAuditStep();
+}
+
+async function runFullHandicapRecalc() {
+  if (!confirm(
+    'This will recalculate ALL handicap values for every player across every event in chronological order, and update Supabase.\n\nThis cannot be undone. Continue?'
+  )) return;
+
+  const modal = document.getElementById('modal-overlay');
+  document.getElementById('modal-title').textContent = '⟳ Recalculating handicaps…';
+  document.getElementById('modal-body').innerHTML = '<div class="empty">Working through events in order…</div>';
+  modal.classList.add('open');
+  await new Promise(r=>setTimeout(r,50));
+
+  try {
+    const { timeline, finalHcp } = buildHandicapTimeline();
+    let updated = 0, errors = 0;
+    const totalRounds = Object.values(timeline).flat().length;
+
+    // Update all rounds in chronological order
+    const allEntries = Object.entries(timeline).flatMap(([pid, rounds]) =>
+      rounds.map(r => ({pid, ...r}))
+    ).sort((a,b) => a.date.localeCompare(b.date));
+
+    for (const entry of allEntries) {
+      try {
+        await patch(`rounds?id=eq.${entry.rid}`, {
+          handicap_before: entry.correctBefore,
+          handicap_after:  entry.correctAfter
+        });
+        updated++;
+      } catch(e) { errors++; }
+    }
+
+    // Update each player's current handicap_index to their final correct value
+    for (const pid in finalHcp) {
+      try {
+        await patch(`players?id=eq.${pid}`, { handicap_index: finalHcp[pid] });
+      } catch(e) { errors++; }
+    }
+
+    await loadAll(); renderAll();
+
+    document.getElementById('modal-title').textContent = errors ? '⚠️ Done with errors' : '✅ Recalculation complete';
+    document.getElementById('modal-body').innerHTML = `
+      <div style="text-align:center;padding:1.5rem 0">
+        <div style="font-size:32px;margin-bottom:8px">${errors?'⚠️':'✅'}</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">
+          ${updated} of ${totalRounds} rounds updated
+        </div>
+        ${errors ? `<div style="font-size:12px;color:#E24B4A">${errors} error${errors!==1?'s':''} — some rounds may not have updated</div>` : ''}
+        <div style="font-size:12px;color:var(--text-3);margin-top:8px">
+          ${Object.keys(finalHcp).length} player handicaps recalculated from scratch in chronological order.
+        </div>
+      </div>
+      <button class="btn" style="width:100%;margin-top:1rem" onclick="closeModal()">Done</button>
+    `;
+  } catch(e) {
+    document.getElementById('modal-body').innerHTML = `<div style="color:#E24B4A;padding:1rem">Error: ${e.message}</div>`;
+  }
+}
+
 async function recalcHandicaps(eid) {
   if (!confirm('Recalculate and update all player handicaps for this event? This will overwrite current handicap values.')) return;
   const ev = db.events.find(e=>e.id===eid);
@@ -2846,6 +3157,23 @@ function renderHome() {
     }
 
     dash.innerHTML = dashHtml || '';
+
+    // Admin tools section — always shown to admin
+    const toolsHtml = `
+      <div class="card" style="margin-bottom:1rem;border-color:#0a1628">
+        <div class="card-title" style="margin-bottom:0.75rem">🛠️ Admin tools</div>
+        <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Full handicap recalculation</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Walks every event in chronological order and recalculates all handicap_before, handicap_after, and current handicap_index values from scratch. Use this to fix any incorrect handicap cascades.</div>
+          <button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628;width:100%" onclick="runFullHandicapRecalc()">⟳ Recalculate all handicaps</button>
+        </div>
+        <div style="background:var(--bg);border-radius:var(--radius);padding:12px">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Handicap audit log</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Preview what the recalculation would change before committing — shows current vs correct values for every round.</div>
+          <button class="btn sm" style="width:100%" onclick="runHandicapAudit()">🔍 Preview audit</button>
+        </div>
+      </div>`;
+    dash.innerHTML = (dashHtml || '') + toolsHtml;
   } else if (badge) {
     badge.style.display = 'none';
   }
