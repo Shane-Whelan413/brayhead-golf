@@ -325,16 +325,20 @@
   .ar-stat-val { font-size: 20px; font-weight: 700; color: white; line-height: 1; }
   .ar-stat-val.gold { font-size: 26px; color: #C9A84C; }
 
-  /* Hole rows — 5 col: hole# | par | si | score | pts */
-  .sc-hole-row { display: grid; grid-template-columns: 36px 38px 38px 1fr 48px; align-items: center; border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.12s; min-height: 64px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  /* Hole rows — 6 col: hole# | par | si | strokes | score | pts */
+  .sc-hole-row { display: grid; grid-template-columns: 30px 34px 34px 34px 1fr 46px; align-items: center; border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.12s, border-left 0.12s; min-height: 64px; cursor: pointer; -webkit-tap-highlight-color: transparent; border-left: 3px solid transparent; }
   .sc-hole-row:last-child { border-bottom: none; }
-  .sc-hole-row.sc-active { background: #fef8e6; }
+  .sc-hole-row.sc-active { background: #fef8e6; border-left: 3px solid #C9A84C; }
   .sc-hole-score-area { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 4px; }
   .sc-pts-chip { width: 40px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; margin: 0 4px; }
 
   /* Column header */
-  .sc-col-header { display: grid; grid-template-columns: 36px 38px 38px 1fr 48px; background: #162338; padding: 7px 0; }
+  .sc-col-header { display: grid; grid-template-columns: 30px 34px 34px 34px 1fr 46px; background: #162338; padding: 7px 0; }
   .sc-col-header span { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: .07em; text-align: center; }
+
+  /* Progress bar */
+  .sc-progress-wrap { height: 4px; background: var(--border); border-radius: 99px; margin: 0 0 2px; overflow: hidden; }
+  .sc-progress-bar { height: 4px; background: #C9A84C; border-radius: 99px; transition: width 0.3s; }
 
   /* ── Score keypad bottom sheet ── */
   #score-keypad {
@@ -971,7 +975,7 @@
     <!-- Save bar pinned at bottom -->
     <div id="ar-save-bar" style="flex-shrink:0;background:var(--bg);border-top:1px solid var(--border);padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 4px);display:none;">
       <div id="round-summary" class="summary-bar" style="margin-bottom:8px"></div>
-      <button class="btn primary" id="btn-save-round" onclick="saveRound()" style="width:100%;padding:14px;font-size:16px;font-weight:700;border-radius:12px">Save round</button>
+      <button class="btn primary" id="btn-save-round" onclick="showRoundConfirmation()" style="width:100%;padding:14px;font-size:16px;font-weight:700;border-radius:12px">Review & save</button>
     </div>
 
   </div>
@@ -1851,13 +1855,11 @@ function buildHoleInputs(n) {
   const wrap = document.getElementById('hole-inputs');
 
   function makeHeader() {
-    return `<div class="sc-col-header">
-      <span>#</span>
-      <span>Par</span>
-      <span>SI</span>
-      <span>Score</span>
-      <span>Pts</span>
-    </div>`;
+    return '<div class="sc-progress-wrap"><div class="sc-progress-bar" id="sc-progress" style="width:0%"></div></div>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px 2px">'
+      + '<div style="font-size:10px;color:var(--text-3)" id="sc-progress-label">0/' + n + ' holes entered</div>'
+      + '<div style="font-size:10px;color:var(--text-3)" id="sc-par-diff"></div></div>'
+      + '<div class="sc-col-header"><span>#</span><span>Par</span><span>SI</span><span>&#x2193;</span><span>Score</span><span>Pts</span></div>';
   }
 
   function makeRow(i) {
@@ -1865,30 +1867,29 @@ function buildHoleInputs(n) {
       <div style="font-size:13px;font-weight:700;color:var(--text-3);text-align:center">${i}</div>
       <div style="font-size:13px;font-weight:600;color:var(--text-2);text-align:center" id="sc-par${i}">—</div>
       <div style="font-size:13px;font-weight:500;color:var(--text-3);text-align:center" id="sc-si${i}">—</div>
+      <div style="text-align:center" id="sc-shots${i}"><span style="font-size:12px;font-weight:700;color:#2d7a4f" id="sc-shots-val${i}"></span></div>
       <div style="display:flex;align-items:center;justify-content:center;padding:6px 4px;flex-direction:column;gap:2px">
         <div class="sc-score-val sc-empty" id="sc-score${i}">—</div>
         <div style="font-size:9px;color:var(--text-3);letter-spacing:0.03em" id="sc-tap-hint${i}">tap</div>
       </div>
       <div class="sc-pts-chip" id="hpts${i}"></div>
-    </div><input type="hidden" id="h${i}">`;
+    </div><input type="hidden" id="h${i}">\`;
   }
 
   if (n === 9) {
     // Sunday 9 — no tabs, just one panel
     const front = Array.from({length:9},(_,i)=>makeRow(i+1)).join('');
-    wrap.innerHTML = `<div class="nine-panel active" id="panel-front">${makeHeader()}${front}</div>`;
+    wrap.innerHTML = '<div class="nine-panel active" id="panel-front">' + makeHeader() + front + '</div>';
   } else {
     // 18-hole outing — tabbed Front / Back
     const front = Array.from({length:9},(_,i)=>makeRow(i+1)).join('');
     const back  = Array.from({length:9},(_,i)=>makeRow(i+10)).join('');
-    wrap.innerHTML = `
-      <div class="nine-tabs">
-        <button class="nine-tab active" id="tab-front" onclick="switchNine('front')">Front 9</button>
-        <button class="nine-tab" id="tab-back" onclick="switchNine('back')">Back 9</button>
-      </div>
-      <div class="nine-panel active" id="panel-front">${makeHeader()}${front}</div>
-      <div class="nine-panel" id="panel-back">${makeHeader()}${back}</div>
-    `;
+    wrap.innerHTML = '<div class="nine-tabs">'
+      + '<button class="nine-tab active" id="tab-front" onclick="switchNine('front')">Front 9</button>'
+      + '<button class="nine-tab" id="tab-back" onclick="switchNine('back')">Back 9</button>'
+      + '</div>'
+      + '<div class="nine-panel active" id="panel-front">' + makeHeader() + front + '</div>'
+      + '<div class="nine-panel" id="panel-back">' + makeHeader() + back + '</div>';
   }
 
   // Restore cached scores
@@ -2034,13 +2035,18 @@ function kpRefreshDisplay() {
 
   if (score) {
     scoreDisp.textContent = score;
-    scoreDisp.className = 'kp-score-big';
     const pts = calcStableford(score, par, shots);
-    const ptsColor = pts >= 3 ? '#2d7a4f' : pts === 2 ? '#C9A84C' : pts === 1 ? 'var(--text-2)' : '#A32D2D';
-    ptsDisp.innerHTML = `<span style="color:${ptsColor};font-weight:700">${pts} pt${pts!==1?'s':''}</span>`;
+    // Colour code: eagle+ gold, birdie green, par teal, bogey grey, double+ red
+    const scoreColor = pts >= 3 ? '#B8860B' : pts === 2 ? '#2d7a4f' : pts === 1 ? '#4a90a4' : score <= par ? '#888' : '#A32D2D';
+    scoreDisp.className = 'kp-score-big';
+    scoreDisp.style.color = scoreColor;
+    const ptsColor = pts >= 3 ? '#B8860B' : pts === 2 ? '#2d7a4f' : pts === 1 ? 'var(--text-2)' : '#A32D2D';
+    const ptsLabel = pts >= 3 ? '\uD83E\uDD85 ' + pts + ' pts' : pts === 2 ? '\uD83D\uDC26 ' + pts + ' pts' : pts === 1 ? pts + ' pt' : '0 pts';
+    ptsDisp.innerHTML = '<span style="color:' + ptsColor + ';font-weight:700;font-size:15px">' + ptsLabel + '</span>';
   } else {
     scoreDisp.textContent = '—';
     scoreDisp.className = 'kp-score-big empty';
+    scoreDisp.style.color = '';
     ptsDisp.textContent = '';
   }
 }
@@ -2167,6 +2173,23 @@ document.addEventListener('touchstart', e => {
   }
 }, { passive: true });
 
+// Swipe left/right on keypad to navigate holes
+(function() {
+  let swipeStartX = null;
+  const kp = document.getElementById('score-keypad');
+  if (!kp) return;
+  kp.addEventListener('touchstart', e => {
+    swipeStartX = e.touches[0].clientX;
+  }, { passive: true });
+  kp.addEventListener('touchend', e => {
+    if (swipeStartX === null) return;
+    const dx = e.changedTouches[0].clientX - swipeStartX;
+    swipeStartX = null;
+    if (Math.abs(dx) < 60) return; // too short
+    kpNavigate(dx < 0 ? 1 : -1); // swipe left = next hole, right = previous
+  }, { passive: true });
+})();
+
 function resetHoleInputs(n) {
   document.getElementById('score-keypad')?.classList.remove('open');
   kpActiveHole = null;
@@ -2198,8 +2221,8 @@ function buildEventSIInputs(n) {
   wsiLbl.innerHTML=''; wsiInp.innerHTML='';
   parLbl.innerHTML=''; parInp.innerHTML='';
   wparLbl.innerHTML=''; wparInp.innerHTML='';
-  siTitle.querySelector('span').textContent  = `— enter 1 to ${n} from scorecard (1 = hardest)`;
-  wsiTitle.querySelector('span').textContent = `— leave blank if same as men's`;
+  siTitle.querySelector('span').textContent  = '— enter 1 to ' + n + ' from scorecard (1 = hardest)';
+  wsiTitle.querySelector('span').textContent = "— leave blank if same as men's";
   for (let i=1; i<=n; i++) {
     const lsi = document.createElement('div'); lsi.className='hole-lbl'; lsi.textContent=i; siLbl.appendChild(lsi);
     const si  = document.createElement('input'); si.type='number'; si.min=1; si.max=n; si.id='e-si'+i; si.placeholder=i; siInp.appendChild(si);
@@ -2428,7 +2451,7 @@ function updateRoundSummary() {
   const siVals  = getSIValues(n, ev, p || null);
   const parVals = getParValues(n, ev, p || null);
 
-  // Update par and SI columns in scorecard
+  // Update par, SI and strokes columns in scorecard
   for (let i=1; i<=n; i++) {
     const parEl = document.getElementById('sc-par'+i);
     if (parEl) parEl.textContent = parVals[i-1] || '—';
@@ -2436,27 +2459,48 @@ function updateRoundSummary() {
     if (siEl) siEl.textContent = siVals[i-1] || '—';
     const infoEl = document.getElementById('sc-info'+i);
     if (infoEl) infoEl.innerHTML = `Par ${parVals[i-1]||'—'}<br>SI ${siVals[i-1]||'—'}`;
+    // Strokes received on this hole
+    const shots = getStrokeAllowance(courseHcp, siVals[i-1], n);
+    const shotsEl = document.getElementById('sc-shots-val'+i);
+    if (shotsEl) {
+      shotsEl.textContent = shots > 0 ? '+'.repeat(shots) : '';
+      shotsEl.style.color = shots >= 2 ? '#C9A84C' : '#2d7a4f';
+    }
   }
 
   // Update pts per hole
-  let pts = 0, holes = 0;
+  let pts = 0, holes = 0, grossScore = 0, parTotal = 0;
   for (let i=1; i<=n; i++) {
     const v = parseInt(document.getElementById('h'+i)?.value);
     const ptsEl = document.getElementById('hpts'+i);
     if (!isNaN(v) && v > 0) {
       const holePts = calcStableford(v, parVals[i-1], getStrokeAllowance(courseHcp, siVals[i-1], n));
       pts += holePts; holes++;
+      grossScore += v;
+      parTotal += parVals[i-1] || 4;
       if (ptsEl) {
         const bg  = holePts >= 3 ? '#C9A84C' : holePts === 2 ? '#2a6b1a' : holePts === 1 ? '#9a9080' : '#A32D2D';
-        const col = '#ffffff';
         ptsEl.textContent = holePts;
         ptsEl.style.background = bg;
-        ptsEl.style.color = col;
+        ptsEl.style.color = '#fff';
       }
     } else {
       if (ptsEl) { ptsEl.textContent = ''; ptsEl.style.background = ''; ptsEl.style.color = ''; }
     }
   }
+
+  // Progress bar
+  const progressEl = document.getElementById('sc-progress');
+  const progressLabel = document.getElementById('sc-progress-label');
+  const parDiffEl = document.getElementById('sc-par-diff');
+  if (progressEl) progressEl.style.width = `${Math.round((holes/n)*100)}%`;
+  if (progressLabel) progressLabel.textContent = `${holes}/${n} holes entered`;
+  if (parDiffEl && holes > 0) {
+    const diff = grossScore - parTotal;
+    const sign = diff > 0 ? '+' : '';
+    const col  = diff <= 0 ? '#2d7a4f' : diff <= 3 ? '#8a6a1a' : '#A32D2D';
+    parDiffEl.innerHTML = `<span style="color:${col};font-weight:600">${sign}${diff} vs par</span>`;
+  } else if (parDiffEl) { parDiffEl.textContent = ''; }
 
   // Update header board
   const hcpEl  = document.getElementById('sb-hcp');
@@ -2508,6 +2552,75 @@ function updateRoundSummary() {
     sb.innerHTML = `<span>${pts} pts · ${hcpNote}</span>`;
     sb.classList.add('show');
   } else { sb.classList.remove('show'); }
+}
+
+function showRoundConfirmation() {
+  const eid = document.getElementById('r-event').value;
+  const pid = document.getElementById('r-player').value;
+  const ev  = db.events.find(e=>e.id===eid);
+  const pl  = db.players.find(x=>x.id===pid);
+  if (!eid || !pid || !ev || !pl) { toast('Please select a player and event first', 'error'); return; }
+
+  kpDone(); // close keypad if open
+
+  const n = ev.event_type==='outing_18' ? 18 : 9;
+  const hcp = parseFloat(pl.handicap_index) || 18;
+  const isProvisional = pl.provisional === true;
+  const effectiveIdx = isProvisional ? 7.0 : hcp;
+  const { cr, slope, par } = getCourseIndexForPlayer(pl, ev);
+  const isOuting = ev.event_type === 'outing_18';
+  const courseHcp = isOuting
+    ? calcOutingCourseHcp(effectiveIdx, slope, cr, par, pl.id)
+    : calcCourseHcp(effectiveIdx, slope, cr, par);
+  const siVals  = getSIValues(n, ev, pl);
+  const parVals = getParValues(n, ev, pl);
+
+  const scores = [];
+  for (let i=1; i<=n; i++) {
+    const v = parseInt(document.getElementById('h'+i)?.value);
+    scores.push(isNaN(v) ? null : v);
+  }
+
+  const filled = scores.filter(s=>s!==null).length;
+  if (filled < n) { toast(`Only ${filled} of ${n} holes entered`, 'error'); return; }
+
+  let totalPts = 0;
+  const holeRows = scores.map((score, idx) => {
+    const hole  = idx + 1;
+    const par   = parVals[idx] || 4;
+    const si    = siVals[idx] || 0;
+    const shots = getStrokeAllowance(courseHcp, si, n);
+    const pts   = calcStableford(score, par, shots);
+    totalPts += pts;
+    const ptsBg  = pts >= 3 ? '#C9A84C' : pts === 2 ? '#2a6b1a' : pts === 1 ? '#9a9080' : '#A32D2D';
+    const scoreColor = pts >= 3 ? '#B8860B' : pts === 2 ? '#2d7a4f' : pts === 1 ? 'var(--text)' : '#A32D2D';
+    return `<div style="display:grid;grid-template-columns:30px 30px 1fr 36px;align-items:center;gap:4px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+      <div style="font-size:12px;font-weight:700;color:var(--text-3);text-align:center">${hole}</div>
+      <div style="font-size:12px;color:var(--text-3);text-align:center">P${par}</div>
+      <div style="font-size:18px;font-weight:700;color:${scoreColor};text-align:center">${score}</div>
+      <div style="background:${ptsBg};color:#fff;border-radius:6px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">${pts}</div>
+    </div>`;
+  });
+
+  document.getElementById('modal-title').textContent = 'Review scorecard';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="background:#0a1628;border-radius:var(--radius);padding:12px 14px;margin-bottom:1rem">
+      <div style="font-size:13px;font-weight:600;color:#C9A84C;margin-bottom:2px">${pl.name}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.45)">${ev.course_name} · Hcp ${courseHcp}</div>
+    </div>
+    <div class="card" style="margin-bottom:1rem">
+      ${holeRows.join('')}
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 0">
+        <div style="font-size:14px;font-weight:600;color:var(--text)">Total</div>
+        <div style="font-size:22px;font-weight:700;color:#C9A84C">${totalPts} pts</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn" onclick="closeModal()">← Edit</button>
+      <button class="btn primary" onclick="closeModal();saveRound()">✓ Submit</button>
+    </div>
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
 }
 
 async function saveRound() {
