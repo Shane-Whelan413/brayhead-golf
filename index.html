@@ -2102,8 +2102,9 @@ function kpMax() {
     const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
     shots = getStrokeAllowance(courseHcp, si, kpTotalHoles);
   }
-  // Max score giving exactly 0 pts = par + 2 - strokes received
-  const maxScore = Math.max(1, par + 2 - shots);
+  // Max score giving exactly 0 pts = par + 2 + strokes received
+  // (strokes received extend effective par, need to exceed that by 2 for 0 pts)
+  const maxScore = par + 2 + shots;
 
   const inp = document.getElementById('h'+hole);
   if (!inp) return;
