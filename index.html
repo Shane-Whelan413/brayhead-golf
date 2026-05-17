@@ -1440,13 +1440,13 @@ function renderLeaderboard() {
   // Season summary card
   const summaryEl = document.getElementById('lb-season-summary');
   if (summaryEl && filter === 'all') {
-    const today = new Date().toISOString().split('T')[0];
+    const todayStr      = new Date().toISOString().split('T')[0];
     const totalEvents   = db.events.filter(e=>e.published).length;
     const totalSundays  = db.events.filter(e=>e.published && e.event_type==='sunday_9').length;
     const totalOutings  = db.events.filter(e=>e.published && e.event_type==='outing_18').length;
-    const remaining     = db.events.filter(e=>e.event_type==='sunday_9' && e.event_date > today).length;
-    const nextEv        = db.events.filter(e=>e.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0];
-    const daysToNext    = nextEv ? Math.ceil((new Date(nextEv.event_date)-new Date(today))/(1000*60*60*24)) : null;
+    const sundaysLeft   = db.events.filter(e=>e.event_type==='sunday_9' && e.event_date > todayStr).length;
+    const nextEv        = db.events.filter(e=>e.event_date >= todayStr).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0];
+    const daysToNext    = nextEv ? Math.ceil((new Date(nextEv.event_date)-new Date(todayStr))/(1000*60*60*24)) : null;
 
     // Hot streak — who has most pts in last 3 published events
     const last3Eids = new Set([...db.events].filter(e=>e.published).sort((a,b)=>b.event_date.localeCompare(a.event_date)).slice(0,3).map(e=>e.id));
@@ -1464,7 +1464,7 @@ function renderLeaderboard() {
             <span style="font-size:16px">📊</span>
             <div style="text-align:left">
               <div style="font-size:13px;font-weight:600;color:#C9A84C">Season at a glance</div>
-              <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">${totalEvents} events played · ${remaining} Sunday${remaining!==1?'s':''} remaining</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">${totalEvents} events played · ${sundaysLeft} Sunday${sundaysLeft!==1?'s':''} remaining</div>
             </div>
           </div>
           <span id="summary-chevron" style="font-size:11px;color:rgba(255,255,255,0.4);transition:transform 0.2s">▼</span>
@@ -1481,7 +1481,7 @@ function renderLeaderboard() {
             <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">Outings</div>
           </div>
           <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:18px;font-weight:700;color:#C9A84C">${remaining}</div>
+            <div style="font-size:18px;font-weight:700;color:#C9A84C">${sundaysLeft}</div>
             <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">Left</div>
           </div>
         </div>
