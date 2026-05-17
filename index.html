@@ -4341,6 +4341,7 @@ function maybeClosePostModal(e) { if(e.target===document.getElementById('post-up
 let wizardEid = null;
 let wizardStep = 1;
 const selectedBirdies = new Set();
+const wizardCache = { ctp: null, front: null, back: null };
 
 function getAutoBirdies(eid) {
   const ev = db.events.find(e=>e.id===eid);
@@ -4366,11 +4367,19 @@ function showPostUpdate(eid) {
   wizardEid = eid;
   wizardStep = 1;
   selectedBirdies.clear();
+  wizardCache.ctp = null; wizardCache.front = null; wizardCache.back = null;
   showWizardStep(1);
   document.getElementById('post-update-modal').classList.add('open');
 }
 
 function showWizardStep(step) {
+  // Cache values from current step before switching
+  const ctpEl   = document.getElementById('wiz-ctp');
+  const frontEl = document.getElementById('wiz-front');
+  const backEl  = document.getElementById('wiz-back');
+  if (ctpEl)   wizardCache.ctp   = ctpEl.value   || null;
+  if (frontEl) wizardCache.front = frontEl.value  || null;
+  if (backEl)  wizardCache.back  = backEl.value   || null;
   haptic();
   wizardStep = step;
   const eid = wizardEid;
@@ -4532,7 +4541,15 @@ async function saveWizard() {
   const btn = document.getElementById('wiz-post-btn');
   if (btn) { btn.disabled=true; btn.textContent='Posting…'; }
 
-  const ctp = document.getElementById('wiz-ctp')?.value || null;
+  // Cache any values still in DOM before saving
+  const ctpEl   = document.getElementById('wiz-ctp');
+  const frontEl = document.getElementById('wiz-front');
+  const backEl  = document.getElementById('wiz-back');
+  if (ctpEl)   wizardCache.ctp   = ctpEl.value   || null;
+  if (frontEl) wizardCache.front = frontEl.value  || null;
+  if (backEl)  wizardCache.back  = backEl.value   || null;
+
+  const ctp    = wizardCache.ctp   || null;
   const custom = document.getElementById('wiz-custom')?.value.trim() || null;
   const birdies = isOuting ? [] : [...selectedBirdies];
 
@@ -4541,8 +4558,8 @@ async function saveWizard() {
     const verifiedRounds = db.rounds.filter(r=>r.event_id===eid && r.verified);
     const ranked = assignLeaguePts(verifiedRounds.map(r=>({...r})));
     const top3Ids = new Set(ranked.slice(0,3).map(r=>r.player_id));
-    const frontOverride = document.getElementById('wiz-front')?.value;
-    const backOverride  = document.getElementById('wiz-back')?.value;
+    const frontOverride = wizardCache.front;
+    const backOverride  = wizardCache.back;
     const frontAuto = calcBestHalf(verifiedRounds,'front',top3Ids);
     const backAuto  = calcBestHalf(verifiedRounds,'back',top3Ids);
     const frontName = frontOverride || (frontAuto?frontAuto.name:null);
