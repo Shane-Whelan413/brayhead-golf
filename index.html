@@ -328,7 +328,11 @@
   /* Hole rows — 6 col: hole# | par | si | strokes | score | pts */
   .sc-hole-row { display: grid; grid-template-columns: 30px 34px 34px 34px 1fr 46px; align-items: center; border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.12s, border-left 0.12s; min-height: 64px; cursor: pointer; -webkit-tap-highlight-color: transparent; border-left: 3px solid transparent; }
   .sc-hole-row:last-child { border-bottom: none; }
-  .sc-hole-row.sc-active { background: #fef8e6; border-left: 3px solid #C9A84C; }
+  .sc-hole-row.sc-active { background: #0a1628; border-left: 3px solid #C9A84C; }
+  .sc-hole-row.sc-active div { color: white !important; }
+  .sc-hole-row.sc-active .sc-score-val { color: #C9A84C !important; font-size: 26px; }
+  .sc-hole-row.sc-active .sc-score-val.sc-empty { color: rgba(255,255,255,0.3) !important; }
+  .sc-hole-row.sc-active #sc-tap-hint { color: rgba(255,255,255,0.3) !important; }
   .sc-hole-score-area { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 4px; }
   .sc-pts-chip { width: 40px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; margin: 0 4px; }
 
@@ -1124,10 +1128,14 @@
 <!-- Score entry keypad -->
 <div id="score-keypad">
   <div class="kp-hole-info" id="kp-hole-info">
-    <div class="kp-info-item"><div class="kp-info-label">Hole</div><div class="kp-info-val" id="kp-hole-num">—</div></div>
+    <div class="kp-info-item" style="grid-column:1/-1;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:8px;margin-bottom:4px">
+      <div id="kp-hole-title" style="font-size:18px;font-weight:700;color:white;text-align:center;letter-spacing:0.02em">Hole —</div>
+      <div id="kp-hole-subtitle" style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;margin-top:2px">tap ◀ ▶ to navigate</div>
+    </div>
     <div class="kp-info-item"><div class="kp-info-label">Par</div><div class="kp-info-val" id="kp-par">—</div></div>
     <div class="kp-info-item"><div class="kp-info-label">SI</div><div class="kp-info-val" id="kp-si">—</div></div>
     <div class="kp-info-item"><div class="kp-info-label">Shots</div><div class="kp-info-val gold" id="kp-shots">—</div></div>
+    <div class="kp-info-item"><div class="kp-info-label">Hole</div><div class="kp-info-val" id="kp-hole-num">—</div></div>
   </div>
   <div class="kp-score-display">
     <div class="kp-nav">
@@ -2036,6 +2044,13 @@ function kpRefreshDisplay() {
     shots = getStrokeAllowance(courseHcp, si, n);
   }
 
+  const titleEl = document.getElementById('kp-hole-title');
+  const subtitleEl = document.getElementById('kp-hole-subtitle');
+  if (titleEl) titleEl.textContent = 'Hole ' + hole + ' of ' + kpTotalHoles;
+  if (subtitleEl) {
+    const entered = Array.from({length:kpTotalHoles},(_,i)=>document.getElementById('h'+(i+1))?.value).filter(Boolean).length;
+    subtitleEl.textContent = entered + ' of ' + kpTotalHoles + ' holes entered';
+  }
   document.getElementById('kp-hole-num').textContent = hole;
   document.getElementById('kp-par').textContent = par || '—';
   document.getElementById('kp-si').textContent = si || '—';
