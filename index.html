@@ -344,7 +344,42 @@
   .sc-progress-wrap { height: 4px; background: var(--border); border-radius: 99px; margin: 0 0 2px; overflow: hidden; }
   .sc-progress-bar { height: 4px; background: #C9A84C; border-radius: 99px; transition: width 0.3s; }
 
-  /* ── Score keypad bottom sheet ── */
+  /* ── Score entry animations ── */
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(40px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-40px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes scoreBounce {
+    0%   { transform: scale(1); }
+    30%  { transform: scale(1.4); }
+    60%  { transform: scale(0.92); }
+    100% { transform: scale(1); }
+  }
+  @keyframes chipPop {
+    0%   { transform: scale(0.5); opacity: 0; }
+    60%  { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes rowFlash {
+    0%   { background: #0a1628; }
+    40%  { background: #1a3a5c; }
+    100% { background: #0a1628; }
+  }
+  @keyframes holeNumSlide {
+    0%   { opacity: 0; transform: translateY(-8px) scale(0.85); }
+    60%  { opacity: 1; transform: translateY(2px) scale(1.05); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .kp-slide-in-right { animation: slideInRight 0.22s cubic-bezier(0.34,1.1,0.64,1) forwards; }
+  .kp-slide-in-left  { animation: slideInLeft  0.22s cubic-bezier(0.34,1.1,0.64,1) forwards; }
+  .score-bounce { animation: scoreBounce 0.3s cubic-bezier(0.34,1.2,0.64,1) forwards; }
+  .chip-pop { animation: chipPop 0.25s cubic-bezier(0.34,1.2,0.64,1) forwards; }
+  .row-flash { animation: rowFlash 0.35s ease-out forwards; }
+  .hole-num-slide { animation: holeNumSlide 0.25s cubic-bezier(0.34,1.1,0.64,1) forwards; }
   #score-keypad {
     position: fixed;
     bottom: 0; left: 0; right: 0;
@@ -1944,7 +1979,14 @@ function selectScorecardHole(hole) {
   for (let i=1; i<=18; i++) {
     const r = document.getElementById('sc-row'+i);
     if (!r) continue;
+    const wasActive = r.classList.contains('sc-active');
     r.classList.toggle('sc-active', i===hole);
+    if (i===hole && !wasActive) {
+      r.classList.remove('row-flash');
+      void r.offsetWidth;
+      r.classList.add('row-flash');
+      setTimeout(()=>r.classList.remove('row-flash'),400);
+    }
   }
 }
 
@@ -2046,7 +2088,12 @@ function kpRefreshDisplay() {
 
   const titleEl = document.getElementById('kp-hole-title');
   const subtitleEl = document.getElementById('kp-hole-subtitle');
-  if (titleEl) titleEl.textContent = 'Hole ' + hole + ' of ' + kpTotalHoles;
+  if (titleEl) {
+    titleEl.classList.remove('hole-num-slide');
+    void titleEl.offsetWidth;
+    titleEl.textContent = 'Hole ' + hole + ' of ' + kpTotalHoles;
+    titleEl.classList.add('hole-num-slide');
+  }
   if (subtitleEl) {
     const entered = Array.from({length:kpTotalHoles},(_,i)=>document.getElementById('h'+(i+1))?.value).filter(Boolean).length;
     subtitleEl.textContent = entered + ' of ' + kpTotalHoles + ' holes entered';
@@ -2089,6 +2136,14 @@ function kpInput(num) {
   if (disp) { disp.textContent = num; disp.classList.remove('sc-empty'); disp.classList.add('sc-pulse'); }
   const hint = document.getElementById('sc-tap-hint'+hole);
   if (hint) hint.style.display = 'none';
+  // Bounce score in keypad
+  const scoreDisp = document.getElementById('kp-score-display');
+  if (scoreDisp) { scoreDisp.classList.remove('score-bounce'); void scoreDisp.offsetWidth; scoreDisp.classList.add('score-bounce'); }
+  // Flash active row
+  const activeRow = document.getElementById('sc-row'+hole);
+  if (activeRow) { activeRow.classList.add('row-flash'); setTimeout(()=>activeRow.classList.remove('row-flash'),400); }
+  // Expressive haptic for scoring
+  try { if (navigator.vibrate) navigator.vibrate([12, 30, 8]); } catch(e) {}
   kpRefreshDisplay();
   updateRoundSummary();
   kpSaveCache();
@@ -2147,7 +2202,15 @@ function kpMax() {
 function kpNavigate(dir) {
   haptic();
   const next = kpActiveHole + dir;
-  if (next < 1 || next > kpTotalHoles) return;
+  if (next < 1 || next > kpTotalHoles) {
+    // Bounce feedback at boundary
+    const titleEl = document.getElementById('kp-hole-title');
+    if (titleEl) {
+      titleEl.style.transform = dir > 0 ? 'translateX(8px)' : 'translateX(-8px)';
+      setTimeout(() => { titleEl.style.transform = ''; titleEl.style.transition = 'transform 0.2s'; setTimeout(()=>{ titleEl.style.transition=''; },200); }, 80);
+    }
+    return;
+  }
   // Switch tab if crossing hole 9 on 18-hole round
   if (kpTotalHoles === 18) {
     if (next === 10 && dir === 1) switchNine('back');
@@ -2155,6 +2218,23 @@ function kpNavigate(dir) {
   }
   kpActiveHole = next;
   selectScorecardHole(next);
+
+  // Animate keypad info sliding in
+  const infoEl = document.getElementById('kp-hole-info');
+  if (infoEl) {
+    infoEl.classList.remove('kp-slide-in-right', 'kp-slide-in-left');
+    void infoEl.offsetWidth; // force reflow
+    infoEl.classList.add(dir > 0 ? 'kp-slide-in-right' : 'kp-slide-in-left');
+  }
+
+  // Animate score display
+  const scoreDisp = document.getElementById('kp-score-display');
+  if (scoreDisp) {
+    scoreDisp.classList.remove('kp-slide-in-right', 'kp-slide-in-left');
+    void scoreDisp.offsetWidth;
+    scoreDisp.classList.add(dir > 0 ? 'kp-slide-in-right' : 'kp-slide-in-left');
+  }
+
   kpRefreshDisplay();
   setTimeout(() => {
     const row = document.getElementById('sc-row'+next);
@@ -2499,9 +2579,11 @@ function updateRoundSummary() {
       parTotal += parVals[i-1] || 4;
       if (ptsEl) {
         const bg  = holePts >= 3 ? '#C9A84C' : holePts === 2 ? '#2a6b1a' : holePts === 1 ? '#9a9080' : '#A32D2D';
+        const wasEmpty = !ptsEl.textContent;
         ptsEl.textContent = holePts;
         ptsEl.style.background = bg;
         ptsEl.style.color = '#fff';
+        if (wasEmpty) { ptsEl.classList.remove('chip-pop'); void ptsEl.offsetWidth; ptsEl.classList.add('chip-pop'); }
       }
     } else {
       if (ptsEl) { ptsEl.textContent = ''; ptsEl.style.background = ''; ptsEl.style.color = ''; }
