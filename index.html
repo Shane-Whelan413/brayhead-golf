@@ -374,8 +374,17 @@
   .kp-score-big { font-size: 52px; font-weight: 700; color: var(--text); line-height: 1; min-width: 60px; text-align: center; }
   .kp-score-big.empty { color: #ccc; font-size: 36px; font-weight: 300; }
   .kp-nav { display: flex; align-items: center; gap: 8px; flex-direction: column; }
-  .kp-nav-btn { width: 42px; height: 42px; border-radius: 99px; border: 1.5px solid var(--border-strong); background: var(--bg); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; color: var(--text-2); touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-  .kp-nav-btn:active { background: #0a1628; color: #C9A84C; border-color: #0a1628; }
+  .kp-nav-btn { 
+    width: 52px; height: 52px; border-radius: 99px; 
+    border: 2px solid var(--border-strong); 
+    background: #0a1628; 
+    display: flex; align-items: center; justify-content: center; 
+    cursor: pointer; font-size: 20px; color: #C9A84C; 
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+    user-select: none; -webkit-user-select: none;
+    font-weight: 700;
+  }
+  .kp-nav-btn:active { background: #C9A84C; color: #0a1628; border-color: #C9A84C; transform: scale(0.92); }
   .kp-grid {
     display: grid; grid-template-columns: repeat(3, 1fr);
     gap: 8px; padding: 8px 16px 12px;
@@ -1122,7 +1131,8 @@
   </div>
   <div class="kp-score-display">
     <div class="kp-nav">
-      <button class="kp-nav-btn" onclick="kpNavigate(-1)">▲</button>
+      <button class="kp-nav-btn" onclick="kpNavigate(-1)">&#9664;</button>
+      <div style="font-size:9px;color:var(--text-3);text-align:center;margin-top:4px">Prev</div>
     </div>
     <div>
       <div style="font-size:11px;color:var(--text-3);text-align:center;margin-bottom:4px">Score</div>
@@ -1130,7 +1140,8 @@
       <div style="font-size:13px;font-weight:700;text-align:center;margin-top:4px;min-height:20px" id="kp-pts-display"></div>
     </div>
     <div class="kp-nav">
-      <button class="kp-nav-btn" onclick="kpNavigate(1)">▼</button>
+      <button class="kp-nav-btn" onclick="kpNavigate(1)">&#9654;</button>
+      <div style="font-size:9px;color:var(--text-3);text-align:center;margin-top:4px">Next</div>
     </div>
   </div>
   <div class="kp-grid">
@@ -2037,11 +2048,11 @@ function kpRefreshDisplay() {
     scoreDisp.textContent = score;
     const pts = calcStableford(score, par, shots);
     // Colour code: eagle+ gold, birdie green, par teal, bogey grey, double+ red
-    const scoreColor = pts >= 3 ? '#B8860B' : pts === 2 ? '#2d7a4f' : pts === 1 ? '#4a90a4' : score <= par ? '#888' : '#A32D2D';
+    const scoreColor = pts >= 3 ? '#2d7a4f' : pts === 2 ? '#4a90a4' : pts === 1 ? 'var(--text)' : '#A32D2D';
     scoreDisp.className = 'kp-score-big';
     scoreDisp.style.color = scoreColor;
-    const ptsColor = pts >= 3 ? '#B8860B' : pts === 2 ? '#2d7a4f' : pts === 1 ? 'var(--text-2)' : '#A32D2D';
-    const ptsLabel = pts >= 3 ? '\uD83E\uDD85 ' + pts + ' pts' : pts === 2 ? '\uD83D\uDC26 ' + pts + ' pts' : pts === 1 ? pts + ' pt' : '0 pts';
+    const ptsColor = pts >= 3 ? '#2d7a4f' : pts === 2 ? '#4a90a4' : pts === 1 ? 'var(--text-2)' : '#A32D2D';
+    const ptsLabel = pts >= 3 ? '\uD83D\uDC26 ' + pts + ' pts' : pts === 2 ? pts + ' pts' : pts === 1 ? pts + ' pt' : '0 pts';
     ptsDisp.innerHTML = '<span style="color:' + ptsColor + ';font-weight:700;font-size:15px">' + ptsLabel + '</span>';
   } else {
     scoreDisp.textContent = '—';
@@ -2066,12 +2077,6 @@ function kpInput(num) {
   kpRefreshDisplay();
   updateRoundSummary();
   kpSaveCache();
-  // Auto advance after short delay
-  setTimeout(() => {
-    if (kpActiveHole < kpTotalHoles) {
-      kpNavigate(1);
-    }
-  }, 500);
 }
 
 function kpDelete() {
@@ -2122,7 +2127,6 @@ function kpMax() {
   kpRefreshDisplay();
   updateRoundSummary();
   kpSaveCache();
-  setTimeout(() => { if (kpActiveHole < kpTotalHoles) kpNavigate(1); }, 400);
 }
 
 function kpNavigate(dir) {
