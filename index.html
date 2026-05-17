@@ -326,7 +326,7 @@
   .ar-stat-val.gold { font-size: 26px; color: #C9A84C; }
 
   /* Hole rows — 5 col: hole# | par | si | score | pts */
-  .sc-hole-row { display: grid; grid-template-columns: 36px 38px 38px 1fr 48px; align-items: center; border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.12s; min-height: 58px; }
+  .sc-hole-row { display: grid; grid-template-columns: 36px 38px 38px 1fr 48px; align-items: center; border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.12s; min-height: 64px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .sc-hole-row:last-child { border-bottom: none; }
   .sc-hole-row.sc-active { background: #fef8e6; }
   .sc-hole-score-area { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 4px; }
@@ -377,12 +377,13 @@
     gap: 8px; padding: 8px 16px 12px;
   }
   .kp-btn {
-    height: 56px; border-radius: 12px; border: none;
-    font-size: 22px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+    height: 64px; border-radius: 14px; border: none;
+    font-size: 24px; font-weight: 600; font-family: 'DM Sans', sans-serif;
     cursor: pointer; touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     transition: transform 0.08s, background 0.1s;
     display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none;
   }
   .kp-btn:active { transform: scale(0.91); }
   .kp-btn.num { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
@@ -395,6 +396,8 @@
 
   /* Shrink hole rows when keypad is open — remove +/− buttons */
   #score-keypad.open ~ * .sc-adj { display: none; }
+
+  .lb-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 10px 12px;
     display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
@@ -1115,7 +1118,7 @@
   </div>
   <div class="kp-score-display">
     <div class="kp-nav">
-      <button class="kp-nav-btn" onclick="kpNavigate(-1)" ontouchstart="event.preventDefault();kpNavigate(-1)">▲</button>
+      <button class="kp-nav-btn" onclick="kpNavigate(-1)">▲</button>
     </div>
     <div>
       <div style="font-size:11px;color:var(--text-3);text-align:center;margin-bottom:4px">Score</div>
@@ -1123,22 +1126,22 @@
       <div style="font-size:13px;font-weight:700;text-align:center;margin-top:4px;min-height:20px" id="kp-pts-display"></div>
     </div>
     <div class="kp-nav">
-      <button class="kp-nav-btn" onclick="kpNavigate(1)" ontouchstart="event.preventDefault();kpNavigate(1)">▼</button>
+      <button class="kp-nav-btn" onclick="kpNavigate(1)">▼</button>
     </div>
   </div>
   <div class="kp-grid">
-    <button class="kp-btn num" onclick="kpInput(1)" ontouchstart="event.preventDefault();kpInput(1)">1</button>
-    <button class="kp-btn num" onclick="kpInput(2)" ontouchstart="event.preventDefault();kpInput(2)">2</button>
-    <button class="kp-btn num" onclick="kpInput(3)" ontouchstart="event.preventDefault();kpInput(3)">3</button>
-    <button class="kp-btn num" onclick="kpInput(4)" ontouchstart="event.preventDefault();kpInput(4)">4</button>
-    <button class="kp-btn num" onclick="kpInput(5)" ontouchstart="event.preventDefault();kpInput(5)">5</button>
-    <button class="kp-btn num" onclick="kpInput(6)" ontouchstart="event.preventDefault();kpInput(6)">6</button>
-    <button class="kp-btn num" onclick="kpInput(7)" ontouchstart="event.preventDefault();kpInput(7)">7</button>
-    <button class="kp-btn num" onclick="kpInput(8)" ontouchstart="event.preventDefault();kpInput(8)">8</button>
-    <button class="kp-btn num" onclick="kpInput(9)" ontouchstart="event.preventDefault();kpInput(9)">9</button>
-    <button class="kp-btn max" onclick="kpMax()" ontouchstart="event.preventDefault();kpMax()">Max</button>
-    <button class="kp-btn del" onclick="kpDelete()" ontouchstart="event.preventDefault();kpDelete()">⌫</button>
-    <button class="kp-btn done" onclick="kpDone()" ontouchstart="event.preventDefault();kpDone()">Done ✓</button>
+    <button class="kp-btn num" onclick="kpInput(1)">1</button>
+    <button class="kp-btn num" onclick="kpInput(2)">2</button>
+    <button class="kp-btn num" onclick="kpInput(3)">3</button>
+    <button class="kp-btn num" onclick="kpInput(4)">4</button>
+    <button class="kp-btn num" onclick="kpInput(5)">5</button>
+    <button class="kp-btn num" onclick="kpInput(6)">6</button>
+    <button class="kp-btn num" onclick="kpInput(7)">7</button>
+    <button class="kp-btn num" onclick="kpInput(8)">8</button>
+    <button class="kp-btn num" onclick="kpInput(9)">9</button>
+    <button class="kp-btn max" onclick="kpMax()">Max</button>
+    <button class="kp-btn del" onclick="kpDelete()">⌫</button>
+    <button class="kp-btn done" onclick="kpDone()">Done ✓</button>
   </div>
 </div>
 
@@ -1858,12 +1861,13 @@ function buildHoleInputs(n) {
   }
 
   function makeRow(i) {
-    return `<div class="sc-hole-row" id="sc-row${i}" onclick="openKeypad(${i})" ontouchstart="event.preventDefault();openKeypad(${i})">
+    return `<div class="sc-hole-row" id="sc-row${i}" onclick="openKeypad(${i})">
       <div style="font-size:13px;font-weight:700;color:var(--text-3);text-align:center">${i}</div>
       <div style="font-size:13px;font-weight:600;color:var(--text-2);text-align:center" id="sc-par${i}">—</div>
       <div style="font-size:13px;font-weight:500;color:var(--text-3);text-align:center" id="sc-si${i}">—</div>
-      <div style="display:flex;align-items:center;justify-content:center;padding:6px 4px">
+      <div style="display:flex;align-items:center;justify-content:center;padding:6px 4px;flex-direction:column;gap:2px">
         <div class="sc-score-val sc-empty" id="sc-score${i}">—</div>
+        <div style="font-size:9px;color:var(--text-3);letter-spacing:0.03em" id="sc-tap-hint${i}">tap</div>
       </div>
       <div class="sc-pts-chip" id="hpts${i}"></div>
     </div><input type="hidden" id="h${i}">`;
@@ -2051,6 +2055,8 @@ function kpInput(num) {
   inp.value = num;
   const disp = document.getElementById('sc-score'+hole);
   if (disp) { disp.textContent = num; disp.classList.remove('sc-empty'); disp.classList.add('sc-pulse'); }
+  const hint = document.getElementById('sc-tap-hint'+hole);
+  if (hint) hint.style.display = 'none';
   kpRefreshDisplay();
   updateRoundSummary();
   kpSaveCache();
@@ -2071,7 +2077,8 @@ function kpDelete() {
   inp.value = '';
   const disp = document.getElementById('sc-score'+hole);
   if (disp) { disp.textContent = '—'; disp.classList.add('sc-empty'); }
-  kpRefreshDisplay();
+  const hintD = document.getElementById('sc-tap-hint'+hole);
+  if (hintD) hintD.style.display = '';
   updateRoundSummary();
   kpSaveCache();
 }
