@@ -165,7 +165,8 @@
 
 
   /* Toasts above bottom nav */
-  .toasts { bottom: 100px; }
+  .toasts { bottom: 90px; left: 50%; transform: translateX(-50%); right: auto; align-items: center; }
+  .toast { max-width: 280px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
 
   .section { display: none; }
   .section.active { display: block; }
@@ -576,23 +577,24 @@
   #ptr-indicator {
     position: fixed;
     top: calc(60px + env(safe-area-inset-top, 0px));
-    left: 50%; transform: translateX(-50%);
+    left: 50%; transform: translateX(-50%) translateY(-20px);
     z-index: 200;
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: #0a1628;
+    border: 1px solid rgba(201,168,76,0.3);
     border-radius: 99px;
-    padding: 6px 14px 6px 10px;
+    padding: 7px 16px 7px 12px;
     display: flex; align-items: center; gap: 8px;
-    font-size: 12px; font-weight: 500; color: var(--text-2);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+    font-size: 12px; font-weight: 600; color: #C9A84C;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
     opacity: 0; pointer-events: none;
     transition: opacity 0.2s, transform 0.2s;
     white-space: nowrap;
   }
-  #ptr-indicator.visible { opacity: 1; }
+  #ptr-indicator.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #ptr-indicator.pulling { opacity: 1; }
   #ptr-spinner {
     width: 14px; height: 14px;
-    border: 2px solid var(--border-strong);
+    border: 2px solid rgba(201,168,76,0.3);
     border-top-color: #C9A84C;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
@@ -760,6 +762,7 @@
       </div>
       <div id="lb-season-sub" style="font-size:11px;color:var(--text-3);margin-bottom:1rem"></div>
       <input type="hidden" id="lb-filter-val" value="all" />
+      <div id="lb-season-summary" style="margin-bottom:1rem"></div>
       <div id="lb-penalty-box" style="display:none;margin-bottom:1rem"></div>
       <div class="pts-bar" id="pts-bar"></div>
       <div class="tbl-wrap" id="lb-table"><div class="empty">Loading…</div></div>
@@ -1434,7 +1437,68 @@ function renderLeaderboard() {
     sub.textContent = `${filterLabel} · ${remaining} Sunday${remaining!==1?'s':''} remaining this season`;
   }
 
-  const lbPositions = getLeaderboardPositions(publishedEids);
+  // Season summary card
+  const summaryEl = document.getElementById('lb-season-summary');
+  if (summaryEl && filter === 'all') {
+    const today = new Date().toISOString().split('T')[0];
+    const totalEvents   = db.events.filter(e=>e.published).length;
+    const totalSundays  = db.events.filter(e=>e.published && e.event_type==='sunday_9').length;
+    const totalOutings  = db.events.filter(e=>e.published && e.event_type==='outing_18').length;
+    const remaining     = db.events.filter(e=>e.event_type==='sunday_9' && e.event_date > today).length;
+    const nextEv        = db.events.filter(e=>e.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0];
+    const daysToNext    = nextEv ? Math.ceil((new Date(nextEv.event_date)-new Date(today))/(1000*60*60*24)) : null;
+
+    // Hot streak — who has most pts in last 3 published events
+    const last3Eids = new Set([...db.events].filter(e=>e.published).sort((a,b)=>b.event_date.localeCompare(a.event_date)).slice(0,3).map(e=>e.id));
+    const recentPts = {};
+    db.rounds.filter(r=>r.verified && last3Eids.has(r.event_id)).forEach(r => {
+      recentPts[r.player_id] = (recentPts[r.player_id]||0) + r.stableford_points;
+    });
+    const hotPlayer = Object.entries(recentPts).sort((a,b)=>b[1]-a[1])[0];
+    const hotName   = hotPlayer ? db.players.find(p=>p.id===hotPlayer[0])?.name?.split(' ')[0] : null;
+
+    summaryEl.innerHTML = `
+      <button onclick="toggleSeasonSummary()" style="width:100%;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;padding:0">
+        <div style="background:linear-gradient(135deg,#0a1628,#162338);border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:16px">📊</span>
+            <div style="text-align:left">
+              <div style="font-size:13px;font-weight:600;color:#C9A84C">Season at a glance</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">${totalEvents} events played · ${remaining} Sunday${remaining!==1?'s':''} remaining</div>
+            </div>
+          </div>
+          <span id="summary-chevron" style="font-size:11px;color:rgba(255,255,255,0.4);transition:transform 0.2s">▼</span>
+        </div>
+      </button>
+      <div id="season-summary-body" style="display:none;background:linear-gradient(135deg,#0a1628,#162338);border-radius:0 0 var(--radius) var(--radius);padding:0 14px 14px;margin-top:-4px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+          <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:18px;font-weight:700;color:#C9A84C">${totalSundays}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">Sundays</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:18px;font-weight:700;color:#C9A84C">${totalOutings}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">Outings</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:18px;font-weight:700;color:#C9A84C">${remaining}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">Left</div>
+          </div>
+        </div>
+        ${daysToNext !== null ? `
+        <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:12px;color:rgba(255,255,255,0.5)">Next event</div>
+          <div style="font-size:12px;font-weight:600;color:white">${nextEv.course_name} · ${daysToNext===0?'Today':daysToNext===1?'Tomorrow':'in '+daysToNext+' days'}</div>
+        </div>` : ''}
+        ${hotName ? `
+        <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:12px;color:rgba(255,255,255,0.5)">🔥 In form</div>
+          <div style="font-size:12px;font-weight:600;color:#C9A84C">${hotName} · ${hotPlayer[1]} pts (last 3)</div>
+        </div>` : ''}
+      </div>`;
+  } else if (summaryEl) {
+    summaryEl.innerHTML = '';
+  }
 
   const outingPenalties = filter !== 'sunday_9' ? getPreviousOutingPositions() : {};
   const prevPositions = filter === 'all' ? getPreviousLeaderboardPositions(publishedEids) : {};
@@ -1792,6 +1856,22 @@ function adjustScore(hole, delta) {
   display.classList.add('sc-pulse');
   selectScorecardHole(hole);
   updateRoundSummary();
+
+  // Auto-advance to next hole after a short delay when + is pressed
+  if (delta > 0) {
+    const n = document.getElementById('r-event') ? (db.events.find(e=>e.id===document.getElementById('r-event').value)?.event_type==='outing_18'?18:9) : 9;
+    if (hole < n) {
+      setTimeout(() => {
+        const nextRow = document.getElementById('sc-row'+(hole+1));
+        if (nextRow) {
+          // Switch tab if needed for 18-hole
+          if (hole === 9) switchNine('back');
+          nextRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          selectScorecardHole(hole+1);
+        }
+      }, 400);
+    }
+  }
   // Cache scores
   try {
     const pid = document.getElementById('r-player')?.value;
@@ -5608,6 +5688,16 @@ function togglePrizeSection(id) {
   if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
 }
 
+function toggleSeasonSummary() {
+  haptic();
+  const body    = document.getElementById('season-summary-body');
+  const chevron = document.getElementById('summary-chevron');
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+}
+
 function togglePenaltyBox() {
   haptic();
   const body = document.getElementById('penalty-body');
@@ -7335,10 +7425,23 @@ function openApiKeyModal() {
     label.textContent = text;
     spinner.style.display = spinning ? 'block' : 'none';
     indicator.classList.add('visible');
+    indicator.classList.remove('pulling');
+  }
+
+  function showPulling(text, pct) {
+    label.textContent = text;
+    spinner.style.display = 'none';
+    indicator.classList.add('pulling');
+    indicator.style.opacity = Math.min(pct * 1.5, 1).toString();
+    const translateY = Math.min(pct * 12, 12);
+    indicator.style.transform = `translateX(-50%) translateY(${translateY}px)`;
   }
 
   function hideIndicator() {
     indicator.classList.remove('visible');
+    indicator.classList.remove('pulling');
+    indicator.style.opacity = '';
+    indicator.style.transform = '';
   }
 
   scroller.addEventListener('touchstart', e => {
@@ -7356,11 +7459,9 @@ function openApiKeyModal() {
     if (dy > 10 && scroller.scrollTop === 0) {
       const pct = Math.min(dy / PULL_THRESHOLD, 1);
       if (pct < 1) {
-        showIndicator('Pull to refresh…', false);
-        spinner.style.opacity = pct;
+        showPulling('Pull to refresh…', pct);
       } else {
-        showIndicator('Release to refresh', false);
-        spinner.style.opacity = '1';
+        showPulling('Release to refresh ↑', 1);
       }
       if (dy >= PULL_THRESHOLD && !triggered) triggered = true;
     }
