@@ -336,8 +336,65 @@
   .sc-col-header { display: grid; grid-template-columns: 36px 38px 38px 1fr 48px; background: #162338; padding: 7px 0; }
   .sc-col-header span { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: .07em; text-align: center; }
 
-  /* Sticky save bar */
-  .lb-card {
+  /* ── Score keypad bottom sheet ── */
+  #score-keypad {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    padding: 0 0 env(safe-area-inset-bottom, 16px);
+    z-index: 300;
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(0.34, 1.1, 0.64, 1);
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.15);
+  }
+  #score-keypad.open { transform: translateY(0); }
+  .kp-hole-info {
+    background: #0a1628;
+    border-radius: 16px 16px 0 0;
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 0;
+    text-align: center;
+  }
+  .kp-info-item { padding: 4px 0; }
+  .kp-info-label { font-size: 9px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 3px; }
+  .kp-info-val { font-size: 18px; font-weight: 700; color: white; }
+  .kp-info-val.gold { color: #C9A84C; }
+  .kp-score-display {
+    display: flex; align-items: center; justify-content: center;
+    gap: 16px; padding: 10px 16px 6px;
+  }
+  .kp-score-big { font-size: 52px; font-weight: 700; color: var(--text); line-height: 1; min-width: 60px; text-align: center; }
+  .kp-score-big.empty { color: #ccc; font-size: 36px; font-weight: 300; }
+  .kp-nav { display: flex; align-items: center; gap: 8px; flex-direction: column; }
+  .kp-nav-btn { width: 42px; height: 42px; border-radius: 99px; border: 1.5px solid var(--border-strong); background: var(--bg); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; color: var(--text-2); touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  .kp-nav-btn:active { background: #0a1628; color: #C9A84C; border-color: #0a1628; }
+  .kp-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; padding: 8px 16px 12px;
+  }
+  .kp-btn {
+    height: 56px; border-radius: 12px; border: none;
+    font-size: 22px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.08s, background 0.1s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .kp-btn:active { transform: scale(0.91); }
+  .kp-btn.num { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .kp-btn.num:active { background: #0a1628; color: #C9A84C; border-color: #0a1628; }
+  .kp-btn.max { background: #FCEBEB; color: #A32D2D; font-size: 13px; font-weight: 700; border: 1px solid #F7C1C1; }
+  .kp-btn.max:active { background: #A32D2D; color: white; }
+  .kp-btn.done { background: #0a1628; color: #C9A84C; font-size: 15px; font-weight: 700; }
+  .kp-btn.done:active { background: #C9A84C; color: #0a1628; }
+  .kp-btn.del { background: var(--bg); color: var(--text-2); font-size: 18px; border: 1px solid var(--border); }
+
+  /* Shrink hole rows when keypad is open — remove +/− buttons */
+  #score-keypad.open ~ * .sc-adj { display: none; }
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 10px 12px;
     display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
@@ -1047,6 +1104,43 @@
 </div>
 
 <div class="toasts" id="toasts"></div>
+
+<!-- Score entry keypad -->
+<div id="score-keypad">
+  <div class="kp-hole-info" id="kp-hole-info">
+    <div class="kp-info-item"><div class="kp-info-label">Hole</div><div class="kp-info-val" id="kp-hole-num">—</div></div>
+    <div class="kp-info-item"><div class="kp-info-label">Par</div><div class="kp-info-val" id="kp-par">—</div></div>
+    <div class="kp-info-item"><div class="kp-info-label">SI</div><div class="kp-info-val" id="kp-si">—</div></div>
+    <div class="kp-info-item"><div class="kp-info-label">Shots</div><div class="kp-info-val gold" id="kp-shots">—</div></div>
+  </div>
+  <div class="kp-score-display">
+    <div class="kp-nav">
+      <button class="kp-nav-btn" onclick="kpNavigate(-1)" ontouchstart="event.preventDefault();kpNavigate(-1)">▲</button>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text-3);text-align:center;margin-bottom:4px">Score</div>
+      <div class="kp-score-big empty" id="kp-score-display">—</div>
+      <div style="font-size:13px;font-weight:700;text-align:center;margin-top:4px;min-height:20px" id="kp-pts-display"></div>
+    </div>
+    <div class="kp-nav">
+      <button class="kp-nav-btn" onclick="kpNavigate(1)" ontouchstart="event.preventDefault();kpNavigate(1)">▼</button>
+    </div>
+  </div>
+  <div class="kp-grid">
+    <button class="kp-btn num" onclick="kpInput(1)" ontouchstart="event.preventDefault();kpInput(1)">1</button>
+    <button class="kp-btn num" onclick="kpInput(2)" ontouchstart="event.preventDefault();kpInput(2)">2</button>
+    <button class="kp-btn num" onclick="kpInput(3)" ontouchstart="event.preventDefault();kpInput(3)">3</button>
+    <button class="kp-btn num" onclick="kpInput(4)" ontouchstart="event.preventDefault();kpInput(4)">4</button>
+    <button class="kp-btn num" onclick="kpInput(5)" ontouchstart="event.preventDefault();kpInput(5)">5</button>
+    <button class="kp-btn num" onclick="kpInput(6)" ontouchstart="event.preventDefault();kpInput(6)">6</button>
+    <button class="kp-btn num" onclick="kpInput(7)" ontouchstart="event.preventDefault();kpInput(7)">7</button>
+    <button class="kp-btn num" onclick="kpInput(8)" ontouchstart="event.preventDefault();kpInput(8)">8</button>
+    <button class="kp-btn num" onclick="kpInput(9)" ontouchstart="event.preventDefault();kpInput(9)">9</button>
+    <button class="kp-btn max" onclick="kpMax()" ontouchstart="event.preventDefault();kpMax()">Max</button>
+    <button class="kp-btn del" onclick="kpDelete()" ontouchstart="event.preventDefault();kpDelete()">⌫</button>
+    <button class="kp-btn done" onclick="kpDone()" ontouchstart="event.preventDefault();kpDone()">Done ✓</button>
+  </div>
+</div>
 
 <script>
 const SUPABASE_URL = 'https://vlpfqavpwwhpflamujcp.supabase.co';
@@ -1764,14 +1858,12 @@ function buildHoleInputs(n) {
   }
 
   function makeRow(i) {
-    return `<div class="sc-hole-row" id="sc-row${i}" onclick="selectScorecardHole(${i})">
+    return `<div class="sc-hole-row" id="sc-row${i}" onclick="openKeypad(${i})" ontouchstart="event.preventDefault();openKeypad(${i})">
       <div style="font-size:13px;font-weight:700;color:var(--text-3);text-align:center">${i}</div>
       <div style="font-size:13px;font-weight:600;color:var(--text-2);text-align:center" id="sc-par${i}">—</div>
       <div style="font-size:13px;font-weight:500;color:var(--text-3);text-align:center" id="sc-si${i}">—</div>
-      <div class="sc-hole-score-area">
-        <button class="sc-adj" ontouchstart="event.preventDefault();event.stopPropagation();adjustScore(${i},-1)" onclick="event.stopPropagation();adjustScore(${i},-1)">−</button>
+      <div style="display:flex;align-items:center;justify-content:center;padding:6px 4px">
         <div class="sc-score-val sc-empty" id="sc-score${i}">—</div>
-        <button class="sc-adj" ontouchstart="event.preventDefault();event.stopPropagation();adjustScore(${i},1)" onclick="event.stopPropagation();adjustScore(${i},1)">+</button>
       </div>
       <div class="sc-pts-chip" id="hpts${i}"></div>
     </div><input type="hidden" id="h${i}">`;
@@ -1885,7 +1977,175 @@ function adjustScore(hole, delta) {
   } catch(e) {}
 }
 
+// ── Score keypad ──────────────────────────────────────────────
+let kpActiveHole = null;
+let kpTotalHoles = 9;
+
+function openKeypad(hole) {
+  haptic();
+  const ev = db.events.find(e=>e.id===document.getElementById('r-event')?.value);
+  kpTotalHoles = ev?.event_type === 'outing_18' ? 18 : 9;
+  kpActiveHole = hole;
+  selectScorecardHole(hole);
+  kpRefreshDisplay();
+  document.getElementById('score-keypad').classList.add('open');
+  // Scroll hole into view above keypad
+  setTimeout(() => {
+    const row = document.getElementById('sc-row'+hole);
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+}
+
+function kpRefreshDisplay() {
+  const hole = kpActiveHole;
+  if (!hole) return;
+  const parEl  = document.getElementById('sc-par'+hole);
+  const siEl   = document.getElementById('sc-si'+hole);
+  const inp    = document.getElementById('h'+hole);
+  const score  = parseInt(inp?.value) || 0;
+  const par    = parseInt(parEl?.textContent) || 4;
+  const si     = parseInt(siEl?.textContent) || 0;
+
+  // Get stroke allowance for this hole
+  const pid = document.getElementById('r-player')?.value;
+  const eid = document.getElementById('r-event')?.value;
+  const pl  = db.players.find(p=>p.id===pid);
+  const ev  = db.events.find(e=>e.id===eid);
+  const n   = kpTotalHoles;
+  let shots = 0;
+  if (pl && ev) {
+    const siVals = getSIValues(n, ev, pl);
+    const courseHcp = parseInt(document.getElementById('h1') !== null ?
+      calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par) : 0);
+    shots = getStrokeAllowance(courseHcp, si, n);
+  }
+
+  document.getElementById('kp-hole-num').textContent = hole;
+  document.getElementById('kp-par').textContent = par || '—';
+  document.getElementById('kp-si').textContent = si || '—';
+  document.getElementById('kp-shots').textContent = shots !== undefined ? shots : '—';
+
+  const scoreDisp = document.getElementById('kp-score-display');
+  const ptsDisp   = document.getElementById('kp-pts-display');
+
+  if (score) {
+    scoreDisp.textContent = score;
+    scoreDisp.className = 'kp-score-big';
+    const pts = calcStableford(score, par, shots);
+    const ptsColor = pts >= 3 ? '#2d7a4f' : pts === 2 ? '#C9A84C' : pts === 1 ? 'var(--text-2)' : '#A32D2D';
+    ptsDisp.innerHTML = `<span style="color:${ptsColor};font-weight:700">${pts} pt${pts!==1?'s':''}</span>`;
+  } else {
+    scoreDisp.textContent = '—';
+    scoreDisp.className = 'kp-score-big empty';
+    ptsDisp.textContent = '';
+  }
+}
+
+function kpInput(num) {
+  haptic();
+  const hole = kpActiveHole;
+  if (!hole) return;
+  const inp = document.getElementById('h'+hole);
+  if (!inp) return;
+  // Single digit entry — replace current value
+  inp.value = num;
+  const disp = document.getElementById('sc-score'+hole);
+  if (disp) { disp.textContent = num; disp.classList.remove('sc-empty'); disp.classList.add('sc-pulse'); }
+  kpRefreshDisplay();
+  updateRoundSummary();
+  kpSaveCache();
+  // Auto advance after short delay
+  setTimeout(() => {
+    if (kpActiveHole < kpTotalHoles) {
+      kpNavigate(1);
+    }
+  }, 500);
+}
+
+function kpDelete() {
+  haptic();
+  const hole = kpActiveHole;
+  if (!hole) return;
+  const inp = document.getElementById('h'+hole);
+  if (!inp) return;
+  inp.value = '';
+  const disp = document.getElementById('sc-score'+hole);
+  if (disp) { disp.textContent = '—'; disp.classList.add('sc-empty'); }
+  kpRefreshDisplay();
+  updateRoundSummary();
+  kpSaveCache();
+}
+
+function kpMax() {
+  haptic();
+  const hole = kpActiveHole;
+  if (!hole) return;
+  const parEl = document.getElementById('sc-par'+hole);
+  const par = parseInt(parEl?.textContent) || 4;
+  // Max score that gives 0 pts = par + 2 (conservative — always 0 pts)
+  const maxScore = par + 2;
+  const inp = document.getElementById('h'+hole);
+  if (!inp) return;
+  inp.value = maxScore;
+  const disp = document.getElementById('sc-score'+hole);
+  if (disp) { disp.textContent = maxScore; disp.classList.remove('sc-empty'); }
+  kpRefreshDisplay();
+  updateRoundSummary();
+  kpSaveCache();
+  setTimeout(() => { if (kpActiveHole < kpTotalHoles) kpNavigate(1); }, 400);
+}
+
+function kpNavigate(dir) {
+  haptic();
+  const next = kpActiveHole + dir;
+  if (next < 1 || next > kpTotalHoles) return;
+  // Switch tab if crossing hole 9 on 18-hole round
+  if (kpTotalHoles === 18) {
+    if (next === 10 && dir === 1) switchNine('back');
+    if (next === 9  && dir === -1) switchNine('front');
+  }
+  kpActiveHole = next;
+  selectScorecardHole(next);
+  kpRefreshDisplay();
+  setTimeout(() => {
+    const row = document.getElementById('sc-row'+next);
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 50);
+}
+
+function kpDone() {
+  haptic();
+  document.getElementById('score-keypad').classList.remove('open');
+  kpActiveHole = null;
+}
+
+function kpSaveCache() {
+  try {
+    const pid = document.getElementById('r-player')?.value;
+    const eid = document.getElementById('r-event')?.value;
+    if (!pid || !eid) return;
+    const cache = {};
+    for (let i=1; i<=kpTotalHoles; i++) {
+      const v = document.getElementById('h'+i)?.value;
+      if (v) cache[i] = v;
+    }
+    localStorage.setItem('bhgs_scores_'+eid+'_'+pid, JSON.stringify(cache));
+  } catch(e) {}
+}
+
+// Close keypad when tapping outside score area
+document.addEventListener('touchstart', e => {
+  const kp = document.getElementById('score-keypad');
+  if (kp && kp.classList.contains('open')) {
+    if (!kp.contains(e.target) && !e.target.closest('.sc-hole-row')) {
+      kpDone();
+    }
+  }
+}, { passive: true });
+
 function resetHoleInputs(n) {
+  document.getElementById('score-keypad')?.classList.remove('open');
+  kpActiveHole = null;
   for (let i=1; i<=n; i++) {
     const inp  = document.getElementById('h'+i);
     const disp = document.getElementById('sc-score'+i);
