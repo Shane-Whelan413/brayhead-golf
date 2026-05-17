@@ -1500,6 +1500,7 @@ function renderLeaderboard() {
     summaryEl.innerHTML = '';
   }
 
+  const lbPositions = getLeaderboardPositions(publishedEids);
   const outingPenalties = filter !== 'sunday_9' ? getPreviousOutingPositions() : {};
   const prevPositions = filter === 'all' ? getPreviousLeaderboardPositions(publishedEids) : {};
   const rows = db.players.map(p => {
