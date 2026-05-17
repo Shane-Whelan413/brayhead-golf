@@ -1885,8 +1885,8 @@ function buildHoleInputs(n) {
     const front = Array.from({length:9},(_,i)=>makeRow(i+1)).join('');
     const back  = Array.from({length:9},(_,i)=>makeRow(i+10)).join('');
     wrap.innerHTML = '<div class="nine-tabs">'
-      + '<button class="nine-tab active" id="tab-front" onclick="switchNine('front')">Front 9</button>'
-      + '<button class="nine-tab" id="tab-back" onclick="switchNine('back')">Back 9</button>'
+      + '<button class="nine-tab active" id="tab-front" onclick="switchNine(\'front\')">Front 9</button>'
+      + '<button class="nine-tab" id="tab-back" onclick="switchNine(\'back\')">Back 9</button>'
       + '</div>'
       + '<div class="nine-panel active" id="panel-front">' + makeHeader() + front + '</div>'
       + '<div class="nine-panel" id="panel-back">' + makeHeader() + back + '</div>';
