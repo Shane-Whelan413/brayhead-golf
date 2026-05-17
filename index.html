@@ -2088,14 +2088,30 @@ function kpMax() {
   const hole = kpActiveHole;
   if (!hole) return;
   const parEl = document.getElementById('sc-par'+hole);
-  const par = parseInt(parEl?.textContent) || 4;
-  // Max score that gives 0 pts = par + 2 (conservative — always 0 pts)
-  const maxScore = par + 2;
+  const siEl  = document.getElementById('sc-si'+hole);
+  const par   = parseInt(parEl?.textContent) || 4;
+  const si    = parseInt(siEl?.textContent)  || 0;
+
+  // Get stroke allowance for this hole so max = par + 2 - strokes (= 0 pts)
+  const pid = document.getElementById('r-player')?.value;
+  const eid = document.getElementById('r-event')?.value;
+  const pl  = db.players.find(p=>p.id===pid);
+  const ev  = db.events.find(e=>e.id===eid);
+  let shots = 0;
+  if (pl && ev) {
+    const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
+    shots = getStrokeAllowance(courseHcp, si, kpTotalHoles);
+  }
+  // Max score giving exactly 0 pts = par + 2 - strokes received
+  const maxScore = Math.max(1, par + 2 - shots);
+
   const inp = document.getElementById('h'+hole);
   if (!inp) return;
   inp.value = maxScore;
   const disp = document.getElementById('sc-score'+hole);
   if (disp) { disp.textContent = maxScore; disp.classList.remove('sc-empty'); }
+  const hint = document.getElementById('sc-tap-hint'+hole);
+  if (hint) hint.style.display = 'none';
   kpRefreshDisplay();
   updateRoundSummary();
   kpSaveCache();
