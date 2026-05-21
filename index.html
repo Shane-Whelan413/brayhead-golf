@@ -6987,8 +6987,8 @@ function renderKnockout() {
       ? 'border:2px solid #0a1628'
       : bothAvail
       ? 'border:1.5px solid #16a34a'
-      : isOnPath
-      ? 'border:1px solid #888780'
+      : isOnPath && !isMyMatch
+      ? 'border:1px solid #d8d4cc;border-left:3px solid #C9A84C'
       : 'border:1px solid #e8e4de';
 
     return `<div class="${animClass}" style="background:${cardBg};${cardBorderFull};border-radius:7px;overflow:hidden;width:148px">
@@ -7014,19 +7014,36 @@ function renderKnockout() {
     5: { bg:'#7a1a1a', color:'#fca5a5', conn:'rgba(252,165,165,0.4)' },
   };
 
-  // Calculate path to final for logged-in player
+  // Calculate path to final — all matches player has played or could play
   window._koPathIds = new Set();
   if (currentUser && currentUser.playerId) {
     const pid = currentUser.playerId;
-    let searchPid = pid;
-    for (const round of rounds) {
-      const m = matches.find(x =>
-        x.round===round && (x.player1_id===searchPid || x.player2_id===searchPid)
-      );
-      if (m) {
+
+    // Step 1 — trace backwards: find all completed matches this player won
+    for (const m of matches) {
+      if (m.player1_id === pid || m.player2_id === pid) {
         window._koPathIds.add(m.id);
-        if (m.winner_id) searchPid = m.winner_id;
-        else break;
+      }
+    }
+
+    // Step 2 — trace forwards: from current position, follow potential path to final
+    // Find the furthest round the player has reached
+    const myMatches = matches.filter(m =>
+      m.player1_id === pid || m.player2_id === pid
+    ).sort((a,b) => b.round - a.round);
+
+    const latestMatch = myMatches[0];
+    if (latestMatch) {
+      let nextRound = latestMatch.round + (latestMatch.status === 'complete' ? 1 : 0);
+      // Walk forward through potential future matches
+      for (const round of rounds.filter(r => r >= nextRound)) {
+        // Find match at this round position based on bracket path
+        const latestMatchNum = myMatches.find(m => m.round === round - 1 || (round === nextRound && m.round === latestMatch.round))?.match_number;
+        const futureMatchNum = latestMatchNum ? Math.ceil(latestMatchNum / 2) : null;
+        if (futureMatchNum) {
+          const futureMatch = matches.find(m => m.round === round && m.match_number === futureMatchNum);
+          if (futureMatch) window._koPathIds.add(futureMatch.id);
+        }
       }
     }
   }
@@ -7038,9 +7055,20 @@ function renderKnockout() {
     const r1SlotH = 168;
     const slotH = slotsPerMatch * r1SlotH;
     const rc = ROUND_COLOURS[round] || ROUND_COLOURS[1];
-    const cards = roundMatches.map((m,i) =>
-      `<div style="height:${slotH}px;display:flex;align-items:center;justify-content:center;padding:0 8px;">${matchCard(m)}</div>`
-    ).join('');
+    const cards = roundMatches.map((m,i) => {
+      const onPath = (window._koPathIds||new Set()).has(m.id);
+      const isMyM  = currentUser && currentUser.playerId &&
+        (m.player1_id===currentUser.playerId || m.player2_id===currentUser.playerId);
+      const pathLabel = onPath && !isMyM
+        ? `<div style="font-size:8px;font-weight:700;color:#C9A84C;text-align:center;letter-spacing:0.05em;text-transform:uppercase;padding:3px 0 0;opacity:0.8">Your path ›</div>`
+        : isMyM
+        ? `<div style="font-size:8px;font-weight:700;color:#C9A84C;text-align:center;letter-spacing:0.05em;text-transform:uppercase;padding:3px 0 0">Your match</div>`
+        : '';
+      return `<div style="height:${slotH}px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 8px;${onPath?'background:rgba(201,168,76,0.06);':''}">
+        ${pathLabel}
+        ${matchCard(m)}
+      </div>`;
+    }).join('');
     return `<div style="flex-shrink:0;width:164px;background:white;border:1px solid #d8d4cc;border-radius:10px;overflow:hidden">
       <div style="background:${rc.bg};color:${rc.color};font-size:9px;font-weight:700;text-align:center;padding:7px 4px;letter-spacing:0.06em;text-transform:uppercase">${ROUND_NAMES[round]||'Round '+round} <span style="opacity:0.6;font-weight:400">${doneCount}/${roundMatches.length}</span></div>
       <div style="padding:4px 0">${cards}</div>
@@ -7051,26 +7079,38 @@ function renderKnockout() {
   const totalH = r1Count * r1SlotH;
 
   function connectorSVG(fromRound, toRound) {
-    const fromCount = matches.filter(m=>m.round===fromRound).length;
-    const toCount   = matches.filter(m=>m.round===toRound).length;
+    const fromMatches = matches.filter(m=>m.round===fromRound).sort((a,b)=>a.match_number-b.match_number);
+    const toMatches   = matches.filter(m=>m.round===toRound).sort((a,b)=>a.match_number-b.match_number);
+    const fromCount = fromMatches.length;
+    const toCount   = toMatches.length;
     const fromSlotH = Math.pow(2, fromRound-1) * r1SlotH;
     const toSlotH   = Math.pow(2, toRound-1)   * r1SlotH;
     const rc = ROUND_COLOURS[toRound] || ROUND_COLOURS[1];
-    const stroke = rc.conn;
+    const pathIds = window._koPathIds || new Set();
     const lines = [];
     for (let i=0; i<toCount; i++) {
       const top1 = i*2     * fromSlotH + fromSlotH/2;
       const top2 = (i*2+1) * fromSlotH + fromSlotH/2;
       const toY  = i       * toSlotH   + toSlotH/2;
       const midX = 16;
-      lines.push(`<line x1="0" y1="${top1}" x2="${midX}" y2="${top1}" stroke="${stroke}" stroke-width="1.5"/>`);
+      const from1OnPath = fromMatches[i*2]   && pathIds.has(fromMatches[i*2].id);
+      const from2OnPath = fromMatches[i*2+1] && pathIds.has(fromMatches[i*2+1].id);
+      const toOnPath    = toMatches[i]        && pathIds.has(toMatches[i].id);
+      const s1 = from1OnPath ? '#C9A84C' : rc.conn;
+      const s2 = from2OnPath ? '#C9A84C' : rc.conn;
+      const sw1 = from1OnPath ? '2' : '1.5';
+      const sw2 = from2OnPath ? '2' : '1.5';
+      const stV = (from1OnPath||from2OnPath) ? '#C9A84C' : rc.conn;
+      const stTo = toOnPath ? '#C9A84C' : rc.conn;
+      const swTo = toOnPath ? '2' : '1.5';
+      lines.push(`<line x1="0" y1="${top1}" x2="${midX}" y2="${top1}" stroke="${s1}" stroke-width="${sw1}"/>`);
       if (i*2+1 < fromCount) {
-        lines.push(`<line x1="0" y1="${top2}" x2="${midX}" y2="${top2}" stroke="${stroke}" stroke-width="1.5"/>`);
-        lines.push(`<line x1="${midX}" y1="${top1}" x2="${midX}" y2="${top2}" stroke="${stroke}" stroke-width="1.5"/>`);
+        lines.push(`<line x1="0" y1="${top2}" x2="${midX}" y2="${top2}" stroke="${s2}" stroke-width="${sw2}"/>`);
+        lines.push(`<line x1="${midX}" y1="${top1}" x2="${midX}" y2="${top2}" stroke="${stV}" stroke-width="1.5"/>`);
       }
-      lines.push(`<line x1="${midX}" y1="${toY}" x2="32" y2="${toY}" stroke="${stroke}" stroke-width="1.5"/>`);
+      lines.push(`<line x1="${midX}" y1="${toY}" x2="32" y2="${toY}" stroke="${stTo}" stroke-width="${swTo}"/>`);
     }
-    return `<svg width="32" height="${totalH}" style="flex-shrink:0" overflow="visible">${lines.join('')}</svg>`;
+    return `<svg width="32" height="${totalH+28}" style="flex-shrink:0;background:#1a2e1a" overflow="visible">${lines.join('')}</svg>`;
   }
 
   const finalRc = ROUND_COLOURS[Math.max(...rounds)] || ROUND_COLOURS[1];
