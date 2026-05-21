@@ -6601,19 +6601,98 @@ async function saveMatchResult(mid) {
 
 // ── KNOCKOUT COMPETITION ──
 
+function showAdvanceOverride(mid) {
+  haptic();
+  const m = db.knockout_matches.find(x=>x.id===mid);
+  if (!m) return;
+  const p1 = db.players.find(p=>p.id===m.player1_id);
+  const p2 = db.players.find(p=>p.id===m.player2_id);
+  const playerOpts = db.players.map(p=>`<option value="${p.id}">${p.name} (Hcp ${parseFloat(p.handicap_index).toFixed(1)})</option>`).join('');
+
+  document.getElementById('modal-title').textContent = 'Override — advance player';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="background:#fef8e6;border-radius:var(--radius);padding:10px 12px;margin-bottom:1rem;font-size:12px;color:#8a6a1a">
+      ⚠️ Use this to manually advance a player to the next round without a result — e.g. if a match can't be played because someone is away.
+    </div>
+    <div style="margin-bottom:1rem">
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:6px">Current match</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text)">${p1?p1.name:'TBD'} vs ${p2?p2.name:'TBD'}</div>
+    </div>
+    <div class="form-group" style="margin-bottom:1rem">
+      <label style="font-size:12px;color:var(--text-3);font-weight:500">Who advances to the next round?</label>
+      <select id="override-winner" style="width:100%;margin-top:6px">
+        <option value="">Select player…</option>
+        ${p1?`<option value="${p1.id}">${p1.name}</option>`:''}
+        ${p2?`<option value="${p2.id}">${p2.name}</option>`:''}
+        <option value="other">Other player (not in this match)…</option>
+      </select>
+    </div>
+    <div id="override-other-wrap" style="display:none;margin-bottom:1rem">
+      <label style="font-size:12px;color:var(--text-3);font-weight:500">Choose player</label>
+      <select id="override-other" style="width:100%;margin-top:6px">
+        <option value="">Select…</option>${playerOpts}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:1rem">
+      <label style="font-size:12px;color:var(--text-3);font-weight:500">Reason (optional)</label>
+      <input id="override-reason" placeholder="e.g. Walkover — player unavailable" style="width:100%;margin-top:6px" />
+    </div>
+    <button class="btn primary" style="width:100%" onclick="applyAdvanceOverride('${mid}')">Advance player →</button>
+  `;
+  document.getElementById('override-winner').addEventListener('change', function() {
+    document.getElementById('override-other-wrap').style.display = this.value==='other' ? '' : 'none';
+  });
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function applyAdvanceOverride(mid) {
+  const sel = document.getElementById('override-winner');
+  const other = document.getElementById('override-other');
+  const reason = document.getElementById('override-reason')?.value.trim();
+  let winnerId = sel.value === 'other' ? other?.value : sel.value;
+  if (!winnerId) { toast('Please select a player', 'error'); return; }
+
+  const m = db.knockout_matches.find(x=>x.id===mid);
+  if (!m) return;
+
+  try {
+    const resultStr = reason || 'Walkover';
+    await patch(`knockout_matches?id=eq.${mid}`, {
+      winner_id: winnerId,
+      status: 'complete',
+      result: resultStr
+    });
+
+    // Advance winner to next round
+    const nextRound = m.round + 1;
+    const matchPos = Math.ceil(m.match_number / 2);
+    const playerSlot = m.match_number % 2 === 1 ? 'player1_id' : 'player2_id';
+    const existingNext = db.knockout_matches.find(x=>x.round===nextRound&&x.match_number===matchPos);
+    if (existingNext) {
+      await patch(`knockout_matches?id=eq.${existingNext.id}`, { [playerSlot]: winnerId });
+    } else {
+      await post('knockout_matches', { round:nextRound, match_number:matchPos, [playerSlot]:winnerId, is_bye:false, status:'pending' });
+    }
+
+    closeModal();
+    toast('Player advanced to next round', 'success');
+    await loadAll(); renderAll();
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
 function renderKnockout() {
   const el = document.getElementById('knockout-content');
   if (!el) return;
   const matches = db.knockout_matches;
   const rounds = [...new Set(matches.map(m=>m.round))].sort((a,b)=>a-b);
-  const roundNames = {1:'Round of 32',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+  const roundNames = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
 
   const adminBtns = isAdmin ? `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
       ${matches.length===0 ? `<button class="btn primary" onclick="showKnockoutSetup()">Set up draw</button>` : ''}
       ${matches.length>0 ? `<button class="btn" onclick="showKnockoutSetup()">Edit draw</button>` : ''}
       ${matches.length>0 ? `<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="showFixturePost()">📋 Post fixtures</button>` : ''}
-      ${matches.length>0 ? `<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="postKnockoutResults()">📊 Post Round 1 results</button>` : ''}
+      ${matches.length>0 ? `<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="postKnockoutResults()">📊 Post results</button>` : ''}
     </div>` : '';
 
   if (!matches.length) {
@@ -6624,111 +6703,116 @@ function renderKnockout() {
   const finalMatch = matches.find(m=>m.round===Math.max(...rounds));
   const champion = finalMatch?.winner_id ? db.players.find(p=>p.id===finalMatch.winner_id) : null;
 
-  const championHtml = champion ? `
-    <div class="ko-champion">
-      <div class="ko-champion-trophy">🏆</div>
-      <div class="ko-champion-name">${champion.name}</div>
-      <div class="ko-champion-label">2026 Knockout Champion</div>
-    </div>` : '';
-
-  const roundsHtml = rounds.map(round => {
+  // Build bracket HTML
+  const bracketCols = rounds.map(round => {
     const roundMatches = matches.filter(m=>m.round===round).sort((a,b)=>a.match_number-b.match_number);
-    const doneCount = roundMatches.filter(m=>m.status==='complete').length;
-    const playoffCount = roundMatches.filter(m=>m.status==='playoff').length;
+    const totalRounds = rounds.length;
 
-    const matchesHtml = roundMatches.map(m => {
+    const matchCards = roundMatches.map(m => {
       const p1 = m.player1_id ? db.players.find(p=>p.id===m.player1_id) : null;
       const p2 = m.player2_id ? db.players.find(p=>p.id===m.player2_id) : null;
-      const w  = m.winner_id ? m.winner_id : null;
-      const p1Won = w && w===m.player1_id;
-      const p2Won = w && w===m.player2_id;
-      const winner = p1Won ? p1 : p2Won ? p2 : null;
-      const isPlayoff = m.status === 'playoff';
-      const isComplete = m.status === 'complete';
+      const p1Won = m.winner_id && m.winner_id===m.player1_id;
+      const p2Won = m.winner_id && m.winner_id===m.player2_id;
+      const isComplete = m.status==='complete';
+      const isPlayoff = m.status==='playoff';
+      const isPending = !isComplete && !isPlayoff;
 
-      if (m.is_bye) {
-        return `<div class="ko-match">
-          <div class="ko-bye">
-            <div class="avatar">${p1?initials(p1.name):'?'}</div>
-            <div class="ko-player-info">
-              <div class="ko-player-name">${p1?p1.name:'TBD'}</div>
-              <div class="ko-player-hcp">Hcp ${p1?parseFloat(p1.handicap_index).toFixed(1):'—'}</div>
-            </div>
-            <span class="badge green">Bye</span>
-          </div>
-        </div>`;
-      }
-
-      // Playoff strip across top of card
-      const playoffStrip = isPlayoff ? `
-        <div class="ko-playoff-strip">
-          <span style="font-size:15px">⚡</span>
-          <span class="ko-playoff-strip-label">PLAYOFF — to be decided</span>
-        </div>` : '';
-
-      // Result card for completed matches
-      const resultCard = isComplete && winner ? (() => {
-        const ev = m.event_card_id ? db.events.find(e=>e.id===m.event_card_id) : null;
-        return `<div class="ko-result-card">
-          <div class="ko-result-trophy">🏆</div>
-          <div class="ko-result-winner">${winner.name}</div>
-          <div class="ko-result-score">${m.result||''}</div>
-          ${ev ? `<div class="ko-result-meta">via ${ev.course_name} · ${fmtDate(ev.event_date)}</div>` : ''}
-        </div>`;
-      })() : '';
-
-      const adminBtn = isAdmin
-        ? isComplete
-          ? `<button class="btn sm" onclick="showMatchEntry('${m.id}')" style="margin-left:auto">Edit</button>`
-          : p1 && p2
-          ? `<button class="btn sm" onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}" style="margin-left:auto;${isPlayoff?'background:#C9A84C;color:#3a2000;border-color:#C9A84C':''}">${isPlayoff?'⚡ Resolve':'Settle match'}</button>`
-          : ''
+      const cardBorder = isComplete ? 'border-color:rgba(201,168,76,0.4)'
+        : isPlayoff ? 'border-color:#C9A84C;background:rgba(201,168,76,0.06)'
         : '';
 
-      const viewBtn = isComplete && m.event_card_id
-        ? `<button class="btn sm" onclick="viewMatchBreakdown('${m.id}')" style="font-size:11px">View holes</button>`
-        : '';
+      const p1Row = m.is_bye ? '' : `
+        <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-bottom:0.5px solid var(--border);${p1Won?'background:rgba(201,168,76,0.1)':''}${p2Won?'opacity:0.45':''}">
+          <div class="avatar" style="width:24px;height:24px;font-size:9px;flex-shrink:0;${p1Won?'background:#B8860B':'background:#0a1628'};color:#C9A84C">${p1?initials(p1.name):'?'}</div>
+          <div style="font-size:12px;font-weight:${p1Won?'700':'500'};color:${p1Won?'#8a6a1a':'var(--text)'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p1?p1.name.split(' ')[0]+' '+p1.name.split(' ').slice(-1)[0]:'TBD'}</div>
+          ${p1Won?'<span style="color:#C9A84C;font-size:11px;font-weight:700">✓</span>':''}
+        </div>`;
 
-      return `<div class="ko-match${isComplete?' complete':isPlayoff?' playoff':''}">
-        ${playoffStrip}
-        <div class="ko-player">
-          <div class="avatar${p1Won?' gold':''}">${p1?initials(p1.name):'?'}</div>
-          <div class="ko-player-info">
-            <div class="ko-player-name${p1Won?' winner':p2Won?' loser':''}">${p1?p1.name:'TBD'}</div>
-            <div class="ko-player-hcp">Hcp ${p1?parseFloat(p1.handicap_index).toFixed(1):'—'}</div>
-          </div>
-          ${p1Won ? '<span class="ko-winner-tick">✓</span>' : ''}
-        </div>
-        ${isComplete ? resultCard : `<div class="ko-player">
-          <div class="avatar${p2Won?' gold':''}">${p2?initials(p2.name):'?'}</div>
-          <div class="ko-player-info">
-            <div class="ko-player-name${p2Won?' winner':p1Won?' loser':''}">${p2?p2.name:'TBD'}</div>
-            <div class="ko-player-hcp">Hcp ${p2?parseFloat(p2.handicap_index).toFixed(1):'—'}</div>
-          </div>
-          ${p2Won ? '<span class="ko-winner-tick">✓</span>' : ''}
-        </div>`}
-        <div class="ko-match-footer">
-          ${isComplete
-            ? `<span class="badge green">Done</span>${viewBtn}${adminBtn}`
-            : isPlayoff
-            ? adminBtn
-            : `<span class="badge gray">Pending</span>${adminBtn}`
-          }
+      const p2Row = m.is_bye
+        ? `<div style="padding:5px 8px;font-size:10px;color:#2d7a4f;font-weight:600;background:rgba(45,122,79,0.08)">Bye ✓</div>`
+        : isComplete
+        ? `<div style="display:flex;align-items:center;gap:6px;padding:7px 8px;${p1Won?'opacity:0.45':'background:rgba(201,168,76,0.1)'}">
+            <div class="avatar" style="width:24px;height:24px;font-size:9px;flex-shrink:0;${p2Won?'background:#B8860B':'background:#0a1628'};color:#C9A84C">${p2?initials(p2.name):'?'}</div>
+            <div style="font-size:12px;font-weight:${p2Won?'700':'500'};color:${p2Won?'#8a6a1a':'var(--text)'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p2?p2.name.split(' ')[0]+' '+p2.name.split(' ').slice(-1)[0]:'TBD'}</div>
+            ${p2Won?'<span style="color:#C9A84C;font-size:11px;font-weight:700">✓</span>':''}
+          </div>`
+        : `<div style="display:flex;align-items:center;gap:6px;padding:7px 8px;">
+            <div class="avatar" style="width:24px;height:24px;font-size:9px;flex-shrink:0;background:#333;color:#888">${p2?initials(p2.name):'?'}</div>
+            <div style="font-size:12px;font-weight:500;color:${p2?'var(--text)':'var(--text-3)'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:${p2?'normal':'italic'}">${p2?p2.name.split(' ')[0]+' '+p2.name.split(' ').slice(-1)[0]:'TBD'}</div>
+          </div>`;
+
+      const resultLine = isComplete && m.result ? `<div style="font-size:10px;font-weight:700;text-align:center;padding:3px 4px;background:#0a1628;color:#C9A84C">${m.result}</div>`
+        : isPlayoff ? `<div style="font-size:10px;font-weight:700;text-align:center;padding:3px 4px;background:#C9A84C;color:#3a2000">⚡ PLAYOFF</div>`
+        : isPending && p1 && p2 ? `<div style="font-size:9px;text-align:center;padding:3px 4px;background:var(--bg);color:var(--text-3)">Pending</div>`
+        : `<div style="font-size:9px;text-align:center;padding:3px 4px;background:var(--bg);color:var(--text-3)">TBD</div>`;
+
+      // Admin action buttons row
+      const actionRow = isAdmin ? `<div style="display:flex;gap:4px;padding:5px 6px;background:var(--bg);border-top:0.5px solid var(--border);flex-wrap:wrap">
+        ${!isComplete && p1 && p2 ? `<button class="btn sm" style="flex:1;font-size:10px;padding:3px 6px;${isPlayoff?'background:#C9A84C;color:#3a2000;border-color:#C9A84C':''}" onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}">${isPlayoff?'⚡ Resolve':'Settle'}</button>` : ''}
+        ${!isComplete && p1 && !p2 ? `<button class="btn sm" style="flex:1;font-size:10px;padding:3px 6px" onclick="showAdvanceOverride('${m.id}')">Set P2</button>` : ''}
+        ${!isComplete && p1 && p2 ? `<button class="btn sm" style="font-size:10px;padding:3px 6px;background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="showAdvanceOverride('${m.id}')">Override</button>` : ''}
+        ${isComplete ? `<button class="btn sm" style="font-size:10px;padding:3px 6px" onclick="showMatchEntry('${m.id}')">Edit</button>` : ''}
+        ${isComplete && m.event_card_id ? `<button class="btn sm" style="font-size:10px;padding:3px 6px" onclick="viewMatchBreakdown('${m.id}')">Holes</button>` : ''}
+      </div>` : '';
+
+      return `<div style="margin-bottom:10px;position:relative">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;${cardBorder}">
+          ${m.is_bye ? `
+            <div style="display:flex;align-items:center;gap:6px;padding:7px 8px">
+              <div class="avatar" style="width:24px;height:24px;font-size:9px;flex-shrink:0;background:#0a1628;color:#C9A84C">${p1?initials(p1.name):'?'}</div>
+              <div style="font-size:12px;font-weight:500;color:var(--text);flex:1">${p1?p1.name.split(' ')[0]+' '+p1.name.split(' ').slice(-1)[0]:'TBD'}</div>
+              <span style="font-size:10px;font-weight:700;color:#2d7a4f;background:rgba(45,122,79,0.1);padding:2px 6px;border-radius:99px">Bye</span>
+            </div>` : `${p1Row}${p2Row}${resultLine}`}
+          ${actionRow}
         </div>
       </div>`;
     }).join('');
 
-    return `<div class="ko-round">
-      <div class="ko-round-header">
-        <span class="ko-round-title">${roundNames[round]||'Round '+round}</span>
-        <span class="ko-round-count">${doneCount}/${roundMatches.length} complete${playoffCount>0?' · '+playoffCount+' playoff':''}</span>
+    return `
+      <div style="flex-shrink:0;width:150px">
+        <div style="background:#0a1628;color:#C9A84C;font-size:10px;font-weight:700;text-align:center;padding:6px 4px;border-radius:6px 6px 0 0;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0">${roundNames[round]||'Round '+round}</div>
+        <div style="padding:10px 0;display:flex;flex-direction:column;justify-content:space-around;min-height:${roundMatches.length * 90}px">
+          ${matchCards}
+        </div>
+      </div>`;
+  }).join(`
+    <div style="flex-shrink:0;width:20px;display:flex;flex-direction:column;justify-content:space-around;padding-top:32px">
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:space-around">
+        ${rounds.map((r,ri) => {
+          if (ri >= rounds.length-1) return '';
+          const count = matches.filter(m=>m.round===r).length;
+          return Array.from({length:count}, (_,i) => `
+            <div style="display:flex;flex-direction:column;align-items:flex-end;height:90px;justify-content:center">
+              <div style="width:10px;height:1.5px;background:var(--border-strong)"></div>
+            </div>`).join('');
+        }).join('')}
       </div>
-      ${matchesHtml}
-    </div>`;
-  }).join('');
+    </div>`);
 
-  el.innerHTML = adminBtns + championHtml + roundsHtml;
+  const championHtml = champion ? `
+    <div style="text-align:center;margin-bottom:1.25rem;padding:1rem;background:linear-gradient(135deg,#0a1628,#162338);border-radius:var(--radius);border:1px solid rgba(201,168,76,0.3)">
+      <div style="font-size:28px;margin-bottom:4px">🏆</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#C9A84C">${champion.name}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">2025 Knockout Champion</div>
+    </div>` : '';
+
+  el.innerHTML = adminBtns + championHtml + `
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:1rem">
+      <div style="display:flex;gap:0;align-items:flex-start;min-width:max-content;padding:0 4px">
+        ${bracketCols}
+        ${champion ? '' : `
+        <div style="flex-shrink:0;width:20px;display:flex;align-items:center;padding-top:32px">
+          <div style="width:10px;height:1.5px;background:var(--border-strong)"></div>
+        </div>
+        <div style="flex-shrink:0;width:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:32px">
+          <div style="font-size:24px">🏆</div>
+          <div style="font-size:10px;font-weight:700;color:#C9A84C;margin-top:4px;text-align:center">Champion</div>
+          <div style="font-size:9px;color:var(--text-3);text-align:center;margin-top:2px">TBD</div>
+        </div>`}
+      </div>
+    </div>`;
 }
+
 
 // ── View hole breakdown for completed match ──────────────────────────────
 function viewMatchBreakdown(mid) {
