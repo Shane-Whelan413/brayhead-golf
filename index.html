@@ -6685,14 +6685,18 @@ function renderKnockout() {
   if (!el) return;
   const matches = db.knockout_matches;
   const rounds = [...new Set(matches.map(m=>m.round))].sort((a,b)=>a-b);
-  const roundNames = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+  const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+  const CARD_H = 82;   // height of one match card in px
+  const CARD_GAP = 12; // gap between cards in px
+  const COL_W = 148;   // width of each round column
+  const CONN_W = 32;   // width of connector column
 
   const adminBtns = isAdmin ? `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
-      ${matches.length===0 ? `<button class="btn primary" onclick="showKnockoutSetup()">Set up draw</button>` : ''}
-      ${matches.length>0 ? `<button class="btn" onclick="showKnockoutSetup()">Edit draw</button>` : ''}
-      ${matches.length>0 ? `<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="showFixturePost()">📋 Post fixtures</button>` : ''}
-      ${matches.length>0 ? `<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="postKnockoutResults()">📊 Post results</button>` : ''}
+      ${matches.length===0?`<button class="btn primary" onclick="showKnockoutSetup()">Set up draw</button>`:''}
+      ${matches.length>0?`<button class="btn" onclick="showKnockoutSetup()">Edit draw</button>`:''}
+      ${matches.length>0?`<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="showFixturePost()">📋 Post fixtures</button>`:''}
+      ${matches.length>0?`<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="postKnockoutResults()">📊 Post results</button>`:''}
     </div>` : '';
 
   if (!matches.length) {
@@ -6703,91 +6707,144 @@ function renderKnockout() {
   const finalMatch = matches.find(m=>m.round===Math.max(...rounds));
   const champion = finalMatch?.winner_id ? db.players.find(p=>p.id===finalMatch.winner_id) : null;
 
-  // Build bracket HTML
-  const bracketCols = rounds.map(round => {
+  // Build a match card HTML
+  function matchCard(m) {
+    const p1 = m.player1_id ? db.players.find(p=>p.id===m.player1_id) : null;
+    const p2 = m.player2_id ? db.players.find(p=>p.id===m.player2_id) : null;
+    const p1Won = m.winner_id && m.winner_id===m.player1_id;
+    const p2Won = m.winner_id && m.winner_id===m.player2_id;
+    const isComplete = m.status==='complete';
+    const isPlayoff = m.status==='playoff';
+
+    const cardBorder = isComplete ? 'border-color:rgba(201,168,76,0.4)' : isPlayoff ? 'border-color:#C9A84C' : '';
+
+    function playerRow(player, won, lost) {
+      if (!player) return `<div style="display:flex;align-items:center;gap:5px;padding:6px 7px;${lost?'opacity:0.4':''}">
+        <div style="width:22px;height:22px;border-radius:50%;background:#333;color:#777;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">?</div>
+        <div style="font-size:11px;color:var(--text-3);font-style:italic">TBD</div>
+      </div>`;
+      const name = player.name.split(' ');
+      const shortName = name[0] + (name.length>1?' '+name[name.length-1]:'');
+      return `<div style="display:flex;align-items:center;gap:5px;padding:6px 7px;${won?'background:rgba(201,168,76,0.1)':''}${lost?'opacity:0.4':''}">
+        <div style="width:22px;height:22px;border-radius:50%;background:${won?'#B8860B':'#0a1628'};color:#C9A84C;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${initials(player.name)}</div>
+        <div style="font-size:11px;font-weight:${won?'700':'500'};color:${won?'#8a6a1a':'var(--text)'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${shortName}</div>
+        ${won?'<span style="font-size:10px;color:#C9A84C;font-weight:700;flex-shrink:0">✓</span>':''}
+      </div>`;
+    }
+
+    const statusBar = isComplete && m.result
+      ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px 4px;background:#0a1628;color:#C9A84C">${m.result}</div>`
+      : isPlayoff
+      ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px 4px;background:#C9A84C;color:#3a2000">⚡ PLAYOFF</div>`
+      : `<div style="font-size:9px;text-align:center;padding:2px 4px;background:var(--bg);color:var(--text-3)">${p1&&p2?'Pending':'TBD'}</div>`;
+
+    const adminRow = isAdmin ? `<div style="display:flex;gap:3px;padding:4px 5px;background:var(--bg);border-top:0.5px solid var(--border)">
+      ${!isComplete&&p1&&p2?`<button onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${isPlayoff?'#C9A84C':'var(--border)'};background:${isPlayoff?'#C9A84C':'var(--bg)'};color:${isPlayoff?'#3a2000':'var(--text-2)'};cursor:pointer;font-family:inherit">${isPlayoff?'⚡':'Settle'}</button>`:''}
+      ${!isComplete?`<button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid #C9A84C;background:#fef8e6;color:#8a6a1a;cursor:pointer;font-family:inherit">Override</button>`:''}
+      ${isComplete?`<button onclick="showMatchEntry('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text-2);cursor:pointer;font-family:inherit">Edit</button>`:''}
+      ${isComplete&&m.event_card_id?`<button onclick="viewMatchBreakdown('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text-2);cursor:pointer;font-family:inherit">Holes</button>`:''}
+    </div>` : '';
+
+    if (m.is_bye) return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+      ${playerRow(p1,true,false)}
+      <div style="font-size:9px;text-align:center;padding:2px 4px;background:rgba(45,122,79,0.08);color:#2d7a4f;font-weight:700">Bye ✓</div>
+      ${adminRow}
+    </div>`;
+
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;${cardBorder}">
+      ${playerRow(p1,p1Won,p2Won)}
+      <div style="height:0.5px;background:var(--border)"></div>
+      ${playerRow(p2,p2Won,p1Won)}
+      ${statusBar}
+      ${adminRow}
+    </div>`;
+  }
+
+  // Calculate vertical positions for each match in each round
+  // Round 1 = base spacing, each subsequent round doubles spacing
+  function getMatchPositions(round, roundMatches, maxRound1Count) {
+    const r1Count = matches.filter(m=>m.round===1).length;
+    const slotHeight = CARD_H + CARD_GAP;
+    // Each round halves the number of matches, doubling the slot spacing
+    const slotsPerMatch = Math.pow(2, round - 1);
+    const totalSlotHeight = slotsPerMatch * slotHeight;
+    return roundMatches.map((m, i) => {
+      const top = i * totalSlotHeight + (totalSlotHeight - CARD_H) / 2;
+      return { match: m, top };
+    });
+  }
+
+  const r1Matches = matches.filter(m=>m.round===1).length;
+  const totalHeight = r1Matches * (CARD_H + CARD_GAP);
+
+  // Build SVG connectors between rounds
+  function buildConnectorSVG(fromRound, toRound) {
+    const fromMatches = matches.filter(m=>m.round===fromRound).sort((a,b)=>a.match_number-b.match_number);
+    const toMatches   = matches.filter(m=>m.round===toRound).sort((a,b)=>a.match_number-b.match_number);
+    const fromPositions = getMatchPositions(fromRound, fromMatches, r1Matches);
+    const toPositions   = getMatchPositions(toRound,   toMatches,   r1Matches);
+
+    const lines = [];
+    // Each pair of fromMatches connects to one toMatch
+    for (let i=0; i<toPositions.length; i++) {
+      const top1 = fromPositions[i*2]?.top + CARD_H/2;
+      const top2 = fromPositions[i*2+1]?.top + CARD_H/2;
+      const toTop = toPositions[i]?.top + CARD_H/2;
+      if (top1 === undefined) continue;
+
+      // Line from match 1 right edge to midpoint
+      lines.push(`<line x1="0" y1="${top1}" x2="${CONN_W/2}" y2="${top1}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
+      if (top2 !== undefined) {
+        // Line from match 2 right edge to midpoint
+        lines.push(`<line x1="0" y1="${top2}" x2="${CONN_W/2}" y2="${top2}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
+        // Vertical connector between them
+        lines.push(`<line x1="${CONN_W/2}" y1="${top1}" x2="${CONN_W/2}" y2="${top2}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
+      }
+      // Line from midpoint to next match
+      lines.push(`<line x1="${CONN_W/2}" y1="${toTop}" x2="${CONN_W}" y2="${toTop}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
+    }
+    return `<svg width="${CONN_W}" height="${totalHeight}" style="flex-shrink:0;overflow:visible">${lines.join('')}</svg>`;
+  }
+
+  // Build round columns
+  const roundCols = rounds.map(round => {
     const roundMatches = matches.filter(m=>m.round===round).sort((a,b)=>a.match_number-b.match_number);
-    const totalRounds = rounds.length;
+    const positions = getMatchPositions(round, roundMatches, r1Matches);
+    const cards = positions.map(({match:m, top}) =>
+      `<div style="position:absolute;top:${top}px;left:0;right:0">${matchCard(m)}</div>`
+    ).join('');
 
-    const matchCards = roundMatches.map(m => {
-      const p1 = m.player1_id ? db.players.find(p=>p.id===m.player1_id) : null;
-      const p2 = m.player2_id ? db.players.find(p=>p.id===m.player2_id) : null;
-      const p1Won = m.winner_id && m.winner_id===m.player1_id;
-      const p2Won = m.winner_id && m.winner_id===m.player2_id;
-      const isComplete = m.status==='complete';
-      const isPlayoff = m.status==='playoff';
-      const isPending = !isComplete && !isPlayoff;
-
-      const cardBorder = isComplete ? 'border-color:rgba(201,168,76,0.4)'
-        : isPlayoff ? 'border-color:#C9A84C;background:rgba(201,168,76,0.06)'
-        : '';
-
-      const p1Row = m.is_bye ? '' : `
-        <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-bottom:0.5px solid var(--border);${p1Won?'background:rgba(201,168,76,0.1)':''}${p2Won?'opacity:0.45':''}">
-          <div class="avatar" style="width:24px;height:24px;font-size:9px;flex-shrink:0;${p1Won?'background:#B8860B':'background:#0a1628'};color:#C9A84C">${p1?initials(p1.name):'?'}</div>
-          <div style="font-size:12px;font-weight:${p1Won?'700':'500'};color:${p1Won?'#8a6a1a':'var(--text)'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p1?p1.name.split(' ')[0]+' '+p1.name.split(' ').slice(-1)[0]:'TBD'}</div>
-          ${p1Won?'<span style="color:#C9A84C;font-size:11px;font-weight:700">✓</span>':''}
-        </div>`;
-
-      const p2Row = m.is_bye
-        ? `<div style="padding:5px 8px;font-size:10px;color:#2d7a4f;font-weight:600;background:rgba(45,122,79,0.08)">Bye ✓</div>`
-        : isComplete
-        ? `<div style="display:flex;align-items:center;gap:6px;padding:7px 8px;${p1Won?'opacity:0.45':'background:rgba(201,168,76,0.1)'}">
-            <div class="avatar" style="width:24px;height:24px;font-size:9px;flex-shrink:0;${p2Won?'background:#B8860B':'background:#0a1628'};color:#C9A84C">${p2?initials(p2.name):'?'}</div>
-            <div style="font-size:12px;font-weight:${p2Won?'700':'500'};color:${p2Won?'#8a6a1a':'var(--text)'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p2?p2.name.split(' ')[0]+' '+p2.name.split(' ').slice(-1)[0]:'TBD'}</div>
-            ${p2Won?'<span style="color:#C9A84C;font-size:11px;font-weight:700">✓</span>':''}
-          </div>`
-        : `<div style="display:flex;align-items:center;gap:6px;padding:7px 8px;">
-            <div class="avatar" style="width:24px;height:24px;font-size:9px;flex-shrink:0;background:#333;color:#888">${p2?initials(p2.name):'?'}</div>
-            <div style="font-size:12px;font-weight:500;color:${p2?'var(--text)':'var(--text-3)'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:${p2?'normal':'italic'}">${p2?p2.name.split(' ')[0]+' '+p2.name.split(' ').slice(-1)[0]:'TBD'}</div>
-          </div>`;
-
-      const resultLine = isComplete && m.result ? `<div style="font-size:10px;font-weight:700;text-align:center;padding:3px 4px;background:#0a1628;color:#C9A84C">${m.result}</div>`
-        : isPlayoff ? `<div style="font-size:10px;font-weight:700;text-align:center;padding:3px 4px;background:#C9A84C;color:#3a2000">⚡ PLAYOFF</div>`
-        : isPending && p1 && p2 ? `<div style="font-size:9px;text-align:center;padding:3px 4px;background:var(--bg);color:var(--text-3)">Pending</div>`
-        : `<div style="font-size:9px;text-align:center;padding:3px 4px;background:var(--bg);color:var(--text-3)">TBD</div>`;
-
-      // Admin action buttons row
-      const actionRow = isAdmin ? `<div style="display:flex;gap:4px;padding:5px 6px;background:var(--bg);border-top:0.5px solid var(--border);flex-wrap:wrap">
-        ${!isComplete && p1 && p2 ? `<button class="btn sm" style="flex:1;font-size:10px;padding:3px 6px;${isPlayoff?'background:#C9A84C;color:#3a2000;border-color:#C9A84C':''}" onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}">${isPlayoff?'⚡ Resolve':'Settle'}</button>` : ''}
-        ${!isComplete && p1 && !p2 ? `<button class="btn sm" style="flex:1;font-size:10px;padding:3px 6px" onclick="showAdvanceOverride('${m.id}')">Set P2</button>` : ''}
-        ${!isComplete && p1 && p2 ? `<button class="btn sm" style="font-size:10px;padding:3px 6px;background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="showAdvanceOverride('${m.id}')">Override</button>` : ''}
-        ${isComplete ? `<button class="btn sm" style="font-size:10px;padding:3px 6px" onclick="showMatchEntry('${m.id}')">Edit</button>` : ''}
-        ${isComplete && m.event_card_id ? `<button class="btn sm" style="font-size:10px;padding:3px 6px" onclick="viewMatchBreakdown('${m.id}')">Holes</button>` : ''}
-      </div>` : '';
-
-      return `<div style="margin-bottom:10px;position:relative">
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;${cardBorder}">
-          ${m.is_bye ? `
-            <div style="display:flex;align-items:center;gap:6px;padding:7px 8px">
-              <div class="avatar" style="width:24px;height:24px;font-size:9px;flex-shrink:0;background:#0a1628;color:#C9A84C">${p1?initials(p1.name):'?'}</div>
-              <div style="font-size:12px;font-weight:500;color:var(--text);flex:1">${p1?p1.name.split(' ')[0]+' '+p1.name.split(' ').slice(-1)[0]:'TBD'}</div>
-              <span style="font-size:10px;font-weight:700;color:#2d7a4f;background:rgba(45,122,79,0.1);padding:2px 6px;border-radius:99px">Bye</span>
-            </div>` : `${p1Row}${p2Row}${resultLine}`}
-          ${actionRow}
-        </div>
-      </div>`;
-    }).join('');
-
-    return `
-      <div style="flex-shrink:0;width:150px">
-        <div style="background:#0a1628;color:#C9A84C;font-size:10px;font-weight:700;text-align:center;padding:6px 4px;border-radius:6px 6px 0 0;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0">${roundNames[round]||'Round '+round}</div>
-        <div style="padding:10px 0;display:flex;flex-direction:column;justify-content:space-around;min-height:${roundMatches.length * 90}px">
-          ${matchCards}
-        </div>
-      </div>`;
-  }).join(`
-    <div style="flex-shrink:0;width:20px;display:flex;flex-direction:column;justify-content:space-around;padding-top:32px">
-      <div style="flex:1;display:flex;flex-direction:column;justify-content:space-around">
-        ${rounds.map((r,ri) => {
-          if (ri >= rounds.length-1) return '';
-          const count = matches.filter(m=>m.round===r).length;
-          return Array.from({length:count}, (_,i) => `
-            <div style="display:flex;flex-direction:column;align-items:flex-end;height:90px;justify-content:center">
-              <div style="width:10px;height:1.5px;background:var(--border-strong)"></div>
-            </div>`).join('');
-        }).join('')}
+    const doneCount = roundMatches.filter(m=>m.status==='complete').length;
+    return `<div style="flex-shrink:0;width:${COL_W}px">
+      <div style="background:#0a1628;color:#C9A84C;font-size:9px;font-weight:700;text-align:center;padding:5px 4px;border-radius:6px 6px 0 0;letter-spacing:0.06em;text-transform:uppercase">${ROUND_NAMES[round]||'Round '+round} <span style="opacity:0.5;font-weight:400">${doneCount}/${roundMatches.length}</span></div>
+      <div style="position:relative;height:${totalHeight}px">
+        ${cards}
       </div>
-    </div>`);
+    </div>`;
+  });
+
+  // Interleave columns and connectors
+  let bracketHtml = '';
+  for (let i=0; i<rounds.length; i++) {
+    bracketHtml += roundCols[i];
+    if (i < rounds.length-1) {
+      bracketHtml += buildConnectorSVG(rounds[i], rounds[i+1]);
+    }
+  }
+
+  // Trophy column
+  const champTop = totalHeight/2 - 40;
+  bracketHtml += `
+    <svg width="${CONN_W}" height="${totalHeight}" style="flex-shrink:0;overflow:visible">
+      <line x1="0" y1="${totalHeight/2}" x2="${CONN_W}" y2="${totalHeight/2}" stroke="var(--border-strong)" stroke-width="1.5"/>
+    </svg>
+    <div style="flex-shrink:0;width:64px;position:relative;height:${totalHeight}px">
+      <div style="position:absolute;top:${champTop}px;width:64px;text-align:center">
+        <div style="font-size:28px">${champion?'🏆':'🏆'}</div>
+        <div style="font-size:10px;font-weight:700;color:${champion?'#C9A84C':'var(--text-3)'};margin-top:4px">${champion?champion.name.split(' ')[0]:'TBD'}</div>
+        <div style="font-size:9px;color:var(--text-3)">Champion</div>
+      </div>
+    </div>`;
 
   const championHtml = champion ? `
     <div style="text-align:center;margin-bottom:1.25rem;padding:1rem;background:linear-gradient(135deg,#0a1628,#162338);border-radius:var(--radius);border:1px solid rgba(201,168,76,0.3)">
@@ -6798,20 +6855,12 @@ function renderKnockout() {
 
   el.innerHTML = adminBtns + championHtml + `
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:1rem">
-      <div style="display:flex;gap:0;align-items:flex-start;min-width:max-content;padding:0 4px">
-        ${bracketCols}
-        ${champion ? '' : `
-        <div style="flex-shrink:0;width:20px;display:flex;align-items:center;padding-top:32px">
-          <div style="width:10px;height:1.5px;background:var(--border-strong)"></div>
-        </div>
-        <div style="flex-shrink:0;width:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:32px">
-          <div style="font-size:24px">🏆</div>
-          <div style="font-size:10px;font-weight:700;color:#C9A84C;margin-top:4px;text-align:center">Champion</div>
-          <div style="font-size:9px;color:var(--text-3);text-align:center;margin-top:2px">TBD</div>
-        </div>`}
+      <div style="display:flex;align-items:flex-start;min-width:max-content;padding:4px 0 8px">
+        ${bracketHtml}
       </div>
     </div>`;
 }
+
 
 
 // ── View hole breakdown for completed match ──────────────────────────────
