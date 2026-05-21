@@ -354,15 +354,15 @@
     to   { opacity: 1; transform: translateX(0); }
   }
   @keyframes matchPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(45,122,79,0); }
-    50%       { box-shadow: 0 0 0 4px rgba(45,122,79,0.25); }
+    0%,100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); border-color:#16a34a; }
+    40%     { box-shadow: 0 0 0 6px rgba(22,163,74,0.25); border-color:#16a34a; }
   }
   @keyframes myMatchGlow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(252,211,77,0); }
-    50%       { box-shadow: 0 0 0 4px rgba(252,211,77,0.2); }
+    0%,100% { box-shadow: 0 0 0 0 rgba(10,22,40,0); }
+    40%     { box-shadow: 0 0 0 6px rgba(10,22,40,0.2); }
   }
-  .match-pulse { animation: matchPulse 2s ease-in-out infinite; }
-  .my-match    { animation: myMatchGlow 2.5s ease-in-out infinite; }
+  .match-pulse { animation: matchPulse 1.8s ease-in-out infinite; border-width: 1.5px !important; }
+  .my-match    { animation: myMatchGlow 2.2s ease-in-out infinite; }
     0%   { transform: scale(1); }
     30%  { transform: scale(1.4); }
     60%  { transform: scale(0.92); }
@@ -6938,10 +6938,12 @@ function renderKnockout() {
     function pRow(player, won, lost) {
       const rawName = player ? (player.name.split(' ')[0]+' '+player.name.split(' ').slice(-1)[0]) : null;
       const name = rawName ? rawName.replace(/'/g, '&#39;') : null;
-      return `<div style="display:flex;align-items:center;gap:5px;padding:6px 7px;${won?'background:rgba(252,211,77,0.1)':''}${lost?'opacity:0.35':''}">
-        <div style="width:22px;height:22px;border-radius:50%;background:${won?'#854d0e':'rgba(255,255,255,0.1)'};color:${won?'#fcd34d':'rgba(255,255,255,0.7)'};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${player?initials(player.name):'?'}</div>
-        <div style="font-size:11px;font-weight:${won?'700':'500'};color:${won?'#fcd34d':player?'rgba(255,255,255,0.85)':'rgba(255,255,255,0.25)'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:${player?'normal':'italic'}">${name||'TBD'}</div>
-        ${won?'<span style="font-size:10px;color:#fcd34d;font-weight:700;flex-shrink:0">&#10003;</span>':''}
+      const isMe = player && currentUser && currentUser.playerId === player.id;
+      return `<div style="display:flex;align-items:center;gap:5px;padding:6px 7px;${won?'background:#fef8e6':''}${lost?'opacity:0.4':''}">
+        <div style="width:22px;height:22px;border-radius:50%;background:${won?'#B8860B':'#0a1628'};color:#C9A84C;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;${isMe?'border:1.5px solid #C9A84C':''}">${player?initials(player.name):'?'}</div>
+        <div style="font-size:11px;font-weight:${won||isMe?'700':'500'};color:${won?'#633806':player?'#1a1510':'#b4b2a9'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:${player?'normal':'italic'}">${name||'TBD'}</div>
+        ${won?'<span style="font-size:10px;color:#C9A84C;font-weight:700;flex-shrink:0">&#10003;</span>':''}
+        ${isMe&&!won?'<span style="font-size:8px;font-weight:700;background:#0a1628;color:#C9A84C;padding:1px 4px;border-radius:99px;flex-shrink:0">You</span>':''}
       </div>`;
     }
 
@@ -6949,49 +6951,49 @@ function renderKnockout() {
       ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px;background:#0a1628;color:#C9A84C">${m.result}</div>`
       : isPlayoff
       ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px;background:#C9A84C;color:#3a2000">&#9889; PLAYOFF</div>`
-      : `<div style="font-size:9px;text-align:center;padding:2px;background:rgba(0,0,0,0.2);color:rgba(255,255,255,0.3)">${p1&&p2?'Pending':'Awaiting'}</div>`;
+      : `<div style="font-size:9px;text-align:center;padding:2px;background:#f8f5ee;color:#b4b2a9">${p1&&p2?'Pending':'Awaiting'}</div>`;
 
     const availBar = (!isComplete && !m.is_bye && p1 && p2) ? (
       bothAvail
-        ? `<div style="background:rgba(45,122,79,0.25);padding:4px 7px;text-align:center"><span style="font-size:9px;font-weight:700;color:#4caf7d">&#127949; On this week!</span></div>`
-        : `<div style="background:rgba(0,0,0,0.2);padding:4px 7px;display:flex;align-items:center;justify-content:space-between">
+        ? `<div style="background:#dcfce7;padding:4px 7px;text-align:center"><span style="font-size:9px;font-weight:700;color:#166534">On this week!</span></div>`
+        : `<div style="background:#f8f5ee;padding:4px 7px;display:flex;align-items:center;justify-content:space-between">
             <div style="display:flex;gap:3px;align-items:center">
-              <div style="width:7px;height:7px;border-radius:50%;background:${p1Avail?'#2d7a4f':'rgba(255,255,255,0.2)'}"></div>
-              <span style="font-size:9px;color:rgba(255,255,255,0.4)">${p1?p1.name.split(' ')[0]:'P1'}</span>
+              <div style="width:7px;height:7px;border-radius:50%;background:${p1Avail?'#16a34a':'#d1d5db'}"></div>
+              <span style="font-size:9px;color:#888780">${p1?p1.name.split(' ')[0]:'P1'}</span>
             </div>
             <div style="display:flex;gap:3px;align-items:center">
-              <span style="font-size:9px;color:rgba(255,255,255,0.4)">${p2?p2.name.split(' ')[0]:'P2'}</span>
-              <div style="width:7px;height:7px;border-radius:50%;background:${p2Avail?'#2d7a4f':'rgba(255,255,255,0.2)'}"></div>
+              <span style="font-size:9px;color:#888780">${p2?p2.name.split(' ')[0]:'P2'}</span>
+              <div style="width:7px;height:7px;border-radius:50%;background:${p2Avail?'#16a34a':'#d1d5db'}"></div>
             </div>
            </div>`
     ) : '';
 
-    const actionRow = (!isComplete || isAdmin) ? `<div style="display:flex;gap:3px;padding:4px 5px;background:rgba(0,0,0,0.15);border-top:0.5px solid rgba(255,255,255,0.08)">
-      ${isAdmin&&!isComplete&&p1&&p2?`<button onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${isPlayoff?'#C9A84C':'rgba(255,255,255,0.15)'};background:${isPlayoff?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.05)'};color:${isPlayoff?'#C9A84C':'rgba(255,255,255,0.6)'};cursor:pointer;font-family:inherit">${isPlayoff?'&#9889;':'Settle'}</button>`:''}
-      ${isAdmin&&!isComplete?`<button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(201,168,76,0.4);background:rgba(201,168,76,0.08);color:#C9A84C;cursor:pointer;font-family:inherit">Override</button>`:''}
-      ${isAdmin&&isComplete?`<button onclick="showMatchEntry('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);cursor:pointer;font-family:inherit">Edit</button>`:''}
-      ${isAdmin&&isComplete&&m.event_card_id?`<button onclick="viewMatchBreakdown('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);cursor:pointer;font-family:inherit">Holes</button>`:''}
+    const actionRow = (!isComplete || isAdmin) ? `<div style="display:flex;gap:3px;padding:4px 5px;background:#f8f5ee;border-top:0.5px solid #e8e4de">
+      ${isAdmin&&!isComplete&&p1&&p2?`<button onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${isPlayoff?'#C9A84C':'#d1d5db'};background:${isPlayoff?'#C9A84C':'white'};color:${isPlayoff?'#3a2000':'#444441'};cursor:pointer;font-family:inherit">${isPlayoff?'&#9889;':'Settle'}</button>`:''}
+      ${isAdmin&&!isComplete?`<button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid #C9A84C;background:#fef8e6;color:#633806;cursor:pointer;font-family:inherit">Override</button>`:''}
+      ${isAdmin&&isComplete?`<button onclick="showMatchEntry('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid #d1d5db;background:white;color:#444441;cursor:pointer;font-family:inherit">Edit</button>`:''}
+      ${isAdmin&&isComplete&&m.event_card_id?`<button onclick="viewMatchBreakdown('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid #d1d5db;background:white;color:#444441;cursor:pointer;font-family:inherit">Holes</button>`:''}
     </div>` : '';
 
-    if (m.is_bye) return `<div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:7px;overflow:hidden;width:148px">
+    if (m.is_bye) return `<div style="background:#fefdfb;border:1px solid #e8e4de;border-radius:7px;overflow:hidden;width:148px">
       ${pRow(p1,true,false)}
-      <div style="font-size:9px;text-align:center;padding:2px;background:rgba(45,122,79,0.3);color:#6ee7b7;font-weight:700">Bye &#10003;</div>
-      ${isAdmin?`<div style="display:flex;gap:3px;padding:4px 5px;background:rgba(0,0,0,0.2)"><button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(252,211,77,0.4);background:rgba(252,211,77,0.1);color:#fcd34d;cursor:pointer;font-family:inherit">Override</button></div>`:''}
+      <div style="font-size:9px;text-align:center;padding:2px;background:#dcfce7;color:#166534;font-weight:700">Bye &#10003;</div>
+      ${isAdmin?`<div style="display:flex;gap:3px;padding:4px 5px;background:#f8f5ee;border-top:0.5px solid #e8e4de"><button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid #C9A84C;background:#fef8e6;color:#633806;cursor:pointer;font-family:inherit">Override</button></div>`:''}
     </div>`;
 
     const animClass = bothAvail ? 'match-pulse' : isMyMatch ? 'my-match' : '';
-    const cardBg = isMyMatch ? 'rgba(252,211,77,0.08)' : isOnPath ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.07)';
+    const cardBg = '#fefdfb';
     const cardBorderFull = isMyMatch
-      ? 'border:1.5px solid rgba(252,211,77,0.5)'
+      ? 'border:2px solid #0a1628'
       : bothAvail
-      ? 'border:1.5px solid #2d7a4f'
+      ? 'border:1.5px solid #16a34a'
       : isOnPath
-      ? 'border:1px solid rgba(255,255,255,0.2)'
-      : `border:1px solid rgba(255,255,255,0.12);${cardBorder}`;
+      ? 'border:1px solid #888780'
+      : 'border:1px solid #e8e4de';
 
     return `<div class="${animClass}" style="background:${cardBg};${cardBorderFull};border-radius:7px;overflow:hidden;width:148px">
       ${pRow(p1,p1Won,p2Won)}
-      <div style="height:0.5px;background:rgba(255,255,255,0.07)"></div>
+      <div style="height:0.5px;background:#e8e4de"></div>
       ${pRow(p2,p2Won,p1Won)}
       ${statusBar}
       ${availBar}
@@ -7003,13 +7005,13 @@ function renderKnockout() {
   // Key insight: use flex columns, measure after render, then draw SVG connectors
   const r1Count = matches.filter(m=>m.round===1).length;
 
-  // Round header colours — each round has its own identity (Option B)
+  // Round header colours — golf theme with clear contrast
   const ROUND_COLOURS = {
-    1: { bg:'#3b1f6e', color:'#c4b5fd', conn:'rgba(196,181,253,0.3)' },
-    2: { bg:'#1e3a5f', color:'#93c5fd', conn:'rgba(147,197,253,0.3)' },
-    3: { bg:'#1a3a2a', color:'#6ee7b7', conn:'rgba(110,231,183,0.3)' },
-    4: { bg:'#3a2006', color:'#fcd34d', conn:'rgba(252,211,77,0.3)'  },
-    5: { bg:'#7a1f1f', color:'#fca5a5', conn:'rgba(252,165,165,0.3)' },
+    1: { bg:'#0a1628', color:'#C9A84C', conn:'rgba(201,168,76,0.5)' },
+    2: { bg:'#1a3a22', color:'#86efac', conn:'rgba(134,239,172,0.4)' },
+    3: { bg:'#1a3a22', color:'#86efac', conn:'rgba(134,239,172,0.4)' },
+    4: { bg:'#7c4a0a', color:'#fde68a', conn:'rgba(253,230,138,0.4)' },
+    5: { bg:'#7a1a1a', color:'#fca5a5', conn:'rgba(252,165,165,0.4)' },
   };
 
   // Calculate path to final for logged-in player
@@ -7039,8 +7041,8 @@ function renderKnockout() {
     const cards = roundMatches.map((m,i) =>
       `<div style="height:${slotH}px;display:flex;align-items:center;justify-content:center;padding:0 8px;">${matchCard(m)}</div>`
     ).join('');
-    return `<div style="flex-shrink:0;width:164px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden">
-      <div style="background:${rc.bg};color:${rc.color};font-size:9px;font-weight:700;text-align:center;padding:7px 4px;letter-spacing:0.06em;text-transform:uppercase">${ROUND_NAMES[round]||'Round '+round} <span style="opacity:0.5;font-weight:400">${doneCount}/${roundMatches.length}</span></div>
+    return `<div style="flex-shrink:0;width:164px;background:white;border:1px solid #d8d4cc;border-radius:10px;overflow:hidden">
+      <div style="background:${rc.bg};color:${rc.color};font-size:9px;font-weight:700;text-align:center;padding:7px 4px;letter-spacing:0.06em;text-transform:uppercase">${ROUND_NAMES[round]||'Round '+round} <span style="opacity:0.6;font-weight:400">${doneCount}/${roundMatches.length}</span></div>
       <div style="padding:4px 0">${cards}</div>
     </div>`;
   });
@@ -7076,10 +7078,10 @@ function renderKnockout() {
     <line x1="0" y1="${totalH/2}" x2="32" y2="${totalH/2}" stroke="${finalRc.conn}" stroke-width="1.5"/>
   </svg>`;
 
-  const trophyCol = `<div style="flex-shrink:0;width:60px;height:${totalH}px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+  const trophyCol = `<div style="flex-shrink:0;width:60px;height:${totalH+28}px;display:flex;flex-direction:column;align-items:center;justify-content:center">
     <div style="font-size:28px">&#127942;</div>
-    <div style="font-size:10px;font-weight:700;color:${champion?'#fcd34d':'rgba(255,255,255,0.25)'};margin-top:4px;text-align:center">${champion?champion.name.split(' ')[0]:'TBD'}</div>
-    <div style="font-size:9px;color:rgba(255,255,255,0.25)">Champion</div>
+    <div style="font-size:10px;font-weight:700;color:${champion?'#C9A84C':'rgba(255,255,255,0.4)'};margin-top:4px;text-align:center">${champion?champion.name.split(' ')[0]:'TBD'}</div>
+    <div style="font-size:9px;color:rgba(255,255,255,0.35)">Champion</div>
   </div>`;
 
   let bracketHtml = '';
@@ -7090,14 +7092,14 @@ function renderKnockout() {
   bracketHtml += finalConnSVG + trophyCol;
 
   const championHtml = champion ? `
-    <div style="text-align:center;margin-bottom:1.25rem;padding:1rem;background:linear-gradient(135deg,#1a0a00,#3a1a00);border-radius:var(--radius);border:1px solid rgba(252,211,77,0.35)">
+    <div style="text-align:center;margin-bottom:1.25rem;padding:1rem;background:linear-gradient(135deg,#0a1628,#1a2e1a);border-radius:var(--radius);border:1px solid rgba(201,168,76,0.4)">
       <div style="font-size:28px;margin-bottom:4px">&#127942;</div>
-      <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#fcd34d">${champion.name}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">Knockout Champion</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#C9A84C">${champion.name}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">Knockout Champion</div>
     </div>` : '';
 
   el.innerHTML = adminBtns + championHtml + `
-    <div style="background:#111827;border-radius:var(--radius-lg);padding:16px 8px 20px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px">
+    <div style="background:#1a2e1a;border-radius:var(--radius-lg);padding:16px 8px 20px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px">
       <div style="display:flex;align-items:flex-start;gap:0;min-width:max-content;padding:4px 8px 8px">
         ${bracketHtml}
       </div>
