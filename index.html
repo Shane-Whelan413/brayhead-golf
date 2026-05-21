@@ -6703,10 +6703,6 @@ function renderKnockout() {
   const matches = db.knockout_matches;
   const rounds = [...new Set(matches.map(m=>m.round))].sort((a,b)=>a-b);
   const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
-  const CARD_H = 82;   // height of one match card in px
-  const CARD_GAP = 12; // gap between cards in px
-  const COL_W = 148;   // width of each round column
-  const CONN_W = 32;   // width of connector column
 
   const adminBtns = isAdmin ? `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
@@ -6724,7 +6720,6 @@ function renderKnockout() {
   const finalMatch = matches.find(m=>m.round===Math.max(...rounds));
   const champion = finalMatch?.winner_id ? db.players.find(p=>p.id===finalMatch.winner_id) : null;
 
-  // Build a match card HTML
   function matchCard(m) {
     const p1 = m.player1_id ? db.players.find(p=>p.id===m.player1_id) : null;
     const p2 = m.player2_id ? db.players.find(p=>p.id===m.player2_id) : null;
@@ -6732,142 +6727,127 @@ function renderKnockout() {
     const p2Won = m.winner_id && m.winner_id===m.player2_id;
     const isComplete = m.status==='complete';
     const isPlayoff = m.status==='playoff';
+    const cardBorder = isComplete?'border-color:rgba(201,168,76,0.4)':isPlayoff?'border-color:#C9A84C':'';
 
-    const cardBorder = isComplete ? 'border-color:rgba(201,168,76,0.4)' : isPlayoff ? 'border-color:#C9A84C' : '';
-
-    function playerRow(player, won, lost) {
-      if (!player) return `<div style="display:flex;align-items:center;gap:5px;padding:6px 7px;${lost?'opacity:0.4':''}">
-        <div style="width:22px;height:22px;border-radius:50%;background:#333;color:#777;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">?</div>
-        <div style="font-size:11px;color:var(--text-3);font-style:italic">TBD</div>
-      </div>`;
-      const name = player.name.split(' ');
-      const shortName = name[0] + (name.length>1?' '+name[name.length-1]:'');
+    function pRow(player, won, lost) {
+      const name = player ? (player.name.split(' ')[0]+' '+player.name.split(' ').slice(-1)[0]) : null;
       return `<div style="display:flex;align-items:center;gap:5px;padding:6px 7px;${won?'background:rgba(201,168,76,0.1)':''}${lost?'opacity:0.4':''}">
-        <div style="width:22px;height:22px;border-radius:50%;background:${won?'#B8860B':'#0a1628'};color:#C9A84C;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${initials(player.name)}</div>
-        <div style="font-size:11px;font-weight:${won?'700':'500'};color:${won?'#8a6a1a':'var(--text)'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${shortName}</div>
+        <div style="width:22px;height:22px;border-radius:50%;background:${won?'#B8860B':player?'#0a1628':'#444'};color:${player?'#C9A84C':'#888'};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${player?initials(player.name):'?'}</div>
+        <div style="font-size:11px;font-weight:${won?'700':'500'};color:${won?'#8a6a1a':player?'var(--text)':'var(--text-3)'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:${player?'normal':'italic'}">${name||'TBD'}</div>
         ${won?'<span style="font-size:10px;color:#C9A84C;font-weight:700;flex-shrink:0">✓</span>':''}
       </div>`;
     }
 
-    const statusBar = isComplete && m.result
-      ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px 4px;background:#0a1628;color:#C9A84C">${m.result}</div>`
+    const statusBar = isComplete&&m.result
+      ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px;background:#0a1628;color:#C9A84C">${m.result}</div>`
       : isPlayoff
-      ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px 4px;background:#C9A84C;color:#3a2000">⚡ PLAYOFF</div>`
-      : `<div style="font-size:9px;text-align:center;padding:2px 4px;background:var(--bg);color:var(--text-3)">${p1&&p2?'Pending':'TBD'}</div>`;
+      ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px;background:#C9A84C;color:#3a2000">⚡ PLAYOFF</div>`
+      : `<div style="font-size:9px;text-align:center;padding:2px;background:var(--bg);color:var(--text-3)">${p1&&p2?'Pending':'Awaiting'}</div>`;
 
     const adminRow = isAdmin ? `<div style="display:flex;gap:3px;padding:4px 5px;background:var(--bg);border-top:0.5px solid var(--border)">
-      ${!isComplete&&p1&&p2?`<button onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${isPlayoff?'#C9A84C':'var(--border)'};background:${isPlayoff?'#C9A84C':'var(--bg)'};color:${isPlayoff?'#3a2000':'var(--text-2)'};cursor:pointer;font-family:inherit">${isPlayoff?'⚡':'Settle'}</button>`:''}
+      ${!isComplete&&p1&&p2?`<button onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${isPlayoff?'#C9A84C':'var(--border)'};background:${isPlayoff?'#C9A84C':'var(--bg)'};color:${isPlayoff?'#3a2000':'var(--text-2)'};cursor:pointer;font-family:inherit">${isPlayoff?'⚡ Resolve':'Settle'}</button>`:''}
       ${!isComplete?`<button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid #C9A84C;background:#fef8e6;color:#8a6a1a;cursor:pointer;font-family:inherit">Override</button>`:''}
       ${isComplete?`<button onclick="showMatchEntry('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text-2);cursor:pointer;font-family:inherit">Edit</button>`:''}
       ${isComplete&&m.event_card_id?`<button onclick="viewMatchBreakdown('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text-2);cursor:pointer;font-family:inherit">Holes</button>`:''}
     </div>` : '';
 
-    if (m.is_bye) return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-      ${playerRow(p1,true,false)}
-      <div style="font-size:9px;text-align:center;padding:2px 4px;background:rgba(45,122,79,0.08);color:#2d7a4f;font-weight:700">Bye ✓</div>
+    if (m.is_bye) return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;width:148px">
+      ${pRow(p1,true,false)}
+      <div style="font-size:9px;text-align:center;padding:2px;background:rgba(45,122,79,0.08);color:#2d7a4f;font-weight:700">Bye ✓</div>
       ${adminRow}
     </div>`;
 
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;${cardBorder}">
-      ${playerRow(p1,p1Won,p2Won)}
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;width:148px;${cardBorder}">
+      ${pRow(p1,p1Won,p2Won)}
       <div style="height:0.5px;background:var(--border)"></div>
-      ${playerRow(p2,p2Won,p1Won)}
+      ${pRow(p2,p2Won,p1Won)}
       ${statusBar}
       ${adminRow}
     </div>`;
   }
 
-  // Calculate vertical positions for each match in each round
-  // Round 1 = base spacing, each subsequent round doubles spacing
-  function getMatchPositions(round, roundMatches, maxRound1Count) {
-    const r1Count = matches.filter(m=>m.round===1).length;
-    const slotHeight = CARD_H + CARD_GAP;
-    // Each round halves the number of matches, doubling the slot spacing
-    const slotsPerMatch = Math.pow(2, round - 1);
-    const totalSlotHeight = slotsPerMatch * slotHeight;
-    return roundMatches.map((m, i) => {
-      const top = i * totalSlotHeight + (totalSlotHeight - CARD_H) / 2;
-      return { match: m, top };
-    });
-  }
+  // Build bracket using a JS-rendered approach with a canvas-like SVG overlay
+  // Key insight: use flex columns, measure after render, then draw SVG connectors
+  const r1Count = matches.filter(m=>m.round===1).length;
 
-  const r1Matches = matches.filter(m=>m.round===1).length;
-  const totalHeight = r1Matches * (CARD_H + CARD_GAP);
-
-  // Build SVG connectors between rounds
-  function buildConnectorSVG(fromRound, toRound) {
-    const fromMatches = matches.filter(m=>m.round===fromRound).sort((a,b)=>a.match_number-b.match_number);
-    const toMatches   = matches.filter(m=>m.round===toRound).sort((a,b)=>a.match_number-b.match_number);
-    const fromPositions = getMatchPositions(fromRound, fromMatches, r1Matches);
-    const toPositions   = getMatchPositions(toRound,   toMatches,   r1Matches);
-
-    const lines = [];
-    // Each pair of fromMatches connects to one toMatch
-    for (let i=0; i<toPositions.length; i++) {
-      const top1 = fromPositions[i*2]?.top + CARD_H/2;
-      const top2 = fromPositions[i*2+1]?.top + CARD_H/2;
-      const toTop = toPositions[i]?.top + CARD_H/2;
-      if (top1 === undefined) continue;
-
-      // Line from match 1 right edge to midpoint
-      lines.push(`<line x1="0" y1="${top1}" x2="${CONN_W/2}" y2="${top1}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
-      if (top2 !== undefined) {
-        // Line from match 2 right edge to midpoint
-        lines.push(`<line x1="0" y1="${top2}" x2="${CONN_W/2}" y2="${top2}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
-        // Vertical connector between them
-        lines.push(`<line x1="${CONN_W/2}" y1="${top1}" x2="${CONN_W/2}" y2="${top2}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
-      }
-      // Line from midpoint to next match
-      lines.push(`<line x1="${CONN_W/2}" y1="${toTop}" x2="${CONN_W}" y2="${toTop}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
-    }
-    return `<svg width="${CONN_W}" height="${totalHeight}" style="flex-shrink:0;overflow:visible">${lines.join('')}</svg>`;
-  }
-
-  // Build round columns
+  // Build each round column as flex
   const roundCols = rounds.map(round => {
     const roundMatches = matches.filter(m=>m.round===round).sort((a,b)=>a.match_number-b.match_number);
-    const positions = getMatchPositions(round, roundMatches, r1Matches);
-    const cards = positions.map(({match:m, top}) =>
-      `<div style="position:absolute;top:${top}px;left:0;right:0">${matchCard(m)}</div>`
-    ).join('');
-
     const doneCount = roundMatches.filter(m=>m.status==='complete').length;
-    return `<div style="flex-shrink:0;width:${COL_W}px">
-      <div style="background:#0a1628;color:#C9A84C;font-size:9px;font-weight:700;text-align:center;padding:5px 4px;border-radius:6px 6px 0 0;letter-spacing:0.06em;text-transform:uppercase">${ROUND_NAMES[round]||'Round '+round} <span style="opacity:0.5;font-weight:400">${doneCount}/${roundMatches.length}</span></div>
-      <div style="position:relative;height:${totalHeight}px">
-        ${cards}
-      </div>
+    // Each round: matches are spaced with equal gaps, vertically centered in their slots
+    // Slot size doubles each round
+    const slotsPerMatch = Math.pow(2, round-1);
+    const r1SlotH = 160; // px per round-1 slot (card + gap)
+    const slotH = slotsPerMatch * r1SlotH;
+    const cards = roundMatches.map((m,i) => {
+      const topPad = (slotH - 0) / 2; // center card in slot
+      return `<div style="height:${slotH}px;display:flex;align-items:center;justify-content:center;" data-match="${m.id}" data-round="${round}" data-idx="${i}">
+        ${matchCard(m)}
+      </div>`;
+    }).join('');
+
+    return `<div style="flex-shrink:0;width:148px">
+      <div style="background:#0a1628;color:#C9A84C;font-size:9px;font-weight:700;text-align:center;padding:5px 4px;border-radius:6px 6px 0 0;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0">${ROUND_NAMES[round]||'Round '+round} <span style="opacity:0.5;font-weight:400">${doneCount}/${roundMatches.length}</span></div>
+      ${cards}
     </div>`;
   });
 
-  // Interleave columns and connectors
+  // SVG connector columns between rounds
+  const r1SlotH = 160;
+  const totalH = r1Count * r1SlotH;
+
+  function connectorSVG(fromRound, toRound) {
+    const fromCount = matches.filter(m=>m.round===fromRound).length;
+    const toCount   = matches.filter(m=>m.round===toRound).length;
+    const fromSlotH = Math.pow(2, fromRound-1) * r1SlotH;
+    const toSlotH   = Math.pow(2, toRound-1)   * r1SlotH;
+    const lines = [];
+    for (let i=0; i<toCount; i++) {
+      const top1 = i*2     * fromSlotH + fromSlotH/2;
+      const top2 = (i*2+1) * fromSlotH + fromSlotH/2;
+      const toY  = i       * toSlotH   + toSlotH/2;
+      const midX = 16;
+      // from match 1
+      lines.push(`<line x1="0" y1="${top1}" x2="${midX}" y2="${top1}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
+      // from match 2 (may not exist if odd number)
+      if (i*2+1 < fromCount) {
+        lines.push(`<line x1="0" y1="${top2}" x2="${midX}" y2="${top2}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
+        // vertical join
+        lines.push(`<line x1="${midX}" y1="${top1}" x2="${midX}" y2="${top2}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
+      }
+      // to next match
+      lines.push(`<line x1="${midX}" y1="${toY}" x2="32" y2="${toY}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
+    }
+    return `<svg width="32" height="${totalH}" style="flex-shrink:0" overflow="visible">${lines.join('')}</svg>`;
+  }
+
+  // Final connector to trophy
+  const finalConnSVG = `<svg width="32" height="${totalH}" style="flex-shrink:0" overflow="visible">
+    <line x1="0" y1="${totalH/2}" x2="32" y2="${totalH/2}" stroke="var(--border-strong)" stroke-width="1.5"/>
+  </svg>`;
+
+  // Trophy col
+  const trophyCol = `<div style="flex-shrink:0;width:60px;height:${totalH}px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+    <div style="font-size:28px">🏆</div>
+    <div style="font-size:10px;font-weight:700;color:${champion?'#C9A84C':'var(--text-3)'};margin-top:4px;text-align:center">${champion?champion.name.split(' ')[0]:'TBD'}</div>
+    <div style="font-size:9px;color:var(--text-3)">Champion</div>
+  </div>`;
+
+  // Interleave round cols and connectors
   let bracketHtml = '';
   for (let i=0; i<rounds.length; i++) {
     bracketHtml += roundCols[i];
     if (i < rounds.length-1) {
-      bracketHtml += buildConnectorSVG(rounds[i], rounds[i+1]);
+      bracketHtml += connectorSVG(rounds[i], rounds[i+1]);
     }
   }
-
-  // Trophy column
-  const champTop = totalHeight/2 - 40;
-  bracketHtml += `
-    <svg width="${CONN_W}" height="${totalHeight}" style="flex-shrink:0;overflow:visible">
-      <line x1="0" y1="${totalHeight/2}" x2="${CONN_W}" y2="${totalHeight/2}" stroke="var(--border-strong)" stroke-width="1.5"/>
-    </svg>
-    <div style="flex-shrink:0;width:64px;position:relative;height:${totalHeight}px">
-      <div style="position:absolute;top:${champTop}px;width:64px;text-align:center">
-        <div style="font-size:28px">${champion?'🏆':'🏆'}</div>
-        <div style="font-size:10px;font-weight:700;color:${champion?'#C9A84C':'var(--text-3)'};margin-top:4px">${champion?champion.name.split(' ')[0]:'TBD'}</div>
-        <div style="font-size:9px;color:var(--text-3)">Champion</div>
-      </div>
-    </div>`;
+  bracketHtml += finalConnSVG + trophyCol;
 
   const championHtml = champion ? `
     <div style="text-align:center;margin-bottom:1.25rem;padding:1rem;background:linear-gradient(135deg,#0a1628,#162338);border-radius:var(--radius);border:1px solid rgba(201,168,76,0.3)">
       <div style="font-size:28px;margin-bottom:4px">🏆</div>
       <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#C9A84C">${champion.name}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">2025 Knockout Champion</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">Knockout Champion</div>
     </div>` : '';
 
   el.innerHTML = adminBtns + championHtml + `
@@ -6877,6 +6857,7 @@ function renderKnockout() {
       </div>
     </div>`;
 }
+
 
 
 
