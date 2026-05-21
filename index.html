@@ -353,7 +353,16 @@
     from { opacity: 0; transform: translateX(-40px); }
     to   { opacity: 1; transform: translateX(0); }
   }
-  @keyframes scoreBounce {
+  @keyframes matchPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(45,122,79,0); }
+    50%       { box-shadow: 0 0 0 4px rgba(45,122,79,0.25); }
+  }
+  @keyframes myMatchGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(252,211,77,0); }
+    50%       { box-shadow: 0 0 0 4px rgba(252,211,77,0.2); }
+  }
+  .match-pulse { animation: matchPulse 2s ease-in-out infinite; }
+  .my-match    { animation: myMatchGlow 2.5s ease-in-out infinite; }
     0%   { transform: scale(1); }
     30%  { transform: scale(1.4); }
     60%  { transform: scale(0.92); }
@@ -6923,6 +6932,8 @@ function renderKnockout() {
     const myPid    = currentUser&&currentUser.playerId;
     const iAmP1    = myPid && m.player1_id===myPid;
     const iAmP2    = myPid && m.player2_id===myPid;
+    const isMyMatch = iAmP1 || iAmP2;
+    const isOnPath  = (window._koPathIds||new Set()).has(m.id);
 
     function pRow(player, won, lost) {
       const rawName = player ? (player.name.split(' ')[0]+' '+player.name.split(' ').slice(-1)[0]) : null;
@@ -6962,13 +6973,23 @@ function renderKnockout() {
       ${isAdmin&&isComplete&&m.event_card_id?`<button onclick="viewMatchBreakdown('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);cursor:pointer;font-family:inherit">Holes</button>`:''}
     </div>` : '';
 
-    if (m.is_bye) return `<div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:7px;overflow:hidden;width:148px">
+    if (m.is_bye) return `<div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:7px;overflow:hidden;width:148px">
       ${pRow(p1,true,false)}
       <div style="font-size:9px;text-align:center;padding:2px;background:rgba(45,122,79,0.3);color:#6ee7b7;font-weight:700">Bye &#10003;</div>
       ${isAdmin?`<div style="display:flex;gap:3px;padding:4px 5px;background:rgba(0,0,0,0.2)"><button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(252,211,77,0.4);background:rgba(252,211,77,0.1);color:#fcd34d;cursor:pointer;font-family:inherit">Override</button></div>`:''}
     </div>`;
 
-    return `<div style="background:rgba(255,255,255,0.06);border:1px solid ${bothAvail?'#2d7a4f':'rgba(255,255,255,0.1)'};border-radius:7px;overflow:hidden;width:148px;${cardBorder}">
+    const animClass = bothAvail ? 'match-pulse' : isMyMatch ? 'my-match' : '';
+    const cardBg = isMyMatch ? 'rgba(252,211,77,0.08)' : isOnPath ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.07)';
+    const cardBorderFull = isMyMatch
+      ? 'border:1.5px solid rgba(252,211,77,0.5)'
+      : bothAvail
+      ? 'border:1.5px solid #2d7a4f'
+      : isOnPath
+      ? 'border:1px solid rgba(255,255,255,0.2)'
+      : `border:1px solid rgba(255,255,255,0.12);${cardBorder}`;
+
+    return `<div class="${animClass}" style="background:${cardBg};${cardBorderFull};border-radius:7px;overflow:hidden;width:148px">
       ${pRow(p1,p1Won,p2Won)}
       <div style="height:0.5px;background:rgba(255,255,255,0.07)"></div>
       ${pRow(p2,p2Won,p1Won)}
@@ -6991,6 +7012,23 @@ function renderKnockout() {
     5: { bg:'#7a1f1f', color:'#fca5a5', conn:'rgba(252,165,165,0.3)' },
   };
 
+  // Calculate path to final for logged-in player
+  window._koPathIds = new Set();
+  if (currentUser && currentUser.playerId) {
+    const pid = currentUser.playerId;
+    let searchPid = pid;
+    for (const round of rounds) {
+      const m = matches.find(x =>
+        x.round===round && (x.player1_id===searchPid || x.player2_id===searchPid)
+      );
+      if (m) {
+        window._koPathIds.add(m.id);
+        if (m.winner_id) searchPid = m.winner_id;
+        else break;
+      }
+    }
+  }
+
   const roundCols = rounds.map(round => {
     const roundMatches = matches.filter(m=>m.round===round).sort((a,b)=>a.match_number-b.match_number);
     const doneCount = roundMatches.filter(m=>m.status==='complete').length;
@@ -7001,7 +7039,7 @@ function renderKnockout() {
     const cards = roundMatches.map((m,i) =>
       `<div style="height:${slotH}px;display:flex;align-items:center;justify-content:center;padding:0 8px;">${matchCard(m)}</div>`
     ).join('');
-    return `<div style="flex-shrink:0;width:164px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden">
+    return `<div style="flex-shrink:0;width:164px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden">
       <div style="background:${rc.bg};color:${rc.color};font-size:9px;font-weight:700;text-align:center;padding:7px 4px;letter-spacing:0.06em;text-transform:uppercase">${ROUND_NAMES[round]||'Round '+round} <span style="opacity:0.5;font-weight:400">${doneCount}/${roundMatches.length}</span></div>
       <div style="padding:4px 0">${cards}</div>
     </div>`;
