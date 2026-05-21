@@ -6853,7 +6853,7 @@ function renderKnockout() {
     }).join('');
 
     return `<div style="flex-shrink:0;width:148px">
-      <div style="background:#0a1628;color:#C9A84C;font-size:9px;font-weight:700;text-align:center;padding:5px 4px;border-radius:6px 6px 0 0;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0">${ROUND_NAMES[round]||'Round '+round} <span style="opacity:0.5;font-weight:400">${doneCount}/${roundMatches.length}</span></div>
+      <div style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.25);color:#C9A84C;font-size:9px;font-weight:700;text-align:center;padding:5px 4px;border-radius:6px 6px 0 0;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0">${ROUND_NAMES[round]||'Round '+round} <span style="opacity:0.5;font-weight:400">${doneCount}/${roundMatches.length}</span></div>
       ${cards}
     </div>`;
   });
@@ -6874,29 +6874,29 @@ function renderKnockout() {
       const toY  = i       * toSlotH   + toSlotH/2;
       const midX = 16;
       // from match 1
-      lines.push(`<line x1="0" y1="${top1}" x2="${midX}" y2="${top1}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
+      lines.push(`<line x1="0" y1="${top1}" x2="${midX}" y2="${top1}" stroke="rgba(201,168,76,0.45)" stroke-width="1.5"/>`);
       // from match 2 (may not exist if odd number)
       if (i*2+1 < fromCount) {
-        lines.push(`<line x1="0" y1="${top2}" x2="${midX}" y2="${top2}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
+        lines.push(`<line x1="0" y1="${top2}" x2="${midX}" y2="${top2}" stroke="rgba(201,168,76,0.45)" stroke-width="1.5"/>`);
         // vertical join
-        lines.push(`<line x1="${midX}" y1="${top1}" x2="${midX}" y2="${top2}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
+        lines.push(`<line x1="${midX}" y1="${top1}" x2="${midX}" y2="${top2}" stroke="rgba(201,168,76,0.45)" stroke-width="1.5"/>`);
       }
       // to next match
-      lines.push(`<line x1="${midX}" y1="${toY}" x2="32" y2="${toY}" stroke="var(--border-strong)" stroke-width="1.5"/>`);
+      lines.push(`<line x1="${midX}" y1="${toY}" x2="32" y2="${toY}" stroke="rgba(201,168,76,0.45)" stroke-width="1.5"/>`);
     }
     return `<svg width="32" height="${totalH}" style="flex-shrink:0" overflow="visible">${lines.join('')}</svg>`;
   }
 
   // Final connector to trophy
   const finalConnSVG = `<svg width="32" height="${totalH}" style="flex-shrink:0" overflow="visible">
-    <line x1="0" y1="${totalH/2}" x2="32" y2="${totalH/2}" stroke="var(--border-strong)" stroke-width="1.5"/>
+    <line x1="0" y1="${totalH/2}" x2="32" y2="${totalH/2}" stroke="rgba(201,168,76,0.45)" stroke-width="1.5"/>
   </svg>`;
 
   // Trophy col
   const trophyCol = `<div style="flex-shrink:0;width:60px;height:${totalH}px;display:flex;flex-direction:column;align-items:center;justify-content:center">
     <div style="font-size:28px">🏆</div>
-    <div style="font-size:10px;font-weight:700;color:${champion?'#C9A84C':'var(--text-3)'};margin-top:4px;text-align:center">${champion?champion.name.split(' ')[0]:'TBD'}</div>
-    <div style="font-size:9px;color:var(--text-3)">Champion</div>
+    <div style="font-size:10px;font-weight:700;color:${champion?'#C9A84C':'rgba(255,255,255,0.3)'};margin-top:4px;text-align:center">${champion?champion.name.split(' ')[0]:'TBD'}</div>
+    <div style="font-size:9px;color:rgba(255,255,255,0.3)">Champion</div>
   </div>`;
 
   // Interleave round cols and connectors
@@ -6917,8 +6917,8 @@ function renderKnockout() {
     </div>` : '';
 
   el.innerHTML = adminBtns + championHtml + `
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:1rem">
-      <div style="display:flex;align-items:flex-start;min-width:max-content;padding:4px 0 8px">
+    <div style="background:linear-gradient(160deg,#0a1628 0%,#162338 100%);border-radius:var(--radius-lg);padding:16px 8px 20px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px">
+      <div style="display:flex;align-items:flex-start;min-width:max-content;padding:4px 8px 8px">
         ${bracketHtml}
       </div>
     </div>`;
