@@ -4126,11 +4126,32 @@ function renderHome() {
   }
 
   const feed = document.getElementById('noticeboard-feed');
+
+  // Active knockout matches this week banner
+  const activeMatches = db.knockout_matches.filter(m =>
+    !m.is_bye && m.status === 'pending' &&
+    isAvailabilityFresh(m) && m.p1_available && m.p2_available
+  );
+  const activeBanner = activeMatches.length ? `
+    <div style="background:linear-gradient(135deg,#0a1628,#162338);border-radius:var(--radius);padding:12px 14px;margin-bottom:1rem;border:1px solid rgba(45,122,79,0.4)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:14px">🏌️</span>
+        <div style="font-size:13px;font-weight:600;color:white">${activeMatches.length} knockout match${activeMatches.length!==1?'es':''} on this week</div>
+      </div>
+      ${activeMatches.map(m => {
+        const p1 = db.players.find(p=>p.id===m.player1_id);
+        const p2 = db.players.find(p=>p.id===m.player2_id);
+        return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-top:0.5px solid rgba(255,255,255,0.08)">
+          <span style="font-size:11px;color:rgba(255,255,255,0.7)">${p1?p1.name.split(' ')[0]:'?'} <span style="color:rgba(255,255,255,0.35)">vs</span> ${p2?p2.name.split(' ')[0]:'?'}</span>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
   if (!db.noticeboard.length) {
-    feed.innerHTML = `<div class="empty" style="padding:3rem;color:var(--text-2)">No updates yet — check back after the next round!</div>`;
+    feed.innerHTML = activeBanner + `<div class="empty" style="padding:3rem;color:var(--text-2)">No updates yet — check back after the next round!</div>`;
     return;
   }
-  feed.innerHTML = db.noticeboard.map(n => {
+  feed.innerHTML = activeBanner + db.noticeboard.map(n => {
     // Knockout results post
     if (n.post_type === 'knockout_results') {
       const matches = n.fixture_matches || [];
@@ -6762,6 +6783,54 @@ async function applyAdvanceOverride(mid) {
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
+function getCurrentWeekStr() {
+  const now = new Date();
+  const jan1 = new Date(now.getFullYear(), 0, 1);
+  const week = Math.ceil(((now - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+  return now.getFullYear() + '-W' + String(week).padStart(2, '0');
+}
+
+function isAvailabilityFresh(m) {
+  return m.availability_week === getCurrentWeekStr();
+}
+
+async function toggleMatchAvailability(mid) {
+  haptic();
+  if (!currentUser || !currentUser.playerId) { toast('You need to be logged in', 'error'); return; }
+  const m = db.knockout_matches.find(x=>x.id===mid);
+  if (!m) return;
+
+  const pid = currentUser.playerId;
+  const isP1 = m.player1_id === pid;
+  const isP2 = m.player2_id === pid;
+  if (!isP1 && !isP2) { toast("This isn't your match", 'error'); return; }
+
+  const week = getCurrentWeekStr();
+  const fresh = isAvailabilityFresh(m);
+
+  // If week changed, reset both before toggling
+  const currentVal = isP1
+    ? (fresh ? m.p1_available : false)
+    : (fresh ? m.p2_available : false);
+
+  const newVal = !currentVal;
+  const field = isP1 ? 'p1_available' : 'p2_available';
+
+  // If week is stale, reset both and set this player's new value
+  const update = fresh
+    ? { [field]: newVal, availability_week: week }
+    : { p1_available: isP1 ? newVal : false, p2_available: isP2 ? newVal : false, availability_week: week };
+
+  try {
+    await patch(`knockout_matches?id=eq.${mid}`, update);
+    await loadAll(); renderAll();
+    const bothOn = newVal && (fresh ? (isP1 ? m.p2_available : m.p1_available) : false);
+    if (bothOn) toast("Both players available this week — match is on! 🏌️", 'success');
+    else if (newVal) toast("Marked as available — waiting for your opponent", 'success');
+    else toast("Availability removed", 'success');
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
 function renderKnockout() {
   const el = document.getElementById('knockout-content');
   if (!el) return;
@@ -6804,12 +6873,40 @@ function renderKnockout() {
       </div>`;
     }
 
-    const statusBar = isComplete&&m.result
-      ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px;background:#0a1628;color:#C9A84C">${m.result}</div>`
-      : isPlayoff
-      ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px;background:#C9A84C;color:#3a2000">⚡ PLAYOFF</div>`
-      : `<div style="font-size:9px;text-align:center;padding:2px;background:var(--bg);color:var(--text-3)">${p1&&p2?'Pending':'Awaiting'}</div>`;
+    const fresh = isAvailabilityFresh(m);
+    const p1Avail = fresh && m.p1_available;
+    const p2Avail = fresh && m.p2_available;
+    const bothAvail = p1Avail && p2Avail;
+    const myPid = currentUser?.playerId;
+    const iAmP1 = myPid && m.player1_id === myPid;
+    const iAmP2 = myPid && m.player2_id === myPid;
+    const iAmInMatch = iAmP1 || iAmP2;
+    const myAvail = iAmP1 ? p1Avail : iAmP2 ? p2Avail : false;
 
+    // Availability bar — only show for pending matches with both players
+    const availBar = (!isComplete && !m.is_bye && p1 && p2) ? (() => {
+      if (bothAvail) return `
+        <div style="background:linear-gradient(90deg,rgba(45,122,79,0.9),rgba(45,122,79,0.7));padding:5px 7px;display:flex;align-items:center;gap:5px">
+          <span style="font-size:10px">🏌️</span>
+          <span style="font-size:10px;font-weight:700;color:white">On this week!</span>
+        </div>`;
+      return `<div style="background:rgba(0,0,0,0.15);padding:4px 7px;display:flex;align-items:center;justify-content:space-between;gap:4px">
+        <div style="display:flex;gap:4px;align-items:center">
+          <div style="width:8px;height:8px;border-radius:50%;background:${p1Avail?'#2d7a4f':'rgba(255,255,255,0.2)'}"></div>
+          <span style="font-size:9px;color:rgba(255,255,255,0.5)">${p1?p1.name.split(' ')[0]:'P1'}</span>
+        </div>
+        <span style="font-size:9px;color:rgba(255,255,255,0.25)">vs</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <span style="font-size:9px;color:rgba(255,255,255,0.5)">${p2?p2.name.split(' ')[0]:'P2'}</span>
+          <div style="width:8px;height:8px;border-radius:50%;background:${p2Avail?'#2d7a4f':'rgba(255,255,255,0.2)'}"></div>
+        </div>
+      </div>`;
+    })() : '';
+
+    const availBtn = (!isComplete && !m.is_bye && iAmInMatch) ? `
+      <button onclick="toggleMatchAvailability('${mid}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${myAvail?'#2d7a4f':'rgba(201,168,76,0.4)'};background:${myAvail?'rgba(45,122,79,0.15)':'rgba(201,168,76,0.08)'};color:${myAvail?'#2d7a4f':'#C9A84C'};cursor:pointer;font-family:inherit;font-weight:600">
+        ${myAvail?'✓ Available':'Available?'}
+      </button>` : '';
     const adminRow = isAdmin ? `<div style="display:flex;gap:3px;padding:4px 5px;background:var(--bg);border-top:0.5px solid var(--border)">
       ${!isComplete&&p1&&p2?`<button onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${isPlayoff?'#C9A84C':'var(--border)'};background:${isPlayoff?'#C9A84C':'var(--bg)'};color:${isPlayoff?'#3a2000':'var(--text-2)'};cursor:pointer;font-family:inherit">${isPlayoff?'⚡ Resolve':'Settle'}</button>`:''}
       ${!isComplete?`<button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid #C9A84C;background:#fef8e6;color:#8a6a1a;cursor:pointer;font-family:inherit">Override</button>`:''}
@@ -6823,12 +6920,16 @@ function renderKnockout() {
       ${adminRow}
     </div>`;
 
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;width:148px;${cardBorder}">
+    return `<div style="background:var(--surface);border:1px solid ${bothAvail?'#2d7a4f':'var(--border)'};border-radius:var(--radius);overflow:hidden;width:148px;${cardBorder}${bothAvail?'box-shadow:0 0 0 1px rgba(45,122,79,0.3)':''}">
       ${pRow(p1,p1Won,p2Won)}
       <div style="height:0.5px;background:var(--border)"></div>
       ${pRow(p2,p2Won,p1Won)}
       ${statusBar}
-      ${adminRow}
+      ${availBar}
+      ${(!isComplete && !m.is_bye && (iAmInMatch || isAdmin)) ? `<div style="display:flex;gap:3px;padding:4px 5px;background:rgba(0,0,0,0.2);border-top:0.5px solid rgba(255,255,255,0.05)">
+        ${availBtn}
+        ${adminRow ? adminRow.replace('<div style="display:flex;gap:3px;padding:4px 5px;background:var(--bg);border-top:0.5px solid var(--border)">', '').replace('</div>', '') : ''}
+      </div>` : adminRow}
     </div>`;
   }
 
