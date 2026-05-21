@@ -6898,6 +6898,25 @@ async function toggleMatchAvailability(mid) {
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
+function toggleKoAdminMenu() {
+  haptic();
+  const menu = document.getElementById('ko-admin-menu');
+  if (!menu) return;
+  const open = menu.style.display === 'none';
+  menu.style.display = open ? '' : 'none';
+  if (open) {
+    // Close when clicking outside
+    setTimeout(() => {
+      document.addEventListener('click', function closeMenu(e) {
+        if (!menu.contains(e.target)) {
+          menu.style.display = 'none';
+          document.removeEventListener('click', closeMenu);
+        }
+      });
+    }, 0);
+  }
+}
+
 function switchKoTab(tab) {
   haptic();
   const full = document.getElementById('knockout-content');
@@ -7045,11 +7064,16 @@ function renderKnockout() {
   const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
 
   const adminBtns = isAdmin ? `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
-      ${matches.length===0?`<button class="btn primary" onclick="showKnockoutSetup()">Set up draw</button>`:''}
-      ${matches.length>0?`<button class="btn" onclick="showKnockoutSetup()">Edit draw</button>`:''}
-      ${matches.length>0?`<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="showFixturePost()">📋 Post fixtures</button>`:''}
-      ${matches.length>0?`<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="postKnockoutResults()">📊 Post results</button>`:''}
+    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;position:relative">
+      <button onclick="toggleKoAdminMenu()" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:#fef8e6;color:#633806;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">
+        &#9881; Admin <span style="font-size:10px;opacity:0.6">▾</span>
+      </button>
+      <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:white;border:1px solid #e8e4de;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:50;min-width:180px;overflow:hidden">
+        ${matches.length===0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">Set up draw</button>`:''}
+        ${matches.length>0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">✏️ Edit draw</button>`:''}
+        ${matches.length>0?`<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">📋 Post fixtures</button>`:''}
+        ${matches.length>0?`<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510">📊 Post results</button>`:''}
+      </div>
     </div>` : '';
 
   // Build each round column
