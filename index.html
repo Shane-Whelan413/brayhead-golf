@@ -6909,6 +6909,16 @@ function renderKnockout() {
       ${matches.length>0?`<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="postKnockoutResults()">📊 Post results</button>`:''}
     </div>` : '';
 
+  // Path to final picker — visible to everyone
+  const allPlayerIds = new Set([
+    ...matches.map(m=>m.player1_id),
+    ...matches.map(m=>m.player2_id)
+  ].filter(Boolean));
+  const bracketPlayers = [...allPlayerIds].map(id=>db.players.find(p=>p.id===id)).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));
+
+  const defaultPathPid = (currentUser && currentUser.playerId && allPlayerIds.has(currentUser.playerId))
+    ? currentUser.playerId : '';
+
   if (!matches.length) {
     el.innerHTML = adminBtns + `<div class="card"><div class="empty">The knockout draw has not been set up yet</div></div>`;
     return;
@@ -7014,36 +7024,26 @@ function renderKnockout() {
     5: { bg:'#7a1a1a', color:'#fca5a5', conn:'rgba(252,165,165,0.4)' },
   };
 
-  // Calculate path to final — all matches player has played or could play
+  // Calculate path to final for selected player
+  const pathPid = window._koSelectedPathPid !== undefined ? window._koSelectedPathPid : defaultPathPid;
   window._koPathIds = new Set();
-  if (currentUser && currentUser.playerId) {
-    const pid = currentUser.playerId;
-
-    // Step 1 — trace backwards: find all completed matches this player won
+  window._koPathPid = pathPid;
+  if (pathPid) {
+    // All matches this player has played
     for (const m of matches) {
-      if (m.player1_id === pid || m.player2_id === pid) {
+      if (m.player1_id === pathPid || m.player2_id === pathPid) {
         window._koPathIds.add(m.id);
       }
     }
-
-    // Step 2 — trace forwards: from current position, follow potential path to final
-    // Find the furthest round the player has reached
-    const myMatches = matches.filter(m =>
-      m.player1_id === pid || m.player2_id === pid
-    ).sort((a,b) => b.round - a.round);
-
+    // Future potential matches
+    const myMatches = matches.filter(m=>m.player1_id===pathPid||m.player2_id===pathPid).sort((a,b)=>b.round-a.round);
     const latestMatch = myMatches[0];
     if (latestMatch) {
-      let nextRound = latestMatch.round + (latestMatch.status === 'complete' ? 1 : 0);
-      // Walk forward through potential future matches
-      for (const round of rounds.filter(r => r >= nextRound)) {
-        // Find match at this round position based on bracket path
-        const latestMatchNum = myMatches.find(m => m.round === round - 1 || (round === nextRound && m.round === latestMatch.round))?.match_number;
-        const futureMatchNum = latestMatchNum ? Math.ceil(latestMatchNum / 2) : null;
-        if (futureMatchNum) {
-          const futureMatch = matches.find(m => m.round === round && m.match_number === futureMatchNum);
-          if (futureMatch) window._koPathIds.add(futureMatch.id);
-        }
+      let curMatchNum = latestMatch.match_number;
+      for (const round of rounds.filter(r=>r>latestMatch.round)) {
+        curMatchNum = Math.ceil(curMatchNum / 2);
+        const futureMatch = matches.find(m=>m.round===round && m.match_number===curMatchNum);
+        if (futureMatch) window._koPathIds.add(futureMatch.id);
       }
     }
   }
@@ -7139,6 +7139,13 @@ function renderKnockout() {
     </div>` : '';
 
   el.innerHTML = adminBtns + championHtml + `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;background:#f8f5ee;border-radius:var(--radius);padding:8px 12px;border:1px solid #e8e4de">
+      <span style="font-size:12px;font-weight:600;color:#633806;flex-shrink:0">&#127942; Path to final:</span>
+      <select onchange="window._koSelectedPathPid=this.value;renderKnockout()" style="flex:1;font-size:12px;font-family:'DM Sans',sans-serif;padding:4px 8px;border-radius:6px;border:1px solid #C9A84C;background:white;color:#0a1628">
+        <option value="">— Select a player —</option>
+        ${bracketPlayers.map(p=>`<option value="${p.id}" ${p.id===pathPid?'selected':''}>${p.name}</option>`).join('')}
+      </select>
+    </div>
     <div style="background:#1a2e1a;border-radius:var(--radius-lg);padding:16px 8px 20px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px">
       <div style="display:flex;align-items:flex-start;gap:0;min-width:max-content;padding:4px 8px 8px">
         ${bracketHtml}
