@@ -6904,7 +6904,7 @@ function renderKnockout() {
     })() : '';
 
     const availBtn = (!isComplete && !m.is_bye && iAmInMatch) ? `
-      <button onclick="toggleMatchAvailability('${mid}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${myAvail?'#2d7a4f':'rgba(201,168,76,0.4)'};background:${myAvail?'rgba(45,122,79,0.15)':'rgba(201,168,76,0.08)'};color:${myAvail?'#2d7a4f':'#C9A84C'};cursor:pointer;font-family:inherit;font-weight:600">
+      <button onclick="toggleMatchAvailability('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${myAvail?'#2d7a4f':'rgba(201,168,76,0.4)'};background:${myAvail?'rgba(45,122,79,0.15)':'rgba(201,168,76,0.08)'};color:${myAvail?'#2d7a4f':'#C9A84C'};cursor:pointer;font-family:inherit;font-weight:600">
         ${myAvail?'✓ Available':'Available?'}
       </button>` : '';
     const adminRow = isAdmin ? `<div style="display:flex;gap:3px;padding:4px 5px;background:var(--bg);border-top:0.5px solid var(--border)">
