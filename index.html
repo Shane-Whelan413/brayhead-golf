@@ -6834,6 +6834,7 @@ async function toggleMatchAvailability(mid) {
 function renderKnockout() {
   const el = document.getElementById('knockout-content');
   if (!el) return;
+  try {
   const matches = db.knockout_matches;
   const rounds = [...new Set(matches.map(m=>m.round))].sort((a,b)=>a-b);
   const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
@@ -7022,6 +7023,10 @@ function renderKnockout() {
         ${bracketHtml}
       </div>
     </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="card"><div style="color:#A32D2D;padding:1rem;font-size:13px">⚠️ Bracket error: ${e.message}</div></div>`;
+    console.error('renderKnockout error:', e);
+  }
 }
 
 
