@@ -6908,6 +6908,12 @@ function renderKnockout() {
       <button onclick="toggleMatchAvailability('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${myAvail?'#2d7a4f':'rgba(201,168,76,0.4)'};background:${myAvail?'rgba(45,122,79,0.15)':'rgba(201,168,76,0.08)'};color:${myAvail?'#2d7a4f':'#C9A84C'};cursor:pointer;font-family:inherit;font-weight:600">
         ${myAvail?'✓ Available':'Available?'}
       </button>` : '';
+
+    const statusBar = isComplete && m.result
+      ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px;background:#0a1628;color:#C9A84C">${m.result}</div>`
+      : isPlayoff
+      ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px;background:#C9A84C;color:#3a2000">⚡ PLAYOFF</div>`
+      : `<div style="font-size:9px;text-align:center;padding:2px;background:rgba(0,0,0,0.2);color:rgba(255,255,255,0.3)">${p1&&p2?'Pending':'Awaiting'}</div>`;
     if (m.is_bye) return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;width:148px">
       ${pRow(p1,true,false)}
       <div style="font-size:9px;text-align:center;padding:2px;background:rgba(45,122,79,0.08);color:#2d7a4f;font-weight:700">Bye ✓</div>
