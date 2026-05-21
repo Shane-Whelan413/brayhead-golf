@@ -6438,7 +6438,24 @@ async function addKnockoutMatch() {
   const matchNum = existing.length + 1;
   try {
     await post('knockout_matches', { round:1, match_number:matchNum, player1_id:p1id, player2_id:isBye?null:p2id, is_bye:isBye, holes, status:isBye?'complete':'pending', winner_id:isBye?p1id:null });
-    toast('Match added!', 'success');
+
+    // If bye, auto-advance player to round 2
+    if (isBye) {
+      await loadAll(); // reload to get the new match id
+      const nextRound = 2;
+      const matchPos = Math.ceil(matchNum / 2);
+      const playerSlot = matchNum % 2 === 1 ? 'player1_id' : 'player2_id';
+      const existingNext = db.knockout_matches.find(x=>x.round===nextRound&&x.match_number===matchPos);
+      if (existingNext) {
+        await patch(`knockout_matches?id=eq.${existingNext.id}`, { [playerSlot]: p1id });
+      } else {
+        await post('knockout_matches', { round:nextRound, match_number:matchPos, [playerSlot]:p1id, is_bye:false, status:'pending' });
+      }
+      toast('Bye added — player advanced to Round 2', 'success');
+    } else {
+      toast('Match added!', 'success');
+    }
+
     await loadAll(); renderAll();
     showSetupDraw();
   } catch(e) { toast('Error: '+e.message, 'error'); }
