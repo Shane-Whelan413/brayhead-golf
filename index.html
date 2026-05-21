@@ -6439,17 +6439,17 @@ async function addKnockoutMatch() {
   try {
     await post('knockout_matches', { round:1, match_number:matchNum, player1_id:p1id, player2_id:isBye?null:p2id, is_bye:isBye, holes, status:isBye?'complete':'pending', winner_id:isBye?p1id:null });
 
-    // If bye, auto-advance player to round 2
+    // If bye, auto-advance player to round 2 — fill whichever slot is empty
     if (isBye) {
-      await loadAll(); // reload to get the new match id
+      await loadAll();
       const nextRound = 2;
       const matchPos = Math.ceil(matchNum / 2);
-      const playerSlot = matchNum % 2 === 1 ? 'player1_id' : 'player2_id';
       const existingNext = db.knockout_matches.find(x=>x.round===nextRound&&x.match_number===matchPos);
       if (existingNext) {
-        await patch(`knockout_matches?id=eq.${existingNext.id}`, { [playerSlot]: p1id });
+        const update = existingNext.player1_id ? { player2_id: p1id } : { player1_id: p1id };
+        await patch(`knockout_matches?id=eq.${existingNext.id}`, update);
       } else {
-        await post('knockout_matches', { round:nextRound, match_number:matchPos, [playerSlot]:p1id, is_bye:false, status:'pending' });
+        await post('knockout_matches', { round:nextRound, match_number:matchPos, player1_id:p1id, player2_id:null, is_bye:false, status:'pending' });
       }
       toast('Bye added — player advanced to Round 2', 'success');
     } else {
@@ -6680,15 +6680,15 @@ async function applyAdvanceOverride(mid) {
       result: resultStr
     });
 
-    // Advance winner to next round
+    // Advance winner to next round — fill whichever slot is empty
     const nextRound = m.round + 1;
     const matchPos = Math.ceil(m.match_number / 2);
-    const playerSlot = m.match_number % 2 === 1 ? 'player1_id' : 'player2_id';
     const existingNext = db.knockout_matches.find(x=>x.round===nextRound&&x.match_number===matchPos);
     if (existingNext) {
-      await patch(`knockout_matches?id=eq.${existingNext.id}`, { [playerSlot]: winnerId });
+      const update = existingNext.player1_id ? { player2_id: winnerId } : { player1_id: winnerId };
+      await patch(`knockout_matches?id=eq.${existingNext.id}`, update);
     } else {
-      await post('knockout_matches', { round:nextRound, match_number:matchPos, [playerSlot]:winnerId, is_bye:false, status:'pending' });
+      await post('knockout_matches', { round:nextRound, match_number:matchPos, player1_id:winnerId, player2_id:null, is_bye:false, status:'pending' });
     }
 
     closeModal();
@@ -6730,11 +6730,12 @@ function renderKnockout() {
     const cardBorder = isComplete?'border-color:rgba(201,168,76,0.4)':isPlayoff?'border-color:#C9A84C':'';
 
     function pRow(player, won, lost) {
-      const name = player ? (player.name.split(' ')[0]+' '+player.name.split(' ').slice(-1)[0]) : null;
+      const rawName = player ? (player.name.split(' ')[0]+' '+player.name.split(' ').slice(-1)[0]) : null;
+      const name = rawName ? rawName.replace(/'/g, '&#39;') : null;
       return `<div style="display:flex;align-items:center;gap:5px;padding:6px 7px;${won?'background:rgba(201,168,76,0.1)':''}${lost?'opacity:0.4':''}">
         <div style="width:22px;height:22px;border-radius:50%;background:${won?'#B8860B':player?'#0a1628':'#444'};color:${player?'#C9A84C':'#888'};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${player?initials(player.name):'?'}</div>
         <div style="font-size:11px;font-weight:${won?'700':'500'};color:${won?'#8a6a1a':player?'var(--text)':'var(--text-3)'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:${player?'normal':'italic'}">${name||'TBD'}</div>
-        ${won?'<span style="font-size:10px;color:#C9A84C;font-weight:700;flex-shrink:0">✓</span>':''}
+        ${won?'<span style="font-size:10px;color:#C9A84C;font-weight:700;flex-shrink:0">&#10003;</span>':''}
       </div>`;
     }
 
