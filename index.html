@@ -862,7 +862,12 @@
 
   <!-- KNOCKOUT -->
   <div id="knockout" class="section">
+    <div style="display:flex;background:#f1efe8;border-radius:99px;padding:3px;margin-bottom:1rem">
+      <button id="ko-tab-full" onclick="switchKoTab('full')" style="flex:1;padding:8px 0;border-radius:99px;border:none;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:#0a1628;color:#C9A84C;transition:background 0.15s,color 0.15s">Full bracket</button>
+      <button id="ko-tab-mine" onclick="switchKoTab('mine')" style="flex:1;padding:8px 0;border-radius:99px;border:none;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:#888780;transition:background 0.15s,color 0.15s">My matches</button>
+    </div>
     <div id="knockout-content"><div class="empty" style="padding:3rem">Loading…</div></div>
+    <div id="knockout-mine" style="display:none"></div>
   </div>
 
   <!-- PROFILE -->
@@ -6893,6 +6898,144 @@ async function toggleMatchAvailability(mid) {
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
+function switchKoTab(tab) {
+  haptic();
+  const full = document.getElementById('knockout-content');
+  const mine = document.getElementById('knockout-mine');
+  const btnFull = document.getElementById('ko-tab-full');
+  const btnMine = document.getElementById('ko-tab-mine');
+  if (!full || !mine) return;
+  if (tab === 'full') {
+    full.style.display = ''; mine.style.display = 'none';
+    btnFull.style.background = '#0a1628'; btnFull.style.color = '#C9A84C';
+    btnMine.style.background = 'transparent'; btnMine.style.color = '#888780';
+  } else {
+    full.style.display = 'none'; mine.style.display = '';
+    btnMine.style.background = '#0a1628'; btnMine.style.color = '#C9A84C';
+    btnFull.style.background = 'transparent'; btnFull.style.color = '#888780';
+    renderMyMatches();
+  }
+}
+
+function renderMyMatches() {
+  const el = document.getElementById('knockout-mine');
+  if (!el) return;
+
+  if (!currentUser || !currentUser.playerId) {
+    el.innerHTML = `<div class="card"><div class="empty">Log in to see your matches</div></div>`;
+    return;
+  }
+
+  const pid = currentUser.playerId;
+  const matches = db.knockout_matches;
+  const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+  const rounds = [...new Set(matches.map(m=>m.round))].sort((a,b)=>a-b);
+
+  // Find all matches involving this player
+  const myMatches = matches
+    .filter(m => m.player1_id===pid || m.player2_id===pid)
+    .sort((a,b)=>a.round-b.round);
+
+  if (!myMatches.length) {
+    el.innerHTML = `<div class="card"><div class="empty">You don't have any matches in the draw yet</div></div>`;
+    return;
+  }
+
+  // Find furthest round reached and project future matches
+  const lastMyMatch = myMatches[myMatches.length-1];
+  const futureItems = [];
+  if (lastMyMatch) {
+    let curMatchNum = lastMyMatch.match_number;
+    for (const round of rounds.filter(r=>r>lastMyMatch.round)) {
+      curMatchNum = Math.ceil(curMatchNum / 2);
+      const existing = matches.find(m=>m.round===round && m.match_number===curMatchNum);
+      if (!existing) {
+        futureItems.push({ round, isFuture: true });
+      }
+    }
+  }
+
+  const items = [...myMatches, ...futureItems];
+
+  const html = items.map((m, idx) => {
+    if (m.isFuture) {
+      return `<div style="position:relative;margin-bottom:12px;padding-left:36px">
+        <div style="position:absolute;left:0;width:22px;height:22px;border-radius:50%;background:#f1efe8;border:1px solid #e8e4de;color:#b4b2a9;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;top:12px">?</div>
+        <div style="background:white;border:1px solid #e8e4de;border-radius:10px;padding:10px 12px;opacity:0.5">
+          <div style="font-size:9px;font-weight:700;color:#888780;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">${ROUND_NAMES[m.round]||'Round '+m.round} — If you get there</div>
+          <div style="font-size:12px;color:#b4b2a9;font-style:italic">Win your current match to advance</div>
+        </div>
+      </div>`;
+    }
+
+    const isP1 = m.player1_id === pid;
+    const opponentId = isP1 ? m.player2_id : m.player1_id;
+    const opponent = opponentId ? db.players.find(p=>p.id===opponentId) : null;
+    const myWon = m.winner_id === pid;
+    const oppWon = m.winner_id && m.winner_id !== pid;
+    const isComplete = m.status === 'complete';
+    const isPending = !isComplete;
+    const fresh = isAvailabilityFresh(m);
+    const myAvail  = fresh && (isP1 ? m.p1_available : m.p2_available);
+    const oppAvail = fresh && (isP1 ? m.p2_available : m.p1_available);
+    const bothAvail = myAvail && oppAvail;
+    const me = db.players.find(p=>p.id===pid);
+
+    const dotBg = myWon ? '#0a1628' : oppWon ? '#A32D2D' : isPending ? '#C9A84C' : '#f1efe8';
+    const dotColor = myWon ? '#C9A84C' : oppWon ? 'white' : '#0a1628';
+    const dotChar = myWon ? '✓' : oppWon ? '✗' : '▶';
+    const cardBorder = bothAvail ? 'border:1.5px solid #16a34a' : isPending ? 'border:1.5px solid #C9A84C' : isComplete && myWon ? 'border:1px solid #C9A84C' : 'border:1px solid #e8e4de';
+    const roundLabel = (ROUND_NAMES[m.round]||'Round '+m.round) + ' — ' + (isComplete ? (myWon?'Won':'Lost') : bothAvail ? 'On this week!' : 'Up next');
+    const labelColor = myWon ? '#166534' : oppWon ? '#A32D2D' : bothAvail ? '#166534' : '#8a6a1a';
+
+    const availSection = isPending ? `
+      <div style="margin-top:8px;padding-top:8px;border-top:0.5px solid #e8e4de">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:4px">
+            <div style="width:8px;height:8px;border-radius:50%;background:${myAvail?'#16a34a':'#d1d5db'}"></div>
+            <span style="font-size:11px;color:#888780">You: ${myAvail?'Available':'Not confirmed'}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="font-size:11px;color:#888780">${opponent?opponent.name.split(' ')[0]:'Opponent'}: ${oppAvail?'Available':'Not confirmed'}</span>
+            <div style="width:8px;height:8px;border-radius:50%;background:${oppAvail?'#16a34a':'#d1d5db'}"></div>
+          </div>
+        </div>
+        <button onclick="toggleMatchAvailability('${m.id}')" style="width:100%;padding:10px;border-radius:7px;border:none;background:${myAvail?'#f1efe8':'#C9A84C'};color:${myAvail?'#888780':'#0a1628'};font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer">
+          ${myAvail?'✓ Available — tap to undo':'I\'m available this week'}
+        </button>
+        ${myAvail&&!oppAvail?`<div style="font-size:11px;color:#888780;text-align:center;margin-top:6px">Waiting for ${opponent?opponent.name.split(' ')[0]:'opponent'} to confirm</div>`:''}
+      </div>` : '';
+
+    return `<div style="position:relative;margin-bottom:12px;padding-left:36px">
+      <div style="position:absolute;left:0;width:22px;height:22px;border-radius:50%;background:${dotBg};color:${dotColor};font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;top:12px">${dotChar}</div>
+      <div style="background:white;${cardBorder};border-radius:10px;padding:10px 12px">
+        <div style="font-size:9px;font-weight:700;color:${labelColor};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">${roundLabel}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+            <div style="width:32px;height:32px;border-radius:50%;background:#0a1628;color:#C9A84C;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">${me?initials(me.name):'?'}</div>
+            <div style="font-size:10px;font-weight:700;color:#0a1628">You</div>
+          </div>
+          <div style="flex:1;text-align:center">
+            ${isComplete ? `<div style="font-size:14px;font-weight:700;color:${myWon?'#166534':'#A32D2D'}">${m.result||''}</div>` : `<div style="font-size:12px;color:#888780">vs</div>`}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+            <div style="width:32px;height:32px;border-radius:50%;background:${opponent?'#0a1628':'#e8e4de'};color:${opponent?'#C9A84C':'#888'};font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">${opponent?initials(opponent.name):'?'}</div>
+            <div style="font-size:10px;font-weight:600;color:#444441;max-width:64px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${opponent?opponent.name.split(' ')[0]:'TBD'}</div>
+          </div>
+        </div>
+        ${availSection}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Connector line down the left
+  el.innerHTML = `
+    <div style="position:relative">
+      <div style="position:absolute;left:10px;top:0;bottom:0;width:2px;background:#e8e4de;border-radius:99px"></div>
+      ${html}
+    </div>`;
+}
+
 function renderKnockout() {
   const el = document.getElementById('knockout-content');
   if (!el) return;
@@ -7340,7 +7483,7 @@ function renderAll() {
   safeRender(renderAddRound);
   safeRender(renderSchedule);
   safeRender(renderKnockout);
-  safeRender(renderKnockout);
+  if (document.getElementById('knockout-mine')?.style.display !== 'none') safeRender(renderMyMatches);
 }
 
 function onFabClick() {
