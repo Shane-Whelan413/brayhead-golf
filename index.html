@@ -6907,29 +6907,28 @@ function renderKnockout() {
       <button onclick="toggleMatchAvailability('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${myAvail?'#2d7a4f':'rgba(201,168,76,0.4)'};background:${myAvail?'rgba(45,122,79,0.15)':'rgba(201,168,76,0.08)'};color:${myAvail?'#2d7a4f':'#C9A84C'};cursor:pointer;font-family:inherit;font-weight:600">
         ${myAvail?'✓ Available':'Available?'}
       </button>` : '';
-    const adminRow = isAdmin ? `<div style="display:flex;gap:3px;padding:4px 5px;background:var(--bg);border-top:0.5px solid var(--border)">
-      ${!isComplete&&p1&&p2?`<button onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${isPlayoff?'#C9A84C':'var(--border)'};background:${isPlayoff?'#C9A84C':'var(--bg)'};color:${isPlayoff?'#3a2000':'var(--text-2)'};cursor:pointer;font-family:inherit">${isPlayoff?'⚡ Resolve':'Settle'}</button>`:''}
-      ${!isComplete?`<button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid #C9A84C;background:#fef8e6;color:#8a6a1a;cursor:pointer;font-family:inherit">Override</button>`:''}
-      ${isComplete?`<button onclick="showMatchEntry('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text-2);cursor:pointer;font-family:inherit">Edit</button>`:''}
-      ${isComplete&&m.event_card_id?`<button onclick="viewMatchBreakdown('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text-2);cursor:pointer;font-family:inherit">Holes</button>`:''}
-    </div>` : '';
-
     if (m.is_bye) return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;width:148px">
       ${pRow(p1,true,false)}
       <div style="font-size:9px;text-align:center;padding:2px;background:rgba(45,122,79,0.08);color:#2d7a4f;font-weight:700">Bye ✓</div>
-      ${adminRow}
+      ${isAdmin ? `<div style="display:flex;gap:3px;padding:4px 5px;background:var(--bg)"><button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid #C9A84C;background:#fef8e6;color:#8a6a1a;cursor:pointer;font-family:inherit">Override</button></div>` : ''}
     </div>`;
 
-    return `<div style="background:var(--surface);border:1px solid ${bothAvail?'#2d7a4f':'var(--border)'};border-radius:var(--radius);overflow:hidden;width:148px;${cardBorder}${bothAvail?'box-shadow:0 0 0 1px rgba(45,122,79,0.3)':''}">
+    // Bottom action row — combine availBtn and admin buttons
+    const actionRow = (availBtn || isAdmin) ? `<div style="display:flex;gap:3px;padding:4px 5px;background:rgba(0,0,0,0.15);border-top:0.5px solid rgba(255,255,255,0.08)">
+      ${availBtn}
+      ${isAdmin && !isComplete && p1 && p2 ? `<button onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${isPlayoff?'#C9A84C':'var(--border)'};background:${isPlayoff?'rgba(201,168,76,0.15)':'rgba(0,0,0,0.2)'};color:${isPlayoff?'#C9A84C':'rgba(255,255,255,0.6)'};cursor:pointer;font-family:inherit">${isPlayoff?'⚡':'Settle'}</button>` : ''}
+      ${isAdmin && !isComplete ? `<button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(201,168,76,0.4);background:rgba(201,168,76,0.08);color:#C9A84C;cursor:pointer;font-family:inherit">Override</button>` : ''}
+      ${isAdmin && isComplete ? `<button onclick="showMatchEntry('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);cursor:pointer;font-family:inherit">Edit</button>` : ''}
+      ${isAdmin && isComplete && m.event_card_id ? `<button onclick="viewMatchBreakdown('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);cursor:pointer;font-family:inherit">Holes</button>` : ''}
+    </div>` : '';
+
+    return `<div style="background:var(--surface);border:1px solid ${bothAvail?'#2d7a4f':'var(--border)'};border-radius:var(--radius);overflow:hidden;width:148px;${cardBorder}">
       ${pRow(p1,p1Won,p2Won)}
       <div style="height:0.5px;background:var(--border)"></div>
       ${pRow(p2,p2Won,p1Won)}
       ${statusBar}
       ${availBar}
-      ${(!isComplete && !m.is_bye && (iAmInMatch || isAdmin)) ? `<div style="display:flex;gap:3px;padding:4px 5px;background:rgba(0,0,0,0.2);border-top:0.5px solid rgba(255,255,255,0.05)">
-        ${availBtn}
-        ${adminRow ? adminRow.replace('<div style="display:flex;gap:3px;padding:4px 5px;background:var(--bg);border-top:0.5px solid var(--border)">', '').replace('</div>', '') : ''}
-      </div>` : adminRow}
+      ${actionRow}
     </div>`;
   }
 
