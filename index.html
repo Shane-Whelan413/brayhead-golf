@@ -3142,45 +3142,62 @@ async function verifyAllRounds(eid) {
 
 async function fixBracketSlots() {
   if (!isAdmin) return;
-  let fixed = 0, skipped = 0;
+  let fixed = 0, merged = 0, skipped = 0;
 
-  // Go through every completed match and make sure the winner is in the correct next round slot
-  const completedMatches = db.knockout_matches.filter(m => m.status === 'complete' && m.winner_id);
-
-  for (const m of completedMatches) {
-    const winnerId = m.winner_id;
-    const nextRound = m.round + 1;
-    const matchPos = Math.ceil(m.match_number / 2);
-
-    // Check if there's a next round match
-    const existingNext = db.knockout_matches.find(x => x.round === nextRound && x.match_number === matchPos);
-
-    if (!existingNext) {
-      // Create the next round slot
-      try {
-        await post('knockout_matches', { round: nextRound, match_number: matchPos, player1_id: winnerId, player2_id: null, is_bye: false, status: 'pending' });
-        fixed++;
-      } catch(e) { skipped++; }
-    } else {
-      // Check if winner is already in the slot
-      const alreadyIn = existingNext.player1_id === winnerId || existingNext.player2_id === winnerId;
-      if (alreadyIn) { skipped++; continue; }
-
-      // Fill the empty slot
-      if (!existingNext.player1_id) {
-        await patch(`knockout_matches?id=eq.${existingNext.id}`, { player1_id: winnerId });
-        fixed++;
-      } else if (!existingNext.player2_id) {
-        await patch(`knockout_matches?id=eq.${existingNext.id}`, { player2_id: winnerId });
-        fixed++;
-      } else {
-        skipped++; // both slots full — don't overwrite
+  // Step 1 — find and merge duplicate next-round matches at the same position
+  const rounds = [...new Set(db.knockout_matches.map(m=>m.round))].sort((a,b)=>a-b);
+  for (const round of rounds) {
+    const roundMatches = db.knockout_matches.filter(m=>m.round===round);
+    // Group by match_number
+    const byPos = {};
+    for (const m of roundMatches) {
+      if (!byPos[m.match_number]) byPos[m.match_number] = [];
+      byPos[m.match_number].push(m);
+    }
+    for (const pos in byPos) {
+      const dups = byPos[pos];
+      if (dups.length < 2) continue;
+      // Merge — keep first, copy player from second into empty slot of first, delete second
+      const keep = dups[0];
+      for (let i=1; i<dups.length; i++) {
+        const dup = dups[i];
+        const p = dup.player1_id || dup.player2_id;
+        if (!p) { await del(`knockout_matches?id=eq.${dup.id}`); merged++; continue; }
+        const alreadyIn = keep.player1_id===p || keep.player2_id===p;
+        if (!alreadyIn) {
+          if (!keep.player1_id) {
+            await patch(`knockout_matches?id=eq.${keep.id}`, { player1_id: p });
+          } else if (!keep.player2_id) {
+            await patch(`knockout_matches?id=eq.${keep.id}`, { player2_id: p });
+          }
+        }
+        await del(`knockout_matches?id=eq.${dup.id}`);
+        merged++;
       }
     }
   }
 
+  // Step 2 — fill any still-missing slots from completed match winners
+  await loadAll();
+  const completedMatches = db.knockout_matches.filter(m => m.status==='complete' && m.winner_id);
+  for (const m of completedMatches) {
+    const winnerId = m.winner_id;
+    const nextRound = m.round + 1;
+    const matchPos = Math.ceil(m.match_number / 2);
+    const existingNext = db.knockout_matches.find(x => x.round===nextRound && x.match_number===matchPos);
+    if (!existingNext) {
+      try { await post('knockout_matches', { round:nextRound, match_number:matchPos, player1_id:winnerId, player2_id:null, is_bye:false, status:'pending' }); fixed++; } catch(e) { skipped++; }
+    } else {
+      const alreadyIn = existingNext.player1_id===winnerId || existingNext.player2_id===winnerId;
+      if (alreadyIn) { skipped++; continue; }
+      if (!existingNext.player1_id) { await patch(`knockout_matches?id=eq.${existingNext.id}`, { player1_id: winnerId }); fixed++; }
+      else if (!existingNext.player2_id) { await patch(`knockout_matches?id=eq.${existingNext.id}`, { player2_id: winnerId }); fixed++; }
+      else skipped++;
+    }
+  }
+
   await loadAll(); renderAll();
-  toast(`Bracket fixed — ${fixed} slot${fixed!==1?'s':''} updated, ${skipped} already correct`, 'success');
+  toast(`Done — ${merged} duplicate${merged!==1?'s':''} merged, ${fixed} slot${fixed!==1?'s':''} filled, ${skipped} already correct`, 'success');
 }
 
 function toggleAdminTools() {
