@@ -3140,6 +3140,49 @@ async function verifyAllRounds(eid) {
   } catch(e) { toast('Error: '+e.message, 'error'); btn.disabled = false; btn.textContent = 'Verify only'; }
 }
 
+async function fixBracketSlots() {
+  if (!isAdmin) return;
+  let fixed = 0, skipped = 0;
+
+  // Go through every completed match and make sure the winner is in the correct next round slot
+  const completedMatches = db.knockout_matches.filter(m => m.status === 'complete' && m.winner_id);
+
+  for (const m of completedMatches) {
+    const winnerId = m.winner_id;
+    const nextRound = m.round + 1;
+    const matchPos = Math.ceil(m.match_number / 2);
+
+    // Check if there's a next round match
+    const existingNext = db.knockout_matches.find(x => x.round === nextRound && x.match_number === matchPos);
+
+    if (!existingNext) {
+      // Create the next round slot
+      try {
+        await post('knockout_matches', { round: nextRound, match_number: matchPos, player1_id: winnerId, player2_id: null, is_bye: false, status: 'pending' });
+        fixed++;
+      } catch(e) { skipped++; }
+    } else {
+      // Check if winner is already in the slot
+      const alreadyIn = existingNext.player1_id === winnerId || existingNext.player2_id === winnerId;
+      if (alreadyIn) { skipped++; continue; }
+
+      // Fill the empty slot
+      if (!existingNext.player1_id) {
+        await patch(`knockout_matches?id=eq.${existingNext.id}`, { player1_id: winnerId });
+        fixed++;
+      } else if (!existingNext.player2_id) {
+        await patch(`knockout_matches?id=eq.${existingNext.id}`, { player2_id: winnerId });
+        fixed++;
+      } else {
+        skipped++; // both slots full — don't overwrite
+      }
+    }
+  }
+
+  await loadAll(); renderAll();
+  toast(`Bracket fixed — ${fixed} slot${fixed!==1?'s':''} updated, ${skipped} already correct`, 'success');
+}
+
 function toggleAdminTools() {
   haptic();
   const body = document.getElementById('admin-tools-body');
@@ -4052,6 +4095,11 @@ function renderHome() {
             <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Handicap audit</div>
             <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Step through every player, review and correct handicap values before committing.</div>
             <button class="btn sm" style="width:100%" onclick="runHandicapAudit()">🔍 Preview audit</button>
+          </div>
+          <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-top:8px">
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Fix bracket slots</div>
+            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Scans all completed matches and fills any missing player slots in the next round. Use this to fix TBD players showing in the bracket.</div>
+            <button class="btn sm" style="width:100%" onclick="fixBracketSlots()">🔧 Fix bracket slots</button>
           </div>
         </div>
       </div>`;
