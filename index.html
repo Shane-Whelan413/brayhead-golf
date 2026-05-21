@@ -4127,31 +4127,84 @@ function renderHome() {
 
   const feed = document.getElementById('noticeboard-feed');
 
-  // Active knockout matches this week banner
-  const activeMatches = db.knockout_matches.filter(m =>
-    !m.is_bye && m.status === 'pending' &&
-    isAvailabilityFresh(m) && m.p1_available && m.p2_available
-  );
-  const activeBanner = activeMatches.length ? `
-    <div style="background:linear-gradient(135deg,#0a1628,#162338);border-radius:var(--radius);padding:12px 14px;margin-bottom:1rem;border:1px solid rgba(45,122,79,0.4)">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:14px">🏌️</span>
-        <div style="font-size:13px;font-weight:600;color:white">${activeMatches.length} knockout match${activeMatches.length!==1?'es':''} on this week</div>
-      </div>
-      ${activeMatches.map(m => {
-        const p1 = db.players.find(p=>p.id===m.player1_id);
-        const p2 = db.players.find(p=>p.id===m.player2_id);
-        return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-top:0.5px solid rgba(255,255,255,0.08)">
-          <span style="font-size:11px;color:rgba(255,255,255,0.7)">${p1?p1.name.split(' ')[0]:'?'} <span style="color:rgba(255,255,255,0.35)">vs</span> ${p2?p2.name.split(' ')[0]:'?'}</span>
-        </div>`;
-      }).join('')}
-    </div>` : '';
+  // Personalised knockout availability card
+  let knockoutCard = '';
+  if (currentUser && currentUser.playerId && db.knockout_matches.length) {
+    const pid = currentUser.playerId;
+    const myMatch = db.knockout_matches.find(m =>
+      !m.is_bye && m.status === 'pending' &&
+      (m.player1_id === pid || m.player2_id === pid)
+    );
+    if (myMatch) {
+      const isP1 = myMatch.player1_id === pid;
+      const opponentId = isP1 ? myMatch.player2_id : myMatch.player1_id;
+      const opponent = opponentId ? db.players.find(p=>p.id===opponentId) : null;
+      const fresh = isAvailabilityFresh(myMatch);
+      const myAvail   = fresh && (isP1 ? myMatch.p1_available : myMatch.p2_available);
+      const oppAvail  = fresh && (isP1 ? myMatch.p2_available : myMatch.p1_available);
+      const bothAvail = myAvail && oppAvail;
+      const round = myMatch.round;
+      const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+
+      if (bothAvail) {
+        knockoutCard = `
+          <div style="background:linear-gradient(135deg,#0a2a12,#0d3318);border-radius:var(--radius-lg);padding:16px;margin-bottom:1rem;border:1px solid rgba(45,122,79,0.5)">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <span style="font-size:22px">🏌️</span>
+              <div>
+                <div style="font-size:14px;font-weight:700;color:white">Match on this week!</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px">${ROUND_NAMES[round]||'Round '+round} · Both players confirmed</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.06);border-radius:var(--radius);padding:10px 12px">
+              ${avatarHtml(db.players.find(p=>p.id===pid), 32, 11)}
+              <div style="font-size:13px;font-weight:600;color:white;flex:1">${db.players.find(p=>p.id===pid)?.name?.split(' ')[0]||'You'}</div>
+              <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.4)">vs</div>
+              <div style="font-size:13px;font-weight:600;color:white;flex:1;text-align:right">${opponent?.name?.split(' ')[0]||'TBD'}</div>
+              ${avatarHtml(opponent, 32, 11)}
+            </div>
+          </div>`;
+      } else {
+        knockoutCard = `
+          <div style="background:linear-gradient(135deg,#0a1628,#162338);border-radius:var(--radius-lg);padding:16px;margin-bottom:1rem;border:1px solid rgba(201,168,76,0.25)">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <span style="font-size:22px">🏆</span>
+              <div>
+                <div style="font-size:14px;font-weight:700;color:#C9A84C">${ROUND_NAMES[round]||'Round '+round}</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:1px">Knockout — are you playing this week?</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.05);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px">
+              ${avatarHtml(db.players.find(p=>p.id===pid), 34, 11)}
+              <div style="font-size:13px;font-weight:600;color:white;flex:1">${db.players.find(p=>p.id===pid)?.name?.split(' ')[0]||'You'}</div>
+              <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.3)">vs</div>
+              <div style="font-size:13px;font-weight:600;color:white;flex:1;text-align:right">${opponent?.name?.split(' ')[0]||'TBD'}</div>
+              ${avatarHtml(opponent, 34, 11)}
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <div style="width:10px;height:10px;border-radius:50%;background:${myAvail?'#2d7a4f':'rgba(255,255,255,0.2)'}"></div>
+                <span style="font-size:11px;color:rgba(255,255,255,0.5)">You: ${myAvail?'✓ Available':'Not confirmed'}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:11px;color:rgba(255,255,255,0.5)">${opponent?.name?.split(' ')[0]||'Opponent'}: ${oppAvail?'✓ Available':'Not confirmed'}</span>
+                <div style="width:10px;height:10px;border-radius:50%;background:${oppAvail?'#2d7a4f':'rgba(255,255,255,0.2)'}"></div>
+              </div>
+            </div>
+            <button onclick="toggleMatchAvailability('${myMatch.id}')" style="width:100%;padding:12px;border-radius:var(--radius);border:none;background:${myAvail?'rgba(45,122,79,0.25)':'#C9A84C'};color:${myAvail?'#2d7a4f':'#0a1628'};font-size:14px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer">
+              ${myAvail?'✓ You\'re confirmed — tap to undo':'I\'m available this week'}
+            </button>
+            ${myAvail && !oppAvail ? `<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;margin-top:8px">Waiting for ${opponent?.name?.split(' ')[0]||'opponent'} to confirm</div>` : ''}
+          </div>`;
+      }
+    }
+  }
 
   if (!db.noticeboard.length) {
-    feed.innerHTML = activeBanner + `<div class="empty" style="padding:3rem;color:var(--text-2)">No updates yet — check back after the next round!</div>`;
+    feed.innerHTML = knockoutCard + `<div class="empty" style="padding:3rem;color:var(--text-2)">No updates yet — check back after the next round!</div>`;
     return;
   }
-  feed.innerHTML = activeBanner + db.noticeboard.map(n => {
+  feed.innerHTML = knockoutCard + db.noticeboard.map(n => {
     // Knockout results post
     if (n.post_type === 'knockout_results') {
       const matches = n.fixture_matches || [];
@@ -6854,15 +6907,22 @@ function renderKnockout() {
 
   const finalMatch = matches.find(m=>m.round===Math.max(...rounds));
   const champion = finalMatch?.winner_id ? db.players.find(p=>p.id===finalMatch.winner_id) : null;
-
   function matchCard(m) {
     const p1 = m.player1_id ? db.players.find(p=>p.id===m.player1_id) : null;
     const p2 = m.player2_id ? db.players.find(p=>p.id===m.player2_id) : null;
     const p1Won = m.winner_id && m.winner_id===m.player1_id;
     const p2Won = m.winner_id && m.winner_id===m.player2_id;
     const isComplete = m.status==='complete';
-    const isPlayoff = m.status==='playoff';
+    const isPlayoff  = m.status==='playoff';
     const cardBorder = isComplete?'border-color:rgba(201,168,76,0.4)':isPlayoff?'border-color:#C9A84C':'';
+
+    const fresh    = isAvailabilityFresh(m);
+    const p1Avail  = fresh && m.p1_available;
+    const p2Avail  = fresh && m.p2_available;
+    const bothAvail = p1Avail && p2Avail;
+    const myPid    = currentUser&&currentUser.playerId;
+    const iAmP1    = myPid && m.player1_id===myPid;
+    const iAmP2    = myPid && m.player2_id===myPid;
 
     function pRow(player, won, lost) {
       const rawName = player ? (player.name.split(' ')[0]+' '+player.name.split(' ').slice(-1)[0]) : null;
@@ -6874,60 +6934,39 @@ function renderKnockout() {
       </div>`;
     }
 
-    const fresh = isAvailabilityFresh(m);
-    const p1Avail = fresh && m.p1_available;
-    const p2Avail = fresh && m.p2_available;
-    const bothAvail = p1Avail && p2Avail;
-    const myPid = currentUser?.playerId;
-    const iAmP1 = myPid && m.player1_id === myPid;
-    const iAmP2 = myPid && m.player2_id === myPid;
-    const iAmInMatch = iAmP1 || iAmP2;
-    const myAvail = iAmP1 ? p1Avail : iAmP2 ? p2Avail : false;
-
-    // Availability bar — only show for pending matches with both players
-    const availBar = (!isComplete && !m.is_bye && p1 && p2) ? (() => {
-      if (bothAvail) return `
-        <div style="background:linear-gradient(90deg,rgba(45,122,79,0.9),rgba(45,122,79,0.7));padding:5px 7px;display:flex;align-items:center;gap:5px">
-          <span style="font-size:10px">🏌️</span>
-          <span style="font-size:10px;font-weight:700;color:white">On this week!</span>
-        </div>`;
-      return `<div style="background:rgba(0,0,0,0.15);padding:4px 7px;display:flex;align-items:center;justify-content:space-between;gap:4px">
-        <div style="display:flex;gap:4px;align-items:center">
-          <div style="width:8px;height:8px;border-radius:50%;background:${p1Avail?'#2d7a4f':'rgba(255,255,255,0.2)'}"></div>
-          <span style="font-size:9px;color:rgba(255,255,255,0.5)">${p1?p1.name.split(' ')[0]:'P1'}</span>
-        </div>
-        <span style="font-size:9px;color:rgba(255,255,255,0.25)">vs</span>
-        <div style="display:flex;gap:4px;align-items:center">
-          <span style="font-size:9px;color:rgba(255,255,255,0.5)">${p2?p2.name.split(' ')[0]:'P2'}</span>
-          <div style="width:8px;height:8px;border-radius:50%;background:${p2Avail?'#2d7a4f':'rgba(255,255,255,0.2)'}"></div>
-        </div>
-      </div>`;
-    })() : '';
-
-    const availBtn = (!isComplete && !m.is_bye && iAmInMatch) ? `
-      <button onclick="toggleMatchAvailability('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${myAvail?'#2d7a4f':'rgba(201,168,76,0.4)'};background:${myAvail?'rgba(45,122,79,0.15)':'rgba(201,168,76,0.08)'};color:${myAvail?'#2d7a4f':'#C9A84C'};cursor:pointer;font-family:inherit;font-weight:600">
-        ${myAvail?'✓ Available':'Available?'}
-      </button>` : '';
-
-    const statusBar = isComplete && m.result
+    const statusBar = isComplete&&m.result
       ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px;background:#0a1628;color:#C9A84C">${m.result}</div>`
       : isPlayoff
-      ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px;background:#C9A84C;color:#3a2000">⚡ PLAYOFF</div>`
+      ? `<div style="font-size:9px;font-weight:700;text-align:center;padding:2px;background:#C9A84C;color:#3a2000">&#9889; PLAYOFF</div>`
       : `<div style="font-size:9px;text-align:center;padding:2px;background:rgba(0,0,0,0.2);color:rgba(255,255,255,0.3)">${p1&&p2?'Pending':'Awaiting'}</div>`;
+
+    const availBar = (!isComplete && !m.is_bye && p1 && p2) ? (
+      bothAvail
+        ? `<div style="background:rgba(45,122,79,0.25);padding:4px 7px;text-align:center"><span style="font-size:9px;font-weight:700;color:#4caf7d">&#127949; On this week!</span></div>`
+        : `<div style="background:rgba(0,0,0,0.2);padding:4px 7px;display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;gap:3px;align-items:center">
+              <div style="width:7px;height:7px;border-radius:50%;background:${p1Avail?'#2d7a4f':'rgba(255,255,255,0.2)'}"></div>
+              <span style="font-size:9px;color:rgba(255,255,255,0.4)">${p1?p1.name.split(' ')[0]:'P1'}</span>
+            </div>
+            <div style="display:flex;gap:3px;align-items:center">
+              <span style="font-size:9px;color:rgba(255,255,255,0.4)">${p2?p2.name.split(' ')[0]:'P2'}</span>
+              <div style="width:7px;height:7px;border-radius:50%;background:${p2Avail?'#2d7a4f':'rgba(255,255,255,0.2)'}"></div>
+            </div>
+           </div>`
+    ) : '';
+
+    const actionRow = (!isComplete || isAdmin) ? `<div style="display:flex;gap:3px;padding:4px 5px;background:rgba(0,0,0,0.15);border-top:0.5px solid rgba(255,255,255,0.08)">
+      ${isAdmin&&!isComplete&&p1&&p2?`<button onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${isPlayoff?'#C9A84C':'rgba(255,255,255,0.15)'};background:${isPlayoff?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.05)'};color:${isPlayoff?'#C9A84C':'rgba(255,255,255,0.6)'};cursor:pointer;font-family:inherit">${isPlayoff?'&#9889;':'Settle'}</button>`:''}
+      ${isAdmin&&!isComplete?`<button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(201,168,76,0.4);background:rgba(201,168,76,0.08);color:#C9A84C;cursor:pointer;font-family:inherit">Override</button>`:''}
+      ${isAdmin&&isComplete?`<button onclick="showMatchEntry('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);cursor:pointer;font-family:inherit">Edit</button>`:''}
+      ${isAdmin&&isComplete&&m.event_card_id?`<button onclick="viewMatchBreakdown('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);cursor:pointer;font-family:inherit">Holes</button>`:''}
+    </div>` : '';
+
     if (m.is_bye) return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;width:148px">
       ${pRow(p1,true,false)}
-      <div style="font-size:9px;text-align:center;padding:2px;background:rgba(45,122,79,0.08);color:#2d7a4f;font-weight:700">Bye ✓</div>
-      ${isAdmin ? `<div style="display:flex;gap:3px;padding:4px 5px;background:var(--bg)"><button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid #C9A84C;background:#fef8e6;color:#8a6a1a;cursor:pointer;font-family:inherit">Override</button></div>` : ''}
+      <div style="font-size:9px;text-align:center;padding:2px;background:rgba(45,122,79,0.08);color:#2d7a4f;font-weight:700">Bye &#10003;</div>
+      ${isAdmin?`<div style="display:flex;gap:3px;padding:4px 5px;background:var(--bg)"><button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid #C9A84C;background:#fef8e6;color:#8a6a1a;cursor:pointer;font-family:inherit">Override</button></div>`:''}
     </div>`;
-
-    // Bottom action row — combine availBtn and admin buttons
-    const actionRow = (availBtn || isAdmin) ? `<div style="display:flex;gap:3px;padding:4px 5px;background:rgba(0,0,0,0.15);border-top:0.5px solid rgba(255,255,255,0.08)">
-      ${availBtn}
-      ${isAdmin && !isComplete && p1 && p2 ? `<button onclick="${isPlayoff?`resolvePlayoff('${m.id}')`:`showMatchEntry('${m.id}')`}" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid ${isPlayoff?'#C9A84C':'var(--border)'};background:${isPlayoff?'rgba(201,168,76,0.15)':'rgba(0,0,0,0.2)'};color:${isPlayoff?'#C9A84C':'rgba(255,255,255,0.6)'};cursor:pointer;font-family:inherit">${isPlayoff?'⚡':'Settle'}</button>` : ''}
-      ${isAdmin && !isComplete ? `<button onclick="showAdvanceOverride('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(201,168,76,0.4);background:rgba(201,168,76,0.08);color:#C9A84C;cursor:pointer;font-family:inherit">Override</button>` : ''}
-      ${isAdmin && isComplete ? `<button onclick="showMatchEntry('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);cursor:pointer;font-family:inherit">Edit</button>` : ''}
-      ${isAdmin && isComplete && m.event_card_id ? `<button onclick="viewMatchBreakdown('${m.id}')" style="flex:1;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);cursor:pointer;font-family:inherit">Holes</button>` : ''}
-    </div>` : '';
 
     return `<div style="background:var(--surface);border:1px solid ${bothAvail?'#2d7a4f':'var(--border)'};border-radius:var(--radius);overflow:hidden;width:148px;${cardBorder}">
       ${pRow(p1,p1Won,p2Won)}
