@@ -6982,29 +6982,31 @@ function renderKnockout() {
   // Key insight: use flex columns, measure after render, then draw SVG connectors
   const r1Count = matches.filter(m=>m.round===1).length;
 
-  // Build each round column as flex
+  // Round header colours — each round has its own identity (Option B)
+  const ROUND_COLOURS = {
+    1: { bg:'#3b1f6e', color:'#c4b5fd', conn:'rgba(196,181,253,0.3)' },
+    2: { bg:'#1e3a5f', color:'#93c5fd', conn:'rgba(147,197,253,0.3)' },
+    3: { bg:'#1a3a2a', color:'#6ee7b7', conn:'rgba(110,231,183,0.3)' },
+    4: { bg:'#3a2006', color:'#fcd34d', conn:'rgba(252,211,77,0.3)'  },
+    5: { bg:'#7a1f1f', color:'#fca5a5', conn:'rgba(252,165,165,0.3)' },
+  };
+
   const roundCols = rounds.map(round => {
     const roundMatches = matches.filter(m=>m.round===round).sort((a,b)=>a.match_number-b.match_number);
     const doneCount = roundMatches.filter(m=>m.status==='complete').length;
-    // Each round: matches are spaced with equal gaps, vertically centered in their slots
-    // Slot size doubles each round
     const slotsPerMatch = Math.pow(2, round-1);
-    const r1SlotH = 160; // px per round-1 slot (card + gap)
+    const r1SlotH = 160;
     const slotH = slotsPerMatch * r1SlotH;
-    const cards = roundMatches.map((m,i) => {
-      const topPad = (slotH - 0) / 2; // center card in slot
-      return `<div style="height:${slotH}px;display:flex;align-items:center;justify-content:center;" data-match="${m.id}" data-round="${round}" data-idx="${i}">
-        ${matchCard(m)}
-      </div>`;
-    }).join('');
-
+    const rc = ROUND_COLOURS[round] || ROUND_COLOURS[1];
+    const cards = roundMatches.map((m,i) =>
+      `<div style="height:${slotH}px;display:flex;align-items:center;justify-content:center;">${matchCard(m)}</div>`
+    ).join('');
     return `<div style="flex-shrink:0;width:148px">
-      <div style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.25);color:#C9A84C;font-size:9px;font-weight:700;text-align:center;padding:5px 4px;border-radius:6px 6px 0 0;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0">${ROUND_NAMES[round]||'Round '+round} <span style="opacity:0.5;font-weight:400">${doneCount}/${roundMatches.length}</span></div>
+      <div style="background:${rc.bg};color:${rc.color};font-size:9px;font-weight:700;text-align:center;padding:5px 4px;border-radius:6px 6px 0 0;letter-spacing:0.06em;text-transform:uppercase">${ROUND_NAMES[round]||'Round '+round} <span style="opacity:0.5;font-weight:400">${doneCount}/${roundMatches.length}</span></div>
       ${cards}
     </div>`;
   });
 
-  // SVG connector columns between rounds
   const r1SlotH = 160;
   const totalH = r1Count * r1SlotH;
 
@@ -7013,57 +7015,51 @@ function renderKnockout() {
     const toCount   = matches.filter(m=>m.round===toRound).length;
     const fromSlotH = Math.pow(2, fromRound-1) * r1SlotH;
     const toSlotH   = Math.pow(2, toRound-1)   * r1SlotH;
+    const rc = ROUND_COLOURS[toRound] || ROUND_COLOURS[1];
+    const stroke = rc.conn;
     const lines = [];
     for (let i=0; i<toCount; i++) {
       const top1 = i*2     * fromSlotH + fromSlotH/2;
       const top2 = (i*2+1) * fromSlotH + fromSlotH/2;
       const toY  = i       * toSlotH   + toSlotH/2;
       const midX = 16;
-      // from match 1
-      lines.push(`<line x1="0" y1="${top1}" x2="${midX}" y2="${top1}" stroke="rgba(201,168,76,0.45)" stroke-width="1.5"/>`);
-      // from match 2 (may not exist if odd number)
+      lines.push(`<line x1="0" y1="${top1}" x2="${midX}" y2="${top1}" stroke="${stroke}" stroke-width="1.5"/>`);
       if (i*2+1 < fromCount) {
-        lines.push(`<line x1="0" y1="${top2}" x2="${midX}" y2="${top2}" stroke="rgba(201,168,76,0.45)" stroke-width="1.5"/>`);
-        // vertical join
-        lines.push(`<line x1="${midX}" y1="${top1}" x2="${midX}" y2="${top2}" stroke="rgba(201,168,76,0.45)" stroke-width="1.5"/>`);
+        lines.push(`<line x1="0" y1="${top2}" x2="${midX}" y2="${top2}" stroke="${stroke}" stroke-width="1.5"/>`);
+        lines.push(`<line x1="${midX}" y1="${top1}" x2="${midX}" y2="${top2}" stroke="${stroke}" stroke-width="1.5"/>`);
       }
-      // to next match
-      lines.push(`<line x1="${midX}" y1="${toY}" x2="32" y2="${toY}" stroke="rgba(201,168,76,0.45)" stroke-width="1.5"/>`);
+      lines.push(`<line x1="${midX}" y1="${toY}" x2="32" y2="${toY}" stroke="${stroke}" stroke-width="1.5"/>`);
     }
     return `<svg width="32" height="${totalH}" style="flex-shrink:0" overflow="visible">${lines.join('')}</svg>`;
   }
 
-  // Final connector to trophy
+  const finalRc = ROUND_COLOURS[Math.max(...rounds)] || ROUND_COLOURS[1];
   const finalConnSVG = `<svg width="32" height="${totalH}" style="flex-shrink:0" overflow="visible">
-    <line x1="0" y1="${totalH/2}" x2="32" y2="${totalH/2}" stroke="rgba(201,168,76,0.45)" stroke-width="1.5"/>
+    <line x1="0" y1="${totalH/2}" x2="32" y2="${totalH/2}" stroke="${finalRc.conn}" stroke-width="1.5"/>
   </svg>`;
 
-  // Trophy col
   const trophyCol = `<div style="flex-shrink:0;width:60px;height:${totalH}px;display:flex;flex-direction:column;align-items:center;justify-content:center">
-    <div style="font-size:28px">🏆</div>
-    <div style="font-size:10px;font-weight:700;color:${champion?'#C9A84C':'rgba(255,255,255,0.3)'};margin-top:4px;text-align:center">${champion?champion.name.split(' ')[0]:'TBD'}</div>
-    <div style="font-size:9px;color:rgba(255,255,255,0.3)">Champion</div>
+    <div style="font-size:28px">&#127942;</div>
+    <div style="font-size:10px;font-weight:700;color:${champion?'#fcd34d':'rgba(255,255,255,0.25)'};margin-top:4px;text-align:center">${champion?champion.name.split(' ')[0]:'TBD'}</div>
+    <div style="font-size:9px;color:rgba(255,255,255,0.25)">Champion</div>
   </div>`;
 
-  // Interleave round cols and connectors
   let bracketHtml = '';
   for (let i=0; i<rounds.length; i++) {
     bracketHtml += roundCols[i];
-    if (i < rounds.length-1) {
-      bracketHtml += connectorSVG(rounds[i], rounds[i+1]);
-    }
+    if (i < rounds.length-1) bracketHtml += connectorSVG(rounds[i], rounds[i+1]);
   }
   bracketHtml += finalConnSVG + trophyCol;
 
   const championHtml = champion ? `
-    <div style="text-align:center;margin-bottom:1.25rem;padding:1rem;background:linear-gradient(135deg,#0a1628,#162338);border-radius:var(--radius);border:1px solid rgba(201,168,76,0.3)">
-      <div style="font-size:28px;margin-bottom:4px">🏆</div>
-      <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#C9A84C">${champion.name}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">Knockout Champion</div>
+    <div style="text-align:center;margin-bottom:1.25rem;padding:1rem;background:linear-gradient(135deg,#1a0a00,#3a1a00);border-radius:var(--radius);border:1px solid rgba(252,211,77,0.35)">
+      <div style="font-size:28px;margin-bottom:4px">&#127942;</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#fcd34d">${champion.name}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">Knockout Champion</div>
     </div>` : '';
 
   el.innerHTML = adminBtns + championHtml + `
-    <div style="background:linear-gradient(160deg,#0a1628 0%,#162338 100%);border-radius:var(--radius-lg);padding:16px 8px 20px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px">
+    <div style="background:#111827;border-radius:var(--radius-lg);padding:16px 8px 20px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px">
       <div style="display:flex;align-items:flex-start;min-width:max-content;padding:4px 8px 8px">
         ${bracketHtml}
       </div>
