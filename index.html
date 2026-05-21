@@ -6909,15 +6909,7 @@ function renderKnockout() {
       ${matches.length>0?`<button class="btn" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="postKnockoutResults()">📊 Post results</button>`:''}
     </div>` : '';
 
-  // Path to final picker — visible to everyone
-  const allPlayerIds = new Set([
-    ...matches.map(m=>m.player1_id),
-    ...matches.map(m=>m.player2_id)
-  ].filter(Boolean));
-  const bracketPlayers = [...allPlayerIds].map(id=>db.players.find(p=>p.id===id)).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));
-
-  const defaultPathPid = (currentUser && currentUser.playerId && allPlayerIds.has(currentUser.playerId))
-    ? currentUser.playerId : '';
+  // Build each round column
 
   if (!matches.length) {
     el.innerHTML = adminBtns + `<div class="card"><div class="empty">The knockout draw has not been set up yet</div></div>`;
@@ -6943,7 +6935,6 @@ function renderKnockout() {
     const iAmP1    = myPid && m.player1_id===myPid;
     const iAmP2    = myPid && m.player2_id===myPid;
     const isMyMatch = iAmP1 || iAmP2;
-    const isOnPath  = (window._koPathIds||new Set()).has(m.id);
 
     function pRow(player, won, lost) {
       const rawName = player ? (player.name.split(' ')[0]+' '+player.name.split(' ').slice(-1)[0]) : null;
@@ -6997,8 +6988,6 @@ function renderKnockout() {
       ? 'border:2px solid #0a1628'
       : bothAvail
       ? 'border:1.5px solid #16a34a'
-      : isOnPath && !isMyMatch
-      ? 'border:1px solid #d8d4cc;border-left:3px solid #C9A84C'
       : 'border:1px solid #e8e4de';
 
     return `<div class="${animClass}" style="background:${cardBg};${cardBorderFull};border-radius:7px;overflow:hidden;width:148px">
@@ -7024,30 +7013,6 @@ function renderKnockout() {
     5: { bg:'#7a1a1a', color:'#fca5a5', conn:'rgba(252,165,165,0.4)' },
   };
 
-  // Calculate path to final for selected player
-  const pathPid = window._koSelectedPathPid !== undefined ? window._koSelectedPathPid : defaultPathPid;
-  window._koPathIds = new Set();
-  window._koPathPid = pathPid;
-  if (pathPid) {
-    // All matches this player has played
-    for (const m of matches) {
-      if (m.player1_id === pathPid || m.player2_id === pathPid) {
-        window._koPathIds.add(m.id);
-      }
-    }
-    // Future potential matches
-    const myMatches = matches.filter(m=>m.player1_id===pathPid||m.player2_id===pathPid).sort((a,b)=>b.round-a.round);
-    const latestMatch = myMatches[0];
-    if (latestMatch) {
-      let curMatchNum = latestMatch.match_number;
-      for (const round of rounds.filter(r=>r>latestMatch.round)) {
-        curMatchNum = Math.ceil(curMatchNum / 2);
-        const futureMatch = matches.find(m=>m.round===round && m.match_number===curMatchNum);
-        if (futureMatch) window._koPathIds.add(futureMatch.id);
-      }
-    }
-  }
-
   const roundCols = rounds.map(round => {
     const roundMatches = matches.filter(m=>m.round===round).sort((a,b)=>a.match_number-b.match_number);
     const doneCount = roundMatches.filter(m=>m.status==='complete').length;
@@ -7055,20 +7020,9 @@ function renderKnockout() {
     const r1SlotH = 168;
     const slotH = slotsPerMatch * r1SlotH;
     const rc = ROUND_COLOURS[round] || ROUND_COLOURS[1];
-    const cards = roundMatches.map((m,i) => {
-      const onPath = (window._koPathIds||new Set()).has(m.id);
-      const isMyM  = currentUser && currentUser.playerId &&
-        (m.player1_id===currentUser.playerId || m.player2_id===currentUser.playerId);
-      const pathLabel = onPath && !isMyM
-        ? `<div style="font-size:8px;font-weight:700;color:#C9A84C;text-align:center;letter-spacing:0.05em;text-transform:uppercase;padding:3px 0 0;opacity:0.8">Your path ›</div>`
-        : isMyM
-        ? `<div style="font-size:8px;font-weight:700;color:#C9A84C;text-align:center;letter-spacing:0.05em;text-transform:uppercase;padding:3px 0 0">Your match</div>`
-        : '';
-      return `<div style="height:${slotH}px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 8px;${onPath?'background:rgba(201,168,76,0.06);':''}">
-        ${pathLabel}
-        ${matchCard(m)}
-      </div>`;
-    }).join('');
+    const cards = roundMatches.map((m,i) =>
+      `<div style="height:${slotH}px;display:flex;align-items:center;justify-content:center;padding:0 8px;">${matchCard(m)}</div>`
+    ).join('');
     return `<div style="flex-shrink:0;width:164px;background:white;border:1px solid #d8d4cc;border-radius:10px;overflow:hidden">
       <div style="background:${rc.bg};color:${rc.color};font-size:9px;font-weight:700;text-align:center;padding:7px 4px;letter-spacing:0.06em;text-transform:uppercase">${ROUND_NAMES[round]||'Round '+round} <span style="opacity:0.6;font-weight:400">${doneCount}/${roundMatches.length}</span></div>
       <div style="padding:4px 0">${cards}</div>
@@ -7079,36 +7033,23 @@ function renderKnockout() {
   const totalH = r1Count * r1SlotH;
 
   function connectorSVG(fromRound, toRound) {
-    const fromMatches = matches.filter(m=>m.round===fromRound).sort((a,b)=>a.match_number-b.match_number);
-    const toMatches   = matches.filter(m=>m.round===toRound).sort((a,b)=>a.match_number-b.match_number);
-    const fromCount = fromMatches.length;
-    const toCount   = toMatches.length;
+    const fromCount = matches.filter(m=>m.round===fromRound).length;
+    const toCount   = matches.filter(m=>m.round===toRound).length;
     const fromSlotH = Math.pow(2, fromRound-1) * r1SlotH;
     const toSlotH   = Math.pow(2, toRound-1)   * r1SlotH;
     const rc = ROUND_COLOURS[toRound] || ROUND_COLOURS[1];
-    const pathIds = window._koPathIds || new Set();
     const lines = [];
     for (let i=0; i<toCount; i++) {
       const top1 = i*2     * fromSlotH + fromSlotH/2;
       const top2 = (i*2+1) * fromSlotH + fromSlotH/2;
       const toY  = i       * toSlotH   + toSlotH/2;
       const midX = 16;
-      const from1OnPath = fromMatches[i*2]   && pathIds.has(fromMatches[i*2].id);
-      const from2OnPath = fromMatches[i*2+1] && pathIds.has(fromMatches[i*2+1].id);
-      const toOnPath    = toMatches[i]        && pathIds.has(toMatches[i].id);
-      const s1 = from1OnPath ? '#C9A84C' : rc.conn;
-      const s2 = from2OnPath ? '#C9A84C' : rc.conn;
-      const sw1 = from1OnPath ? '2' : '1.5';
-      const sw2 = from2OnPath ? '2' : '1.5';
-      const stV = (from1OnPath||from2OnPath) ? '#C9A84C' : rc.conn;
-      const stTo = toOnPath ? '#C9A84C' : rc.conn;
-      const swTo = toOnPath ? '2' : '1.5';
-      lines.push(`<line x1="0" y1="${top1}" x2="${midX}" y2="${top1}" stroke="${s1}" stroke-width="${sw1}"/>`);
+      lines.push(`<line x1="0" y1="${top1}" x2="${midX}" y2="${top1}" stroke="${rc.conn}" stroke-width="1.5"/>`);
       if (i*2+1 < fromCount) {
-        lines.push(`<line x1="0" y1="${top2}" x2="${midX}" y2="${top2}" stroke="${s2}" stroke-width="${sw2}"/>`);
-        lines.push(`<line x1="${midX}" y1="${top1}" x2="${midX}" y2="${top2}" stroke="${stV}" stroke-width="1.5"/>`);
+        lines.push(`<line x1="0" y1="${top2}" x2="${midX}" y2="${top2}" stroke="${rc.conn}" stroke-width="1.5"/>`);
+        lines.push(`<line x1="${midX}" y1="${top1}" x2="${midX}" y2="${top2}" stroke="${rc.conn}" stroke-width="1.5"/>`);
       }
-      lines.push(`<line x1="${midX}" y1="${toY}" x2="32" y2="${toY}" stroke="${stTo}" stroke-width="${swTo}"/>`);
+      lines.push(`<line x1="${midX}" y1="${toY}" x2="32" y2="${toY}" stroke="${rc.conn}" stroke-width="1.5"/>`);
     }
     return `<svg width="32" height="${totalH+28}" style="flex-shrink:0;background:#1a2e1a" overflow="visible">${lines.join('')}</svg>`;
   }
@@ -7139,13 +7080,6 @@ function renderKnockout() {
     </div>` : '';
 
   el.innerHTML = adminBtns + championHtml + `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;background:#f8f5ee;border-radius:var(--radius);padding:8px 12px;border:1px solid #e8e4de">
-      <span style="font-size:12px;font-weight:600;color:#633806;flex-shrink:0">&#127942; Path to final:</span>
-      <select onchange="window._koSelectedPathPid=this.value;renderKnockout()" style="flex:1;font-size:12px;font-family:'DM Sans',sans-serif;padding:4px 8px;border-radius:6px;border:1px solid #C9A84C;background:white;color:#0a1628">
-        <option value="">— Select a player —</option>
-        ${bracketPlayers.map(p=>`<option value="${p.id}" ${p.id===pathPid?'selected':''}>${p.name}</option>`).join('')}
-      </select>
-    </div>
     <div style="background:#1a2e1a;border-radius:var(--radius-lg);padding:16px 8px 20px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px">
       <div style="display:flex;align-items:flex-start;gap:0;min-width:max-content;padding:4px 8px 8px">
         ${bracketHtml}
@@ -7156,236 +7090,7 @@ function renderKnockout() {
     console.error('renderKnockout error:', e);
   }
 }
-
-
-
-
-// ── View hole breakdown for completed match ──────────────────────────────
-function viewMatchBreakdown(mid) {
-  const m = db.knockout_matches.find(x=>x.id===mid);
-  if (!m||!m.event_card_id) return;
-  const p1 = db.players.find(p=>p.id===m.player1_id);
-  const p2 = db.players.find(p=>p.id===m.player2_id);
-  const ev = db.events.find(e=>e.id===m.event_card_id);
-  if (!p1||!p2||!ev) return;
-  const r1 = db.rounds.find(r=>r.event_id===m.event_card_id&&r.player_id===m.player1_id&&r.verified);
-  const r2 = db.rounds.find(r=>r.event_id===m.event_card_id&&r.player_id===m.player2_id&&r.verified);
-  if (!r1||!r2) { toast('Round data not found','error'); return; }
-  const n = ev.event_type==='outing_18'?18:9;
-  const pts1=[],pts2=[];
-  for(let i=0;i<n;i++){ pts1.push(calcHolePts(r1,i)); pts2.push(calcHolePts(r2,i)); }
-  let p1h=0,p2h=0,halved=0;
-  const holeResults=pts1.map((p,i)=>{ if(pts1[i]>pts2[i]){p1h++;return'p1';} if(pts2[i]>pts1[i]){p2h++;return'p2';} halved++;return'half'; });
-  const winner=m.winner_id===m.player1_id?p1:p2;
-  const holeRows=holeResults.map((res,i)=>{
-    const bg=res==='p1'?'#fef8e6':res==='p2'?'#EEEDFE':'var(--bg)';
-    const icon=res==='p1'?'◀':res==='p2'?'▶':'·';
-    return `<tr style="border-bottom:0.5px solid var(--border);background:${bg}">
-      <td style="padding:5px 8px;font-size:12px;font-weight:600;color:var(--text-3);text-align:center">${i+1}</td>
-      <td style="padding:5px 8px;font-size:13px;font-weight:${res==='p1'?'700':'400'};color:${res==='p1'?'#8a6a1a':'var(--text)'};text-align:center">${pts1[i]}</td>
-      <td style="padding:5px 4px;font-size:11px;color:var(--text-3);text-align:center">${icon}</td>
-      <td style="padding:5px 8px;font-size:13px;font-weight:${res==='p2'?'700':'400'};color:${res==='p2'?'#3C3489':'var(--text)'};text-align:center">${pts2[i]}</td>
-    </tr>`;
-  }).join('');
-  document.getElementById('modal-title').textContent = `${p1.name} vs ${p2.name}`;
-  document.getElementById('modal-body').innerHTML = `
-    <div style="background:#0a1628;border-radius:var(--radius);padding:16px;text-align:center;margin-bottom:1rem">
-      <div style="font-size:28px;margin-bottom:4px">🏆</div>
-      <div style="font-family:'DM Serif Display',serif;font-size:22px;color:#C9A84C;margin-bottom:4px">${winner.name}</div>
-      <div style="font-size:14px;font-weight:600;color:white;margin-bottom:4px">${m.result||''}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.4)">${ev.course_name} · ${fmtDate(ev.event_date)}</div>
-    </div>
-    <div style="display:flex;gap:8px;margin-bottom:1rem">
-      <div style="flex:1;background:#fef8e6;border-radius:var(--radius);padding:10px;text-align:center">
-        <div style="font-size:11px;color:#8a6a1a;font-weight:600;margin-bottom:2px">${p1.name.split(' ')[0]}</div>
-        <div style="font-size:24px;font-weight:700;color:#8a6a1a">${p1h}</div>
-        <div style="font-size:10px;color:#8a6a1a">holes won</div>
-      </div>
-      <div style="flex:1;background:#f0ece4;border-radius:var(--radius);padding:10px;text-align:center">
-        <div style="font-size:11px;color:var(--text-3);font-weight:600;margin-bottom:2px">Halved</div>
-        <div style="font-size:24px;font-weight:700;color:var(--text-2)">${halved}</div>
-        <div style="font-size:10px;color:var(--text-3)">holes</div>
-      </div>
-      <div style="flex:1;background:#EEEDFE;border-radius:var(--radius);padding:10px;text-align:center">
-        <div style="font-size:11px;color:#3C3489;font-weight:600;margin-bottom:2px">${p2.name.split(' ')[0]}</div>
-        <div style="font-size:24px;font-weight:700;color:#3C3489">${p2h}</div>
-        <div style="font-size:10px;color:#3C3489">holes won</div>
-      </div>
-    </div>
-    <div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:#0a1628">
-          <th style="padding:7px 8px;font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;text-align:center">Hole</th>
-          <th style="padding:7px 8px;font-size:11px;color:#C9A84C;text-align:center">${p1.name.split(' ')[0]}</th>
-          <th style="padding:7px;font-size:10px;color:rgba(255,255,255,0.3);text-align:center"></th>
-          <th style="padding:7px 8px;font-size:11px;color:#EEEDFE;text-align:center">${p2.name.split(' ')[0]}</th>
-        </tr></thead>
-        <tbody>${holeRows}</tbody>
-      </table>
-    </div>`;
-  document.getElementById('modal-overlay').classList.add('open');
-}
-
-// ── Resolve playoff — admin picks winner ─────────────────────────────────
-function resolvePlayoff(mid) {
-  const m = db.knockout_matches.find(x=>x.id===mid);
-  if (!m) return;
-  const p1 = db.players.find(p=>p.id===m.player1_id);
-  const p2 = db.players.find(p=>p.id===m.player2_id);
-  document.getElementById('modal-title').textContent = 'Resolve playoff';
-  document.getElementById('modal-body').innerHTML = `
-    <div style="background:#fef8e6;border-radius:var(--radius);padding:12px;margin-bottom:1.25rem;font-size:13px;color:#8a6a1a;font-weight:500;text-align:center">
-      ⚡ ${p1?p1.name:'?'} vs ${p2?p2.name:'?'}<br>
-      <span style="font-weight:400;font-size:12px">Select the winner of the playoff hole</span>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <button class="btn primary" onclick="confirmPlayoffWinner('${mid}','${m.player1_id}')" style="padding:16px;font-size:15px;font-weight:600">
-        🏆 ${p1?p1.name:'Player 1'} wins
-      </button>
-      <button class="btn primary" onclick="confirmPlayoffWinner('${mid}','${m.player2_id}')" style="padding:16px;font-size:15px;font-weight:600">
-        🏆 ${p2?p2.name:'Player 2'} wins
-      </button>
-    </div>`;
-  document.getElementById('modal-overlay').classList.add('open');
-}
-
-async function confirmPlayoffWinner(mid, winnerId) {
-  const m = db.knockout_matches.find(x=>x.id===mid);
-  const winner = db.players.find(p=>p.id===winnerId);
-  if (!m||!winner) return;
-  try {
-    await patch(`knockout_matches?id=eq.${mid}`, {
-      status: 'complete', winner_id: winnerId,
-      result: `${winner.name.split(' ')[0]} wins playoff hole`
-    });
-    await advanceWinner(m, winnerId);
-    toast(`${winner.name} advances!`, 'success');
-    closeModal();
-    await loadAll(); renderAll();
-  } catch(e) { toast('Error: '+e.message, 'error'); }
-}
-
-// ── Post this week's fixtures ────────────────────────────────────────────
-function showFixturePost() {
-  const pending = db.knockout_matches.filter(m=>!m.is_bye&&(m.status==='pending'||m.status==='playoff')&&m.player1_id&&m.player2_id);
-  if (!pending.length) { toast('No pending matches to post','error'); return; }
-  const roundNames = {1:'R32',2:'R16',3:'QF',4:'SF',5:'Final'};
-  const matchChecks = pending.map(m=>{
-    const p1=db.players.find(p=>p.id===m.player1_id);
-    const p2=db.players.find(p=>p.id===m.player2_id);
-    const round=roundNames[m.round]||`R${m.round}`;
-    return `<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;margin-bottom:6px">
-      <input type="checkbox" id="fix-m-${m.id}" value="${m.id}" style="width:18px;height:18px;accent-color:#C9A84C;flex-shrink:0">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:14px;font-weight:500;color:var(--text)">${p1?p1.name:'?'} <span style="color:var(--text-3);font-weight:400">vs</span> ${p2?p2.name:'?'}</div>
-        <div style="font-size:11px;color:var(--text-3);margin-top:1px">${round}${m.status==='playoff'?' · ⚡ Playoff':''}</div>
-      </div>
-    </label>`;
-  }).join('');
-  const allIds = pending.map(m=>m.id);
-  window._fixturePostIds = allIds;
-  document.getElementById('modal-title').textContent = "Post this week's fixtures";
-  document.getElementById('modal-body').innerHTML = `
-    <div class="form-group" style="margin-bottom:1rem">
-      <label>Note <span style="font-weight:400;color:var(--text-3)">(optional — e.g. "Play by Sunday 3rd May")</span></label>
-      <input id="fix-note" placeholder="e.g. Play by Sunday 3rd May" />
-    </div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Select matches playing this week</div>
-    ${matchChecks}
-    <div style="display:flex;gap:8px;margin-top:1rem">
-      <button class="btn sm" onclick="document.querySelectorAll('[id^=fix-m-]').forEach(cb=>cb.checked=true)" style="flex:1">Select all</button>
-      <button class="btn primary" onclick="saveFixturePost()" style="flex:2">Post to home</button>
-    </div>`;
-  document.getElementById('modal-overlay').classList.add('open');
-}
-
-async function saveFixturePost() {
-  const allIds = window._fixturePostIds || [];
-  const selected = allIds.filter(id=>document.getElementById('fix-m-'+id)?.checked);
-  if (!selected.length) { toast('Select at least one match','error'); return; }
-  const note = document.getElementById('fix-note').value.trim()||null;
-  const matchData = selected.map(id=>{
-    const m=db.knockout_matches.find(x=>x.id===id);
-    const p1=db.players.find(p=>p.id===m?.player1_id);
-    const p2=db.players.find(p=>p.id===m?.player2_id);
-    return { matchId:id, p1Name:p1?.name||'?', p2Name:p2?.name||'?', round:m?.round||1, isPlayoff:m?.status==='playoff' };
-  });
-  try {
-    await post('noticeboard',{ post_type:'fixtures', custom_text:note, fixture_matches:matchData });
-    toast("Fixtures posted!",'success');
-    closeModal();
-    await loadAll(); renderAll();
-  } catch(e) { toast('Error: '+e.message,'error'); }
-}
-
-async function postKnockoutResults() {
-  // Build Round 1 results data
-  const round1 = db.knockout_matches.filter(m=>m.round===1).sort((a,b)=>a.match_number-b.match_number);
-  if (!round1.length) { toast('No Round 1 matches found','error'); return; }
-
-  const matchData = round1.map(m=>{
-    const p1 = db.players.find(p=>p.id===m.player1_id);
-    const p2 = db.players.find(p=>p.id===m.player2_id);
-    const winner = m.winner_id ? db.players.find(p=>p.id===m.winner_id) : null;
-    return {
-      matchId: m.id,
-      p1Name: p1?.name||'?',
-      p2Name: p2?.name||'?',
-      winnerName: winner?.name||null,
-      result: m.result||null,
-      status: m.status,
-      isBye: m.is_bye||false
-    };
-  });
-
-  const completed = round1.filter(m=>m.status==='complete'&&!m.is_bye).length;
-  const total = round1.filter(m=>!m.is_bye).length;
-
-  try {
-    // Check if a knockout_results post already exists — if so update it
-    const existing = db.noticeboard.find(n=>n.post_type==='knockout_results');
-    if (existing) {
-      await patch(`noticeboard?id=eq.${existing.id}`, { fixture_matches: matchData });
-      toast(`Round 1 results updated — ${completed}/${total} complete`, 'success');
-    } else {
-      await post('noticeboard', { post_type:'knockout_results', fixture_matches: matchData });
-      toast(`Round 1 results posted — ${completed}/${total} complete`, 'success');
-    }
-    await loadAll(); renderAll();
-  } catch(e) { toast('Error: '+e.message,'error'); }
-}
-
 function showKnockoutSetup() {
-  const rounds = [...new Set(db.knockout_matches.map(m=>m.round))];
-  const existing = db.knockout_matches.filter(m=>m.round===1);
-  const playerOpts = db.players.map(p=>`<option value="${p.id}">${p.name} (${parseFloat(p.handicap_index).toFixed(1)})</option>`).join('');
-
-  // Build 16 match slots for round of 32
-  let matchSlots = '';
-  for (let i=1; i<=16; i++) {
-    const m = existing.find(x=>x.match_number===i);
-    const p1 = m?.player1_id || '';
-    const p2 = m?.player2_id || '';
-    const isBye = m?.is_bye || false;
-    matchSlots += `<div style="background:var(--bg);border-radius:var(--radius);padding:10px;margin-bottom:8px">
-      <div style="font-size:11px;color:var(--text-3);font-weight:500;margin-bottom:6px">Match ${i}</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-        <select id="ko-p1-${i}" style="flex:1;height:34px;font-size:12px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);padding:0 8px;font-family:'DM Sans',sans-serif">
-          <option value="">— Player 1 —</option>
-          ${playerOpts}
-        </select>
-        <span style="font-size:12px;color:var(--text-3)">vs</span>
-        <select id="ko-p2-${i}" style="flex:1;height:34px;font-size:12px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);padding:0 8px;font-family:'DM Sans',sans-serif">
-          <option value="">— Bye —</option>
-          ${playerOpts}
-        </select>
-      </div>
-      <label style="font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:6px">
-        <input type="checkbox" id="ko-bye-${i}" ${isBye?'checked':''} onchange="document.getElementById('ko-p2-${i}').disabled=this.checked"> This is a bye match
-      </label>
-    </div>`;
-  }
-
   // Pre-fill existing values
   document.getElementById('modal-title').textContent = 'Set up knockout draw';
   document.getElementById('modal-body').innerHTML = `
