@@ -3317,11 +3317,14 @@ async function sendTestNotification() {
   const log = document.getElementById('push-debug-log');
   if (log) { log.style.display = ''; log.innerHTML = '<div>⏳ Sending test notification...</div>'; }
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
+    const url = `${SUPABASE_URL}/functions/v1/send-push-notification`;
+    if (log) log.innerHTML += `<div>📡 Calling: ${url}</div>`;
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'apikey': SUPABASE_KEY,
       },
       body: JSON.stringify({
         player_ids: [currentUser.playerId],
@@ -3331,10 +3334,13 @@ async function sendTestNotification() {
         url: '/brayhead-golf/'
       }),
     });
-    const data = await res.json();
-    if (log) log.innerHTML += `<div>${res.ok ? '✓ Sent! Result: ' + JSON.stringify(data) : '❌ Failed: ' + JSON.stringify(data)}</div>`;
+    if (log) log.innerHTML += `<div>HTTP status: ${res.status}</div>`;
+    const text = await res.text();
+    if (log) log.innerHTML += `<div>Response: ${text}</div>`;
+    let data;
+    try { data = JSON.parse(text); } catch { data = { raw: text }; }
     if (res.ok && data.sent > 0) toast('Test notification sent! 🔔', 'success');
-    else toast('Sent but check debug log', 'success');
+    else toast('Check debug log for details', 'success');
   } catch(e) {
     if (log) log.innerHTML += `<div>❌ Error: ${e.message}</div>`;
     toast('Error: ' + e.message, 'error');
