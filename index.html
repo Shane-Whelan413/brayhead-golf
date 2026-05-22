@@ -3311,6 +3311,40 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
+async function reRegisterPush() {
+  haptic();
+  const log = document.getElementById('push-debug-log');
+  if (log) { log.style.display = ''; log.innerHTML = '<div>⏳ Clearing old subscription...</div>'; }
+  const add = (msg) => { if (log) { log.innerHTML += `<div>${msg}</div>`; log.scrollTop = 9999; } };
+  try {
+    // Unsubscribe any existing push subscription
+    const reg = await navigator.serviceWorker.getRegistration('/brayhead-golf/sw.js');
+    if (reg) {
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) {
+        await existing.unsubscribe();
+        add('✓ Old subscription removed');
+      } else {
+        add('No existing subscription found');
+      }
+    }
+    // Delete from Supabase
+    if (currentUser?.playerId) {
+      await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?player_id=eq.${currentUser.playerId}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+      });
+      add('✓ Removed from database');
+    }
+    // Re-register fresh
+    add('⏳ Creating new subscription...');
+    await registerPushNotifications();
+    add('✓ Done — try sending test notification now');
+  } catch(e) {
+    add('❌ Error: ' + e.message);
+  }
+}
+
 async function sendTestNotification() {
   haptic();
   if (!currentUser?.playerId) { toast('Log in first', 'error'); return; }
@@ -4400,6 +4434,7 @@ function renderHome() {
             <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Test push setup on this device.</div>
             <button class="btn sm" style="width:100%;margin-bottom:8px" onclick="testPushSetup()">🔔 Test push setup</button>
             <button class="btn sm" style="width:100%;margin-bottom:8px;background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="sendTestNotification()">📨 Send test notification</button>
+            <button class="btn sm" style="width:100%;margin-bottom:8px;background:#FCEBEB;color:#A32D2D;border-color:#F7C1C1" onclick="reRegisterPush()">🔄 Re-register push</button>
             <div id="push-debug-log" style="font-size:11px;font-family:monospace;background:#0a1628;color:#C9A84C;border-radius:6px;padding:8px;min-height:40px;max-height:200px;overflow-y:auto;display:none"></div>
           </div>
             <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Scans all completed matches and fills any missing player slots in the next round. Use this to fix TBD players showing in the bracket.</div>
