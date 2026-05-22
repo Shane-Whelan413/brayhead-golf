@@ -80,10 +80,6 @@
     top: 0;
     z-index: 50;
   }
-  .topbar-brand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
-  .topbar-icon { width: 32px; height: 32px; border-radius: 50%; background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
-  .topbar-text { min-width: 0; }
-  .topbar-pts-pill { background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.25); border-radius: 99px; padding: 4px 10px; font-size: 12px; font-weight: 700; color: #C9A84C; white-space: nowrap; flex-shrink: 0; transition: all 0.3s; }
   .conn-pill {
     font-size: 11px;
     font-weight: 500;
@@ -824,16 +820,12 @@
   </div>
 </div>
 <div class="topbar">
-  <div class="topbar-brand">
-    <div class="topbar-icon">⛳</div>
-    <div class="topbar-text">
-      <div class="site-title">Bray Head GS</div>
-      <div class="site-sub" id="topbar-season">2025 Season</div>
-    </div>
+  <img id="topbar-logo" src="icon-192.png" alt="logo" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid rgba(201,168,76,0.4);">
+  <div style="flex:1;min-width:0">
+    <div class="site-title">Bray Head GS</div>
+    <div class="site-sub">2026 Season</div>
   </div>
-  <div id="topbar-pts-pill" class="topbar-pts-pill" style="display:none"></div>
   <span class="conn-pill" id="conn-pill">Connecting…</span>
-  <span id="topbar-user" style="font-size:12px;color:rgba(255,255,255,0.7);display:none"></span>
   <button class="btn sm" id="btn-change-pin" onclick="showChangePin()" style="border-color:rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);font-size:11px;padding:3px 8px;display:none">PIN</button>
   <button class="btn sm" onclick="logout()" style="border-color:rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);font-size:11px;padding:3px 8px">Out</button>
 </div>
@@ -1882,7 +1874,6 @@ function renderLeaderboard() {
       <div class="lb-card-pts" style="font-size:${ptsSize};color:${pos===1?'#B8860B':pos===2?'#707070':pos===3?'#A0522D':'var(--green-mid)'}">${p.lp}</div>
     </button>`;
   }).join('') + '</div>';
-  updateTopbarPts();
 }
 
 function renderPlayers() {
@@ -4707,8 +4698,7 @@ function renderHome() {
 
   if (!db.noticeboard.length) {
     feed.innerHTML = pushBanner + knockoutCard + `<div class="empty" style="padding:3rem;color:var(--text-2)">No updates yet — check back after the next round!</div>`;
-    updateTopbarPts();
-    return;
+      return;
   }
   feed.innerHTML = pushBanner + `<div class="stagger-children">` + knockoutCard + db.noticeboard.map(n => {
     // Knockout results post
@@ -4909,7 +4899,6 @@ function renderHome() {
       </div>
     </div>`;
   }).join('') + '</div>';
-  updateTopbarPts();
 }
 
 function showAdminLogin() {
