@@ -3293,7 +3293,7 @@ function showPushPrompt() {
 async function notifyPlayers(playerIds, title, body, tag, url) {
   if (!playerIds || !playerIds.length) return;
   try {
-    await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
+    await fetch(`${SUPABASE_URL}/functions/v1/rapid-worker`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -3317,7 +3317,7 @@ async function sendTestNotification() {
   const log = document.getElementById('push-debug-log');
   if (log) { log.style.display = ''; log.innerHTML = '<div>⏳ Sending test notification...</div>'; }
   try {
-    const url = `${SUPABASE_URL}/functions/v1/send-push-notification`;
+    const url = `${SUPABASE_URL}/functions/v1/rapid-worker`;
     if (log) log.innerHTML += `<div>📡 Calling: ${url}</div>`;
     const res = await fetch(url, {
       method: 'POST',
