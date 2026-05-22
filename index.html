@@ -3214,6 +3214,167 @@ async function fixBracketSlots() {
   toast(`Done — ${merged} duplicate${merged!==1?'s':''} merged, ${fixed} slot${fixed!==1?'s':''} filled, ${skipped} already correct`, 'success');
 }
 
+// ── Push Notifications ──────────────────────────────────────────
+// Replace this with your actual VAPID public key from the setup steps
+const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY_HERE';
+
+async function registerPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.register('/brayhead-golf/sw.js');
+    await navigator.serviceWorker.ready;
+
+    // Check permission
+    if (Notification.permission === 'denied') return;
+
+    // Get or create subscription
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+
+    // Store subscription in Supabase against current player
+    if (currentUser && currentUser.playerId && sub) {
+      await supabase
+        .from('push_subscriptions')
+        .upsert({ player_id: currentUser.playerId, subscription: sub.toJSON() },
+                 { onConflict: 'player_id' });
+    }
+  } catch(e) { console.warn('Push registration failed:', e); }
+}
+
+async function promptPushPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    registerPushNotifications();
+    return;
+  }
+  if (Notification.permission === 'denied') return;
+  // Show a friendly in-app prompt first before the browser dialog
+  const agreed = await showPushPrompt();
+  if (!agreed) return;
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') registerPushNotifications();
+}
+
+function showPushPrompt() {
+  return new Promise(resolve => {
+    document.getElementById('modal-title').textContent = '🔔 Stay in the loop';
+    document.getElementById('modal-body').innerHTML = `
+      <div style="text-align:center;padding:8px 0 16px">
+        <div style="font-size:40px;margin-bottom:12px">⛳</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px">Enable notifications</div>
+        <div style="font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:20px">Get notified when your knockout opponent confirms, round results are posted, and more.</div>
+        <button onclick="closeModal();window._pushResolve(true)" class="btn primary" style="width:100%;padding:12px;font-size:14px;margin-bottom:8px">Yes, notify me</button>
+        <button onclick="closeModal();window._pushResolve(false)" class="btn" style="width:100%;padding:12px;font-size:14px">Maybe later</button>
+      </div>`;
+    window._pushResolve = resolve;
+    document.getElementById('modal-overlay').classList.add('open');
+  });
+}
+
+async function notifyPlayers(playerIds, title, body, tag, url) {
+  if (!playerIds || !playerIds.length) return;
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ player_ids: playerIds, title, body, tag, url }),
+    });
+  } catch(e) { console.warn('notifyPlayers failed:', e); }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function generateVapidKeys() {
+  haptic();
+  const btn = event.target;
+  btn.textContent = 'Generating…';
+  btn.disabled = true;
+
+  try {
+    // Generate an EC key pair using P-256 curve (required for VAPID)
+    const keyPair = await crypto.subtle.generateKey(
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      true, // extractable
+      ['sign', 'verify']
+    );
+
+    // Export public key as raw bytes → base64url
+    const pubRaw  = await crypto.subtle.exportKey('raw', keyPair.publicKey);
+    const privJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+
+    const toBase64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+    // Private key from JWK d field (already base64url)
+    const publicKey  = toBase64url(pubRaw);
+    const privateKey = privJwk.d;
+
+    const out = document.getElementById('vapid-output');
+    out.style.display = '';
+    out.innerHTML = `
+      <div style="background:#0a1628;border-radius:var(--radius);padding:12px">
+        <div style="font-size:11px;font-weight:700;color:#C9A84C;margin-bottom:6px">✓ Keys generated — copy these now</div>
+
+        <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em">Public key (VAPID_PUBLIC_KEY)</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <div id="vapid-pub" style="font-size:9px;color:white;font-family:monospace;background:rgba(255,255,255,0.08);border-radius:5px;padding:6px 8px;flex:1;word-break:break-all;user-select:all">${publicKey}</div>
+          <button onclick="copyVapid('vapid-pub')" style="flex-shrink:0;padding:5px 8px;border-radius:5px;border:1px solid rgba(201,168,76,0.4);background:rgba(201,168,76,0.1);color:#C9A84C;font-size:10px;cursor:pointer;font-family:inherit">Copy</button>
+        </div>
+
+        <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em">Private key (VAPID_PRIVATE_KEY)</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+          <div id="vapid-priv" style="font-size:9px;color:white;font-family:monospace;background:rgba(255,255,255,0.08);border-radius:5px;padding:6px 8px;flex:1;word-break:break-all;user-select:all">${privateKey}</div>
+          <button onclick="copyVapid('vapid-priv')" style="flex-shrink:0;padding:5px 8px;border-radius:5px;border:1px solid rgba(201,168,76,0.4);background:rgba(201,168,76,0.1);color:#C9A84C;font-size:10px;cursor:pointer;font-family:inherit">Copy</button>
+        </div>
+
+        <div style="font-size:10px;color:rgba(255,255,255,0.5);line-height:1.5;border-top:0.5px solid rgba(255,255,255,0.1);padding-top:10px">
+          <div style="font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:4px">Next steps:</div>
+          1. Copy the <b style="color:#C9A84C">Public key</b> and paste it into index.html replacing <code style="color:#C9A84C">YOUR_VAPID_PUBLIC_KEY_HERE</code><br><br>
+          2. Go to <b style="color:white">Supabase → Settings → Edge Functions → Secrets</b> and add:<br>
+          &nbsp;&nbsp;• <code style="color:#C9A84C">VAPID_PUBLIC_KEY</code> = public key above<br>
+          &nbsp;&nbsp;• <code style="color:#C9A84C">VAPID_PRIVATE_KEY</code> = private key above<br><br>
+          3. Deploy the <code style="color:#C9A84C">send-push-notification</code> Edge Function<br><br>
+          4. Upload <code style="color:#C9A84C">sw.js</code> to your GitHub repo root
+        </div>
+      </div>`;
+
+    btn.textContent = '✓ Keys generated';
+  } catch(e) {
+    toast('Key generation failed: ' + e.message, 'error');
+    btn.textContent = '🔑 Generate VAPID keys';
+    btn.disabled = false;
+  }
+}
+
+function copyVapid(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const text = el.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    toast('Copied to clipboard', 'success');
+  }).catch(() => {
+    // Fallback — select the text
+    const range = document.createRange();
+    range.selectNode(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    toast('Text selected — copy it manually', 'success');
+  });
+}
+
 function toggleAdminTools() {
   haptic();
   const body = document.getElementById('admin-tools-body');
@@ -4128,7 +4289,11 @@ function renderHome() {
             <button class="btn sm" style="width:100%" onclick="runHandicapAudit()">🔍 Preview audit</button>
           </div>
           <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-top:8px">
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Fix bracket slots</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Generate VAPID keys</div>
+            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">One-time setup for push notifications. Generate your keys here, then follow the setup steps.</div>
+            <button class="btn sm" style="width:100%" onclick="generateVapidKeys()">🔑 Generate VAPID keys</button>
+            <div id="vapid-output" style="display:none;margin-top:10px"></div>
+          </div>
             <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Scans all completed matches and fills any missing player slots in the next round. Use this to fix TBD players showing in the bracket.</div>
             <button class="btn sm" style="width:100%" onclick="fixBracketSlots()">🔧 Fix bracket slots</button>
           </div>
@@ -6891,10 +7056,38 @@ async function toggleMatchAvailability(mid) {
   try {
     await patch(`knockout_matches?id=eq.${mid}`, update);
     await loadAll(); renderAll();
-    const bothOn = newVal && (fresh ? (isP1 ? m.p2_available : m.p1_available) : false);
-    if (bothOn) toast("Both players available this week — match is on! 🏌️", 'success');
-    else if (newVal) toast("Marked as available — waiting for your opponent", 'success');
-    else toast("Availability removed", 'success');
+    const reloaded = db.knockout_matches.find(x=>x.id===mid);
+    const bothNow = reloaded && isAvailabilityFresh(reloaded) && reloaded.p1_available && reloaded.p2_available;
+    if (bothNow) {
+      toast("Both players available this week — match is on! 🏌️", 'success');
+      // Notify both players
+      const opponentId = isP1 ? reloaded.player2_id : reloaded.player1_id;
+      if (opponentId) {
+        await notifyPlayers(
+          [opponentId],
+          '🏌️ Match on this week!',
+          `Both you and your opponent have confirmed — your knockout match is on this week!`,
+          'ko-availability',
+          '/brayhead-golf/'
+        );
+      }
+    } else if (newVal) {
+      toast("Marked as available — waiting for your opponent", 'success');
+      // Notify opponent that you've confirmed
+      const opponentId = isP1 ? m.player2_id : m.player1_id;
+      if (opponentId) {
+        const myName = currentUser?.name?.split(' ')[0] || 'Your opponent';
+        await notifyPlayers(
+          [opponentId],
+          '⛳ Availability update',
+          `${myName} is available for your knockout match this week. Are you?`,
+          'ko-availability',
+          '/brayhead-golf/'
+        );
+      }
+    } else {
+      toast("Availability removed", 'success');
+    }
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
@@ -7679,6 +7872,8 @@ function submitPin() {
     hideLoginScreen();
     updateUIForRole();
     toast(`Welcome ${p.name.split(' ')[0]}${role==='admin'?' (Admin)':''}!`, 'success');
+    // Prompt for push notifications after a short delay
+    setTimeout(() => promptPushPermission(), 2500);
   } else {
     document.getElementById('login-pin-error').style.display = 'block';
     pinBuffer = '';
