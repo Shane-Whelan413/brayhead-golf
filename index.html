@@ -106,19 +106,30 @@
   .anim-fade-up { animation: fadeSlideUp 0.35s cubic-bezier(0.34,1.1,0.64,1) both; }
   .anim-fade    { animation: fadeIn 0.25s ease both; }
 
-  /* Staggered card children */
-  .stagger-children > * { opacity: 0; animation: fadeSlideUp 0.35s cubic-bezier(0.34,1.1,0.64,1) forwards; }
-  .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-  .stagger-children > *:nth-child(2) { animation-delay: 60ms; }
-  .stagger-children > *:nth-child(3) { animation-delay: 120ms; }
-  .stagger-children > *:nth-child(4) { animation-delay: 180ms; }
-  .stagger-children > *:nth-child(5) { animation-delay: 240ms; }
-  .stagger-children > *:nth-child(6) { animation-delay: 300ms; }
-  .stagger-children > *:nth-child(7) { animation-delay: 360ms; }
-  .stagger-children > *:nth-child(8) { animation-delay: 420ms; }
-  .stagger-children > *:nth-child(n+9) { animation-delay: 480ms; }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-24px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
 
-  /* ── Skeleton loading ── */
+  /* Staggered card children — slide from left for leaderboard */
+  .stagger-children > * { opacity: 0; animation: slideInLeft 0.3s cubic-bezier(0.34,1.1,0.64,1) forwards; }
+  .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2) { animation-delay: 70ms; }
+  .stagger-children > *:nth-child(3) { animation-delay: 140ms; }
+  .stagger-children > *:nth-child(4) { animation-delay: 210ms; }
+  .stagger-children > *:nth-child(5) { animation-delay: 280ms; }
+  .stagger-children > *:nth-child(6) { animation-delay: 350ms; }
+  .stagger-children > *:nth-child(7) { animation-delay: 420ms; }
+  .stagger-children > *:nth-child(8) { animation-delay: 490ms; }
+  .stagger-children > *:nth-child(n+9) { animation-delay: 560ms; }
+
+  /* Feed items stagger up */
+  .stagger-up > * { opacity: 0; animation: fadeSlideUp 0.35s cubic-bezier(0.34,1.1,0.64,1) forwards; }
+  .stagger-up > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-up > *:nth-child(2) { animation-delay: 80ms; }
+  .stagger-up > *:nth-child(3) { animation-delay: 160ms; }
+  .stagger-up > *:nth-child(4) { animation-delay: 240ms; }
+  .stagger-up > *:nth-child(n+5) { animation-delay: 320ms; }
   @keyframes skeletonPulse {
     0%,100% { opacity: 0.6; }
     50%      { opacity: 1; }
@@ -4700,7 +4711,7 @@ function renderHome() {
     feed.innerHTML = pushBanner + knockoutCard + `<div class="empty" style="padding:3rem;color:var(--text-2)">No updates yet — check back after the next round!</div>`;
       return;
   }
-  feed.innerHTML = pushBanner + `<div class="stagger-children">` + knockoutCard + db.noticeboard.map(n => {
+  feed.innerHTML = pushBanner + `<div class="stagger-up">` + knockoutCard + db.noticeboard.map(n => {
     // Knockout results post
     if (n.post_type === 'knockout_results') {
       const matches = n.fixture_matches || [];
@@ -7568,11 +7579,13 @@ async function checkForUpdates() {
 }
 
 function animateProfileStats() {
-  // Countup all stat-value elements on the profile page
   document.querySelectorAll('#profile .stat-value, #profile .stat-val').forEach(el => {
     const raw = el.textContent.trim();
+    // Skip ordinals (1st, 2nd, 3rd, 4th etc), dashes, and non-numeric values
+    if (/\d+(st|nd|rd|th)/.test(raw)) return;
+    if (raw === '—' || raw === '') return;
     const num = parseFloat(raw.replace(/[^0-9.]/g,''));
-    if (!isNaN(num) && num > 0 && raw !== '—') {
+    if (!isNaN(num) && num > 0) {
       const decimals = raw.includes('.') ? (raw.split('.')[1]?.length || 1) : 0;
       countUp(el, num, 800, decimals);
     }
