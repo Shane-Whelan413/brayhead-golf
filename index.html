@@ -722,6 +722,7 @@
     flex-shrink: 0;
   }
 </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 </head>
 <body>
 
@@ -6099,44 +6100,22 @@ function showPlayerProfile(pid) {
     </div>
 
     <div id="mptab-content-stats" style="display:none">
-      ${(() => {
-        const chartRounds = [...countedRounds]
-          .filter(r => r.stableford_points != null)
-          .sort((a,b) => {
-            const ea = db.events.find(e=>e.id===a.event_id);
-            const eb = db.events.find(e=>e.id===b.event_id);
-            return (ea?.event_date||'').localeCompare(eb?.event_date||'');
-          })
-          .slice(-15);
-        if (chartRounds.length >= 2) {
-          const pts   = chartRounds.map(r => r.stableford_points);
-          const avg   = Math.round(pts.reduce((a,b)=>a+b,0)/pts.length);
-          const maxPts = Math.max(...pts, avg+2);
-          const minPts = Math.max(0, Math.min(...pts, avg-2)-1);
-          const range  = maxPts - minPts || 1;
-          const W=280, H=110, PAD=8;
-          const xStep = (W-PAD*2)/(pts.length-1);
-          const yPos  = v => H-PAD-((v-minPts)/range)*(H-PAD*2);
-          const points = pts.map((p,i)=>`${PAD+i*xStep},${yPos(p)}`).join(' ');
-          const avgY   = yPos(avg);
-          const dots   = pts.map((p,i)=>{
-            const x=PAD+i*xStep, y=yPos(p);
-            const color = p>=avg+3?'#2d7a4f':p>=avg?'#C9A84C':p<avg-3?'#A32D2D':'#888780';
-            return `<circle cx="${x}" cy="${y}" r="4" fill="${color}" stroke="white" stroke-width="1.5"/>
-              <text x="${x}" y="${y-8}" text-anchor="middle" font-size="9" fill="${color}" font-weight="700">${p}</text>`;
-          }).join('');
-          return `<div class="card" style="margin-bottom:1rem">
-            <div class="card-title" style="margin-bottom:4px">Score history</div>
-            <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;overflow:visible">
-              <line x1="${PAD}" y1="${avgY}" x2="${W-PAD}" y2="${avgY}" stroke="#C9A84C" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
-              <text x="${W-PAD+2}" y="${avgY+4}" font-size="9" fill="#C9A84C" opacity="0.7">avg ${avg}</text>
-              <polyline points="${points}" fill="none" stroke="#0a1628" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.3"/>
-              ${dots}
-            </svg>
-          </div>`;
-        }
-        return '';
-      })()}
+      ${countedRounds.filter(r=>r.stableford_points!=null).length >= 2 ? `
+      <div class="card" style="margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+          <div class="card-title" style="margin:0">Score history</div>
+          <div style="font-size:11px;color:var(--text-3)">Last ${Math.min(countedRounds.filter(r=>r.stableford_points!=null).length,15)} rounds</div>
+        </div>
+        <div style="position:relative;height:150px">
+          <canvas id="modal-score-chart" role="img" aria-label="Line chart showing stableford points per round">Stableford points per round</canvas>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
+          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-3)"><div style="width:7px;height:7px;border-radius:50%;background:#3B6D11"></div>Above avg</div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-3)"><div style="width:7px;height:7px;border-radius:50%;background:#BA7517"></div>On avg</div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-3)"><div style="width:7px;height:7px;border-radius:50%;background:#A32D2D"></div>Below avg</div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-3)"><div style="width:7px;height:7px;border-radius:50%;background:#185FA5"></div>Outing</div>
+        </div>
+      </div>` : ''}
       ${scoredRounds.length ? `
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:1rem">
         <div class="stat"><div class="stat-label">Avg pars / round</div><div class="stat-value">${avgPars}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">across ${roundsWithScores} rounds</div></div>
@@ -6186,7 +6165,10 @@ function switchModalProfileTab(tab) {
     if (btn) { btn.style.background = t===tab?'#0a1628':'transparent'; btn.style.color = t===tab?'#C9A84C':'var(--text-2)'; }
     if (content) content.style.display = t===tab?'':'none';
   });
-  if (tab==='stats' && window._modalHcpRounds) setTimeout(()=>drawModalHcpChart(), 50);
+  if (tab==='stats' && window._modalHcpRounds) setTimeout(()=>{
+    drawModalHcpChart();
+    drawScoreChart('modal-score-chart', window._modalHcpRounds);
+  }, 50);
 }
 
 function drawModalHcpChart() {
@@ -6708,69 +6690,20 @@ function renderProfile() {
 
         return `
         <div class="card" style="margin-bottom:1rem">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
             <div class="card-title" style="margin:0">Score history</div>
-            <div style="font-size:11px;color:var(--text-3)">Stableford pts per round</div>
+            <div style="font-size:11px;color:var(--text-3)">Last ${Math.min(myRounds.filter(r=>r.verified&&r.stableford_points!=null).length,15)} rounds</div>
           </div>
-          ${(() => {
-            const chartRounds = [...myRounds]
-              .filter(r => r.verified && r.stableford_points != null)
-              .sort((a,b) => {
-                const ea = db.events.find(e=>e.id===a.event_id);
-                const eb = db.events.find(e=>e.id===b.event_id);
-                return (ea?.event_date||'').localeCompare(eb?.event_date||'');
-              })
-              .slice(-15);
-            if (chartRounds.length < 2) return '<div class="empty" style="padding:1rem">Play more rounds to see your score history</div>';
-            const pts    = chartRounds.map(r => r.stableford_points);
-            const avg    = Math.round(pts.reduce((a,b)=>a+b,0)/pts.length);
-            const maxPts = Math.max(...pts, avg + 2);
-            const minPts = Math.max(0, Math.min(...pts, avg - 2) - 1);
-            const range  = maxPts - minPts || 1;
-            const W = 280, H = 120, PAD = 8;
-            const xStep = (W - PAD*2) / (pts.length - 1);
-            const yPos  = v => H - PAD - ((v - minPts) / range) * (H - PAD*2);
-
-            // Build polyline points
-            const points = pts.map((p,i) => `${PAD + i*xStep},${yPos(p)}`).join(' ');
-            // Average line y
-            const avgY = yPos(avg);
-
-            // Dots and labels
-            const dots = pts.map((p,i) => {
-              const x = PAD + i*xStep;
-              const y = yPos(p);
-              const ev = db.events.find(e=>e.id===chartRounds[i].event_id);
-              const isOuting = ev?.event_type === 'outing_18';
-              const color = p >= avg+3 ? '#2d7a4f' : p >= avg ? '#C9A84C' : p < avg-3 ? '#A32D2D' : '#888780';
-              return `<circle cx="${x}" cy="${y}" r="4" fill="${color}" stroke="white" stroke-width="1.5"/>
-                <text x="${x}" y="${y-8}" text-anchor="middle" font-size="9" fill="${color}" font-weight="700">${p}</text>`;
-            }).join('');
-
-            // Date labels (first and last)
-            const firstEv = db.events.find(e=>e.id===chartRounds[0].event_id);
-            const lastEv  = db.events.find(e=>e.id===chartRounds[chartRounds.length-1].event_id);
-            const fmt = d => d ? new Date(d).toLocaleDateString('en-IE',{day:'numeric',month:'short'}) : '';
-
-            return `
-            <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;overflow:visible">
-              <!-- Average line -->
-              <line x1="${PAD}" y1="${avgY}" x2="${W-PAD}" y2="${avgY}" stroke="#C9A84C" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
-              <text x="${W-PAD+2}" y="${avgY+4}" font-size="9" fill="#C9A84C" opacity="0.7">avg ${avg}</text>
-              <!-- Score line -->
-              <polyline points="${points}" fill="none" stroke="#0a1628" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.3"/>
-              ${dots}
-            </svg>
-            <div style="display:flex;justify-content:space-between;padding:0 ${PAD}px;margin-top:-4px">
-              <span style="font-size:9px;color:var(--text-3)">${fmt(firstEv?.event_date)}</span>
-              <span style="font-size:9px;color:var(--text-3)">${fmt(lastEv?.event_date)}</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:12px;padding:6px 0 0;flex-wrap:wrap">
-              <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;border-radius:50%;background:#2d7a4f"></div><span style="font-size:10px;color:var(--text-3)">Above avg</span></div>
-              <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;border-radius:50%;background:#C9A84C"></div><span style="font-size:10px;color:var(--text-3)">On avg</span></div>
-              <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;border-radius:50%;background:#A32D2D"></div><span style="font-size:10px;color:var(--text-3)">Below avg</span></div>
-            </div>`;
-          })()}
+          ${myRounds.filter(r=>r.verified&&r.stableford_points!=null).length >= 2 ? `
+          <div style="position:relative;height:160px">
+            <canvas id="score-history-chart" role="img" aria-label="Line chart showing stableford points per round">Stableford points per round</canvas>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+            <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-3)"><div style="width:8px;height:8px;border-radius:50%;background:#3B6D11"></div>Above avg</div>
+            <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-3)"><div style="width:8px;height:8px;border-radius:50%;background:#BA7517"></div>On avg</div>
+            <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-3)"><div style="width:8px;height:8px;border-radius:50%;background:#A32D2D"></div>Below avg</div>
+            <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-3)"><div style="width:8px;height:8px;border-radius:50%;background:#185FA5"></div>Outing</div>
+          </div>` : '<div class="empty" style="padding:1rem">Play more rounds to see score history</div>'}
         </div>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:1rem">
           <div class="stat">
@@ -6841,7 +6774,10 @@ function switchProfileTab(tab) {
     if (content) content.style.display = t===tab ? '' : 'none';
   });
   if (tab === 'stats' && window._hcpChartRounds) {
-    setTimeout(() => drawHcpChart(), 50);
+    setTimeout(() => {
+      drawHcpChart();
+      drawScoreChart('score-history-chart', window._hcpChartRounds);
+    }, 50);
   }
 }
 
@@ -6885,6 +6821,89 @@ function setHcpRange(range) {
     btn.style.color = v===range ? '#C9A84C' : 'var(--text-2)';
   });
   drawHcpChart();
+}
+
+function drawScoreChart(canvasId, rounds) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || !rounds || rounds.length < 2) return;
+  // Destroy existing chart if any
+  if (canvas._chartInstance) { canvas._chartInstance.destroy(); canvas._chartInstance = null; }
+
+  const sorted = [...rounds]
+    .filter(r => r.verified && r.stableford_points != null)
+    .sort((a,b) => {
+      const ea = db.events.find(e=>e.id===a.event_id);
+      const eb = db.events.find(e=>e.id===b.event_id);
+      return (ea?.event_date||'').localeCompare(eb?.event_date||'');
+    })
+    .slice(-15);
+
+  if (sorted.length < 2) return;
+
+  const pts      = sorted.map(r => r.stableford_points);
+  const outings  = sorted.map(r => db.events.find(e=>e.id===r.event_id)?.event_type === 'outing_18');
+  const labels   = sorted.map(r => {
+    const ev = db.events.find(e=>e.id===r.event_id);
+    return ev ? new Date(ev.event_date).toLocaleDateString('en-IE',{day:'numeric',month:'short'}) : '';
+  });
+  const avg      = Math.round(pts.reduce((a,b)=>a+b,0)/pts.length);
+  const avgLine  = pts.map(() => avg);
+  const dotColors = pts.map((p,i) => outings[i] ? '#185FA5' : p > avg+2 ? '#3B6D11' : p < avg-2 ? '#A32D2D' : '#BA7517');
+
+  const chart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          data: pts,
+          borderColor: '#444441',
+          borderWidth: 1.5,
+          tension: 0.3,
+          pointBackgroundColor: dotColors,
+          pointBorderColor: 'white',
+          pointBorderWidth: 1.5,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          fill: false,
+          segment: { borderDash: ctx => outings[ctx.p1DataIndex] ? [4,3] : undefined }
+        },
+        {
+          data: avgLine,
+          borderColor: '#BA7517',
+          borderWidth: 1,
+          borderDash: [5,4],
+          pointRadius: 0,
+          fill: false,
+          tooltip: { enabled: false }
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.datasetIndex === 0
+              ? ` ${ctx.parsed.y} pts${outings[ctx.dataIndex] ? ' · Outing' : ' · Sunday'}`
+              : ` Avg ${avg} pts`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } },
+        y: {
+          min: Math.max(0, Math.min(...pts) - 3),
+          max: Math.max(...pts) + 3,
+          ticks: { font: { size: 10 }, stepSize: 5 },
+          grid: { color: 'rgba(0,0,0,0.05)' }
+        }
+      }
+    }
+  });
+  canvas._chartInstance = chart;
 }
 
 function drawHcpChart() {
