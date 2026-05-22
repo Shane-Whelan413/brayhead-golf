@@ -107,21 +107,23 @@
   .anim-fade    { animation: fadeIn 0.25s ease both; }
 
   @keyframes slideInLeft {
-    from { opacity: 0; transform: translateX(-24px); }
+    from { opacity: 0; transform: translateX(-28px); }
     to   { opacity: 1; transform: translateX(0); }
   }
 
   /* Staggered card children — slide from left for leaderboard */
-  .stagger-children > * { opacity: 0; animation: slideInLeft 0.3s cubic-bezier(0.34,1.1,0.64,1) forwards; }
-  .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-  .stagger-children > *:nth-child(2) { animation-delay: 70ms; }
-  .stagger-children > *:nth-child(3) { animation-delay: 140ms; }
-  .stagger-children > *:nth-child(4) { animation-delay: 210ms; }
-  .stagger-children > *:nth-child(5) { animation-delay: 280ms; }
-  .stagger-children > *:nth-child(6) { animation-delay: 350ms; }
-  .stagger-children > *:nth-child(7) { animation-delay: 420ms; }
-  .stagger-children > *:nth-child(8) { animation-delay: 490ms; }
-  .stagger-children > *:nth-child(n+9) { animation-delay: 560ms; }
+  .stagger-children > * { opacity: 0; animation: slideInLeft 0.42s cubic-bezier(0.22,1,0.36,1) forwards; }
+  .stagger-children > *:nth-child(1)  { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2)  { animation-delay: 110ms; }
+  .stagger-children > *:nth-child(3)  { animation-delay: 220ms; }
+  .stagger-children > *:nth-child(4)  { animation-delay: 330ms; }
+  .stagger-children > *:nth-child(5)  { animation-delay: 440ms; }
+  .stagger-children > *:nth-child(6)  { animation-delay: 550ms; }
+  .stagger-children > *:nth-child(7)  { animation-delay: 660ms; }
+  .stagger-children > *:nth-child(8)  { animation-delay: 770ms; }
+  .stagger-children > *:nth-child(9)  { animation-delay: 880ms; }
+  .stagger-children > *:nth-child(10) { animation-delay: 990ms; }
+  .stagger-children > *:nth-child(n+11) { animation-delay: 1100ms; }
 
   /* Feed items stagger up */
   .stagger-up > * { opacity: 0; animation: fadeSlideUp 0.35s cubic-bezier(0.34,1.1,0.64,1) forwards; }
@@ -1872,17 +1874,19 @@ function renderLeaderboard() {
       : '';
 
     return `<button onclick="showPlayerProfile('${p.id}')" class="lb-card" style="width:100%;text-align:left;${cardStyle}">
-      <div class="rank ${rankClass}" style="width:${rankSize};height:${rankSize};font-size:${rankFont}">${posStr}</div>
-      ${avatarHtml(p, avatarSize, avatarFont)}
-      <div class="lb-card-info">
-        <div style="display:flex;align-items:center;gap:6px">
-          <div class="lb-card-name" style="color:var(--text);font-size:${nameSize};font-weight:${pos<=3?'600':'500'}">${p.name}</div>
-          ${movHtml}
+      <div style="display:flex;align-items:center;width:100%;gap:0">
+        <div class="rank ${rankClass}" style="width:${rankSize};height:${rankSize};font-size:${rankFont};flex-shrink:0">${posStr}</div>
+        ${avatarHtml(p, avatarSize, avatarFont)}
+        <div class="lb-card-info" style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="lb-card-name" style="color:var(--text);font-size:${nameSize};font-weight:${pos<=3?'600':'500'}">${p.name}</div>
+            ${movHtml}
+          </div>
+          <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
         </div>
-        <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
-        ${hasPenalty ? `<div style="margin-top:4px"><span style="display:inline-flex;align-items:center;gap:4px;background:#fef8e6;border:1px solid #C9A84C;color:#8a6a1a;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:0.03em">⚠️ −${p.penalty} next outing</span></div>` : ''}
+        <div class="lb-card-pts" style="font-size:${ptsSize};color:${pos===1?'#B8860B':pos===2?'#707070':pos===3?'#A0522D':'var(--green-mid)'};flex-shrink:0">${p.lp}</div>
       </div>
-      <div class="lb-card-pts" style="font-size:${ptsSize};color:${pos===1?'#B8860B':pos===2?'#707070':pos===3?'#A0522D':'var(--green-mid)'}">${p.lp}</div>
+      ${hasPenalty ? `<div style="margin-top:6px;padding-top:6px;border-top:0.5px solid var(--border)"><span style="display:inline-flex;align-items:center;gap:4px;background:#fef8e6;border:1px solid #C9A84C;color:#8a6a1a;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px">⚠️ −${p.penalty} next outing</span></div>` : ''}
     </button>`;
   }).join('') + '</div>';
 }
