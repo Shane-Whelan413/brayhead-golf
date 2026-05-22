@@ -6536,6 +6536,11 @@ function renderProfile() {
           <div style="font-size:11px;color:${outingPosText};margin-top:2px">${myOutingPts} league pts from ${myOutingRounds.length} outing${myOutingRounds.length!==1?'s':''}</div>
         </div>
       </div>` : ''}
+      <div class="card" style="margin-top:1rem" id="push-settings-card">
+        <div class="card-title" style="margin-bottom:8px">🔔 Notifications</div>
+        <div id="push-status-display" style="font-size:12px;color:var(--text-2);margin-bottom:10px">Checking…</div>
+        <div id="push-action-btn"></div>
+      </div>
     </div>
 
     <!-- PRIZES TAB -->
@@ -6690,6 +6695,7 @@ function renderProfile() {
       return (ea?.event_date||'').localeCompare(eb?.event_date||'');
     });
     window._hcpChartRange = '10';
+  setTimeout(renderPushSettings, 100);
   }
 }
 
@@ -7489,6 +7495,62 @@ function renderMyMatches() {
       <div style="position:absolute;left:10px;top:0;bottom:0;width:2px;background:#e8e4de;border-radius:99px"></div>
       ${html}
     </div>`;
+}
+async function renderPushSettings() {
+  const statusEl = document.getElementById('push-status-display');
+  const btnEl    = document.getElementById('push-action-btn');
+  if (!statusEl || !btnEl) return;
+
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+    statusEl.textContent = 'Push notifications not supported on this device.';
+    return;
+  }
+
+  const perm = Notification.permission;
+
+  if (perm === 'granted') {
+    // Check if actually subscribed
+    try {
+      const reg = await navigator.serviceWorker.getRegistration('/brayhead-golf/sw.js');
+      const sub = reg ? await reg.pushManager.getSubscription() : null;
+      if (sub) {
+        statusEl.innerHTML = '<span style="color:#166534">✓ Notifications enabled</span>';
+        btnEl.innerHTML = `<button onclick="disablePushNotifications()" style="width:100%;padding:9px;border-radius:7px;border:1px solid #d1d5db;background:white;color:#888780;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer">Turn off notifications</button>`;
+      } else {
+        statusEl.innerHTML = '<span style="color:#888780">Not set up on this device</span>';
+        btnEl.innerHTML = `<button onclick="promptPushPermission().then(renderPushSettings)" style="width:100%;padding:9px;border-radius:7px;border:none;background:#C9A84C;color:#0a1628;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer">Enable notifications</button>`;
+      }
+    } catch(e) {
+      statusEl.textContent = 'Could not check status.';
+    }
+  } else if (perm === 'denied') {
+    statusEl.innerHTML = '<span style="color:#A32D2D">Blocked — enable in phone Settings → Notifications</span>';
+    btnEl.innerHTML = '';
+  } else {
+    statusEl.innerHTML = '<span style="color:#888780">Not enabled yet</span>';
+    btnEl.innerHTML = `<button onclick="promptPushPermission().then(renderPushSettings)" style="width:100%;padding:9px;border-radius:7px;border:none;background:#C9A84C;color:#0a1628;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer">Enable notifications</button>`;
+  }
+}
+
+async function disablePushNotifications() {
+  haptic();
+  try {
+    const reg = await navigator.serviceWorker.getRegistration('/brayhead-golf/sw.js');
+    if (reg) {
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) await sub.unsubscribe();
+    }
+    if (currentUser?.playerId) {
+      await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?player_id=eq.${currentUser.playerId}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+      });
+    }
+    toast('Notifications disabled', 'success');
+    renderPushSettings();
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
 }
 
 function renderKnockout() {
