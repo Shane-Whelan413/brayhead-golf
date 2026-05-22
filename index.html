@@ -3236,6 +3236,25 @@ async function registerPushNotifications() {
     log('⏳ Registering service worker...');
     const reg = await navigator.serviceWorker.register('/brayhead-golf/sw.js');
     log('✓ SW registered: ' + reg.scope);
+
+    // Auto-update: if a new SW is waiting, activate it
+    if (reg.waiting) {
+      reg.waiting.postMessage('skipWaiting');
+    }
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          // New version available — reload silently
+          newWorker.postMessage('skipWaiting');
+        }
+      });
+    });
+    // Reload when new SW takes control
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    });
+
     await navigator.serviceWorker.ready;
     log('✓ SW ready');
     if (Notification.permission === 'denied') { log('❌ Permission denied'); return; }
@@ -4447,6 +4466,11 @@ function renderHome() {
             <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">One-time setup for push notifications. Generate your keys here, then follow the setup steps.</div>
             <button class="btn sm" style="width:100%" onclick="generateVapidKeys()">🔑 Generate VAPID keys</button>
             <div id="vapid-output" style="display:none;margin-top:10px"></div>
+          </div>
+          <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-top:8px">
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">App updates</div>
+            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Force all members to reload the latest version of the app.</div>
+            <button class="btn sm" style="width:100%" onclick="checkForUpdates()">🔄 Check for updates</button>
           </div>
           <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-top:8px">
             <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Notification opt-ins</div>
@@ -6542,6 +6566,7 @@ function renderProfile() {
         <div class="card-title" style="margin-bottom:8px">🔔 Notifications</div>
         <div id="push-status-display" style="font-size:12px;color:var(--text-2);margin-bottom:10px">Checking…</div>
         <div id="push-action-btn"></div>
+        <button onclick="checkForUpdates()" style="width:100%;margin-top:8px;padding:8px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text-2);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer">🔄 Check for app updates</button>
       </div>
     </div>
 
@@ -7291,6 +7316,30 @@ async function toggleMatchAvailability(mid) {
       toast("Availability removed", 'success');
     }
   } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+async function checkForUpdates() {
+  haptic();
+  toast('Checking for updates…', 'success');
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration('/brayhead-golf/sw.js');
+      if (reg) {
+        await reg.update();
+        if (reg.waiting) {
+          reg.waiting.postMessage('skipWaiting');
+          toast('Update found — reloading…', 'success');
+          setTimeout(() => window.location.reload(), 1000);
+          return;
+        }
+      }
+    }
+    // Hard reload as fallback
+    toast('Already up to date ✓', 'success');
+  } catch(e) {
+    // Force reload anyway
+    window.location.reload(true);
+  }
 }
 
 function dismissPushBanner() {
