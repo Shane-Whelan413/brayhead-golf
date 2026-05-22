@@ -3219,36 +3219,40 @@ async function fixBracketSlots() {
 const VAPID_PUBLIC_KEY = 'BIRwtUlPpu10lHmT93GizNuUJ7Uqttg8usuE6KPFpnclzwPgwOSYAMeRaKreF-Av7RGSZ0YXvkFyUz6gxXhBv60';
 
 async function registerPushNotifications() {
-  if (!('serviceWorker' in navigator)) { console.warn('PUSH: serviceWorker not supported'); return; }
-  if (!('PushManager' in window)) { console.warn('PUSH: PushManager not supported'); return; }
+  const log = (msg) => {
+    console.log(msg);
+    const el = document.getElementById('push-debug-log');
+    if (el) el.innerHTML += `<div>${msg}</div>`;
+  };
+  if (!('serviceWorker' in navigator)) { log('❌ serviceWorker not supported'); return; }
+  if (!('PushManager' in window)) { log('❌ PushManager not supported'); return; }
   try {
-    console.log('PUSH: registering sw...');
+    log('⏳ Registering service worker...');
     const reg = await navigator.serviceWorker.register('/brayhead-golf/sw.js');
-    console.log('PUSH: sw registered', reg.scope);
+    log('✓ SW registered: ' + reg.scope);
     await navigator.serviceWorker.ready;
-    console.log('PUSH: sw ready');
-
-    if (Notification.permission === 'denied') { console.warn('PUSH: permission denied'); return; }
-
+    log('✓ SW ready');
+    if (Notification.permission === 'denied') { log('❌ Permission denied'); return; }
     let sub = await reg.pushManager.getSubscription();
-    console.log('PUSH: existing sub?', !!sub);
+    log('Existing subscription: ' + (sub ? 'yes' : 'no'));
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
-      console.log('PUSH: new subscription created');
+      log('✓ New subscription created');
     }
-
     if (currentUser && currentUser.playerId && sub) {
       const { error } = await supabase
         .from('push_subscriptions')
         .upsert({ player_id: currentUser.playerId, subscription: sub.toJSON() },
                  { onConflict: 'player_id' });
-      if (error) console.error('PUSH: supabase upsert error', error);
-      else console.log('PUSH: subscription saved to Supabase ✓');
+      if (error) log('❌ Supabase error: ' + error.message);
+      else log('✓ Saved to Supabase!');
+    } else {
+      log('❌ No currentUser.playerId');
     }
-  } catch(e) { console.error('PUSH: registration failed', e); }
+  } catch(e) { log('❌ Error: ' + e.message); }
 }
 
 async function promptPushPermission() {
@@ -3304,6 +3308,58 @@ function urlBase64ToUint8Array(base64String) {
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = atob(base64);
   return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function testPushSetup() {
+  haptic();
+  const log = document.getElementById('push-debug-log');
+  if (!log) return;
+  log.style.display = '';
+  log.innerHTML = '';
+  const add = (msg) => { log.innerHTML += `<div>${msg}</div>`; log.scrollTop = log.scrollHeight; };
+
+  add('📱 Browser: ' + navigator.userAgent.split(' ').pop());
+  add('🔔 Notification support: ' + ('Notification' in window ? 'yes' : 'NO'));
+  add('⚙️ ServiceWorker support: ' + ('serviceWorker' in navigator ? 'yes' : 'NO'));
+  add('📡 PushManager support: ' + ('PushManager' in window ? 'yes' : 'NO'));
+  add('🔑 Permission: ' + (Notification.permission || 'unknown'));
+  add('👤 Logged in: ' + (currentUser?.playerId ? 'yes ('+currentUser.name+')' : 'NO'));
+  add('🔑 VAPID key set: ' + (VAPID_PUBLIC_KEY !== 'YOUR_VAPID_PUBLIC_KEY_HERE' ? 'yes' : 'NO - still placeholder!'));
+
+  if (!('serviceWorker' in navigator)) { add('❌ Cannot continue - no SW support'); return; }
+
+  try {
+    add('⏳ Checking SW registration...');
+    const reg = await navigator.serviceWorker.getRegistration('/brayhead-golf/sw.js');
+    if (reg) {
+      add('✓ SW already registered: ' + reg.scope);
+    } else {
+      add('⏳ No SW found, registering...');
+      const newReg = await navigator.serviceWorker.register('/brayhead-golf/sw.js');
+      add('✓ SW registered: ' + newReg.scope);
+    }
+
+    // Check for existing push subscription
+    const activeReg = await navigator.serviceWorker.ready;
+    const sub = await activeReg.pushManager.getSubscription();
+    add('📬 Push subscription: ' + (sub ? 'EXISTS ✓' : 'none yet'));
+
+    // Check push_subscriptions table
+    if (currentUser?.playerId) {
+      const { data, error } = await supabase
+        .from('push_subscriptions')
+        .select('id, created_at')
+        .eq('player_id', currentUser.playerId)
+        .single();
+      if (error) add('📦 Supabase record: none yet');
+      else add('📦 Supabase record: saved ✓ (' + (data.created_at?.slice(0,10)||'') + ')');
+    }
+
+    add('');
+    add(sub ? '✅ All good! Push is set up on this device.' : '⚠️ No subscription yet — try logging out and back in.');
+  } catch(e) {
+    add('❌ Error: ' + e.message);
+  }
 }
 
 async function generateVapidKeys() {
@@ -4302,6 +4358,12 @@ function renderHome() {
             <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">One-time setup for push notifications. Generate your keys here, then follow the setup steps.</div>
             <button class="btn sm" style="width:100%" onclick="generateVapidKeys()">🔑 Generate VAPID keys</button>
             <div id="vapid-output" style="display:none;margin-top:10px"></div>
+          </div>
+          <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-top:8px">
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Push notification debug</div>
+            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Test push setup on this device.</div>
+            <button class="btn sm" style="width:100%;margin-bottom:8px" onclick="testPushSetup()">🔔 Test push setup</button>
+            <div id="push-debug-log" style="font-size:11px;font-family:monospace;background:#0a1628;color:#C9A84C;border-radius:6px;padding:8px;min-height:40px;max-height:200px;overflow-y:auto;display:none"></div>
           </div>
             <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Scans all completed matches and fills any missing player slots in the next round. Use this to fix TBD players showing in the bracket.</div>
             <button class="btn sm" style="width:100%" onclick="fixBracketSlots()">🔧 Fix bracket slots</button>
