@@ -3243,11 +3243,12 @@ async function registerPushNotifications() {
       log('✓ New subscription created');
     }
     if (currentUser && currentUser.playerId && sub) {
-      const { error } = await supabase
-        .from('push_subscriptions')
-        .upsert({ player_id: currentUser.playerId, subscription: sub.toJSON() },
-                 { onConflict: 'player_id' });
-      if (error) log('❌ Supabase error: ' + error.message);
+      const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify({ player_id: currentUser.playerId, subscription: sub.toJSON() })
+      });
+      if (!upsertRes.ok) log('❌ Supabase error: ' + await upsertRes.text());
       else log('✓ Saved to Supabase!');
     } else {
       log('❌ No currentUser.playerId');
@@ -3296,7 +3297,7 @@ async function notifyPlayers(playerIds, title, body, tag, url) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
       },
       body: JSON.stringify({ player_ids: playerIds, title, body, tag, url }),
     });
@@ -3346,13 +3347,12 @@ async function testPushSetup() {
 
     // Check push_subscriptions table
     if (currentUser?.playerId) {
-      const { data, error } = await supabase
-        .from('push_subscriptions')
-        .select('id, created_at')
-        .eq('player_id', currentUser.playerId)
-        .single();
-      if (error) add('📦 Supabase record: none yet');
-      else add('📦 Supabase record: saved ✓ (' + (data.created_at?.slice(0,10)||'') + ')');
+      const checkRes = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?player_id=eq.${currentUser.playerId}&select=id,created_at`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+      });
+      const checkData = await checkRes.json();
+      if (!checkData || !checkData.length) add('📦 Supabase record: none yet');
+      else add('📦 Supabase record: saved ✓ (' + (checkData[0].created_at?.slice(0,10)||'') + ')');
     }
 
     add('');
