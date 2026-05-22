@@ -3271,6 +3271,7 @@ async function promptPushPermission() {
     return;
   }
   if (Notification.permission === 'denied') { console.warn('PUSH: permission previously denied'); return; }
+  // Show in-app prompt every session until they make a decision
   console.log('PUSH: showing in-app prompt...');
   const agreed = await showPushPrompt();
   console.log('PUSH: user agreed?', agreed);
@@ -3287,9 +3288,10 @@ function showPushPrompt() {
       <div style="text-align:center;padding:8px 0 16px">
         <div style="font-size:40px;margin-bottom:12px">⛳</div>
         <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px">Enable notifications</div>
-        <div style="font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:20px">Get notified when your knockout opponent confirms, round results are posted, and more.</div>
-        <button onclick="closeModal();window._pushResolve(true)" class="btn primary" style="width:100%;padding:12px;font-size:14px;margin-bottom:8px">Yes, notify me</button>
-        <button onclick="closeModal();window._pushResolve(false)" class="btn" style="width:100%;padding:12px;font-size:14px">Maybe later</button>
+        <div style="font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:20px">Get notified when results are posted, fixtures are added, and your knockout opponent confirms.</div>
+        <button onclick="closeModal();window._pushResolve(true)" class="btn primary" style="width:100%;padding:12px;font-size:14px;margin-bottom:8px">Yes, enable notifications</button>
+        <button onclick="closeModal();window._pushResolve(false)" class="btn" style="width:100%;padding:12px;font-size:14px;color:var(--text-3)">Not right now</button>
+        <div style="font-size:11px;color:var(--text-3);margin-top:8px">You can always enable this later in your Profile</div>
       </div>`;
     window._pushResolve = resolve;
     document.getElementById('modal-overlay').classList.add('open');
@@ -8177,7 +8179,8 @@ function submitPin() {
     hideLoginScreen();
     updateUIForRole();
     toast(`Welcome ${p.name.split(' ')[0]}${role==='admin'?' (Admin)':''}!`, 'success');
-    // Prompt for push notifications after a short delay
+    // Clear dismissed flag so prompt shows again this session
+    localStorage.removeItem('bhgs_push_dismissed');
     setTimeout(() => promptPushPermission(), 2500);
   } else {
     document.getElementById('login-pin-error').style.display = 'block';
