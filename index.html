@@ -3000,6 +3000,12 @@ async function addEvent() {
   const btn = document.getElementById('btn-add-event'); btn.disabled=true;
   try {
     await post('events',{ event_date:date, event_type:type, course_name:course, course_rating:cr, slope_rating:slope, par, womens_course_rating:wcr, womens_slope_rating:wslope, womens_par:wpar, stroke_index:siVals, womens_stroke_index:wsiVals, par_values:parVals, womens_par_values:wparVals });
+    await loadAll();
+    // Notify all members of new fixture
+    const allPlayerIds = db.players.map(p=>p.id);
+    const typeLabel = type==='outing_18' ? 'Outing' : 'Sunday';
+    const dateLabel = new Date(date).toLocaleDateString('en-IE', { weekday:'long', day:'numeric', month:'long' });
+    notifyPlayers(allPlayerIds, '📅 New fixture added', `${typeLabel} — ${course} on ${dateLabel}`, 'fixture', '/brayhead-golf/');
     document.getElementById('e-course').value='';
     document.getElementById('e-wcr').value='';
     document.getElementById('e-wslope').value='';
@@ -3947,6 +3953,11 @@ async function verifyAndPublish(eid) {
   // Then publish
   try {
     await patch(`events?id=eq.${eid}`, { published: true });
+    // Notify all members
+    const pubEv = db.events.find(e=>e.id===eid);
+    const allPlayerIds = db.players.map(p=>p.id);
+    const dateLabel = pubEv?.event_date ? new Date(pubEv.event_date).toLocaleDateString('en-IE', { weekday:'long', day:'numeric', month:'long' }) : '';
+    notifyPlayers(allPlayerIds, '🏆 Results posted', `${dateLabel} results are live — check the leaderboard!`, 'results', '/brayhead-golf/');
     toast('Verified & published! 🎉', 'success');
     await loadAll(); renderAll();
   } catch(e) { toast('Error publishing: '+e.message, 'error'); }
@@ -3965,6 +3976,12 @@ async function togglePublishEvent(eid, currentlyPublished) {
   }
   try {
     await patch(`events?id=eq.${eid}`, { published: !currentlyPublished });
+    if (!currentlyPublished) {
+      // Notify all members results are live
+      const allPlayerIds = db.players.map(p=>p.id);
+      const dateLabel = ev.event_date ? new Date(ev.event_date).toLocaleDateString('en-IE', { weekday:'long', day:'numeric', month:'long' }) : '';
+      notifyPlayers(allPlayerIds, '🏆 Results posted', `${dateLabel} results are live — check the leaderboard!`, 'results', '/brayhead-golf/');
+    }
     toast(currentlyPublished ? 'Results unpublished' : 'Results published to leaderboard!', 'success');
     await loadAll(); renderAll();
   } catch(e) { toast('Publish error: '+e.message, 'error'); console.error(e); }
@@ -7072,6 +7089,12 @@ async function saveMatchResult(mid) {
     }
 
     toast('Result saved! Winner advances to next round.', 'success');
+    // Notify both players
+    const notifyIds = [m.player1_id, m.player2_id].filter(Boolean);
+    const winner = db.players.find(p=>p.id===winnerId);
+    const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+    const roundLabel = ROUND_NAMES[m.round] || 'Round ' + m.round;
+    notifyPlayers(notifyIds, '🏌️ Knockout result', `${roundLabel} result: ${resultStr} — ${winner?.name?.split(' ')[0]||'Winner'} advances!`, 'ko-result', '/brayhead-golf/');
     await loadAll();
     renderKnockout();
   } catch(e) { toast('Error: '+e.message, 'error'); }
