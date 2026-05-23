@@ -512,11 +512,11 @@
   .bhgs-ripple { position: absolute; border-radius: 50%; background: rgba(201,168,76,0.45); width: 44px; height: 44px; margin-top: -22px; margin-left: -22px; animation: bhgsRipple 0.55s ease-out forwards; pointer-events: none; }
 
   /* Countdown */
-  .bhgs-countdown { display: inline-block; animation: bhgsCountdown 3s ease-in-out infinite; }
+  .bhgs-countdown { display: inline-block; animation: bhgsCountdown 4s ease-in-out infinite; }
   .bhgs-countdown-inner {
     background: linear-gradient(90deg, #B8860B 0%, #B8860B 30%, #f0d060 50%, #B8860B 70%, #B8860B 100%);
     background-size: 400% auto;
-    animation: bhgsGoldSweep 3.5s linear infinite;
+    animation: bhgsGoldSweep 5s linear infinite;
     color: #3a2000;
     font-size: 22px; font-weight: 800;
     padding: 8px 24px; border-radius: 99px;
@@ -8491,6 +8491,7 @@ function showTab(name) {
   const arSaveBar = document.getElementById('ar-save-bar');
   if (arSaveBar) arSaveBar.style.display = name === 'add-round' ? 'block' : 'none';
   if (name === 'profile') safeRender(renderProfile);
+  if (name === 'leaderboard') safeRender(renderLeaderboard);
   if (name === 'add-round') safeRender(renderAddRound);
   if (name === 'knockout') safeRender(renderKnockout);
   if (name === 'events') renderSavedCourseDropdown();
