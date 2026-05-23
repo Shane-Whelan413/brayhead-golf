@@ -7877,11 +7877,13 @@ function renderKnockout() {
         const done = m.status === 'complete';
         const isMyMatch = isLive && pid && !done && (m.player1_id===pid || m.player2_id===pid);
         const fresh = isAvailabilityFresh(m);
+        const p1avail = fresh && m.p1_available;
+        const p2avail = fresh && m.p2_available;
         const myAvail = fresh && (m.player1_id===pid ? m.p1_available : m.p2_available);
         const p1won = done && m.winner_id===m.player1_id;
         const p2won = done && m.winner_id===m.player2_id;
 
-        function playerRow(player, won, lost, isMe) {
+        function playerRow(player, won, lost, isMe, avail) {
           const name = player ? player.name : 'TBD';
           const isTbd = !player;
           const rowBg = won ? 'background:#0a1628' : lost ? 'background:var(--bg)' : '';
@@ -7892,6 +7894,8 @@ function renderKnockout() {
             ? '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(201,168,76,0.2);color:#C9A84C;flex-shrink:0">Won ✓</span>'
             : lost
             ? '<span style="font-size:10px;padding:2px 8px;border-radius:99px;background:rgba(0,0,0,0.05);color:var(--text-3);flex-shrink:0">Lost</span>'
+            : !done && player && isLive
+            ? `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;flex-shrink:0;${avail?'background:rgba(22,163,74,0.12);color:#16a34a':'background:rgba(0,0,0,0.05);color:var(--text-3)'}">${avail?'✓ Available':'Pending'}</span>`
             : '<div style="width:8px;height:8px;border-radius:50%;background:rgba(201,168,76,0.3);flex-shrink:0"></div>';
           return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;${rowBg}">
             <div style="width:28px;height:28px;border-radius:50%;${avBg};font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0${ring}">${isTbd?'?':initials(player.name)}</div>
@@ -7921,10 +7925,10 @@ function renderKnockout() {
             ${myAvail?'✓ You\'re available — tap to undo':'Tap to confirm availability this week'}
           </div>` : '';
 
-        return `<div style="background:var(--surface);${cardBorder};border-radius:12px;overflow:hidden;margin-bottom:10px">
-          ${playerRow(p1,p1won,done&&!p1won,pid===m.player1_id)}
+        return `<div style="background:#f8f5ee;${cardBorder};border-radius:12px;overflow:hidden;margin-bottom:10px">
+          ${playerRow(p1,p1won,done&&!p1won,pid===m.player1_id,p1avail)}
           ${vsDivider}
-          ${playerRow(p2,p2won,done&&!p2won,pid===m.player2_id)}
+          ${playerRow(p2,p2won,done&&!p2won,pid===m.player2_id,p2avail)}
           ${availStrip}
           ${adminSettle}
         </div>`;
@@ -7941,7 +7945,7 @@ function renderKnockout() {
             <div style="font-size:11px;${chevColor}">${chev}</div>
           </div>
         </div>
-        ${isCollapsed ? '' : `<div style="padding:10px;background:var(--bg)">${matchCards}</div>`}
+        ${isCollapsed ? '' : `<div style="padding:10px;background:var(--surface)">${matchCards}</div>`}
       </div>`;
     }).join('');
 
