@@ -966,7 +966,6 @@
 
   <!-- HOME / NOTICEBOARD -->
   <div id="home" class="section active">
-    <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--text);margin-bottom:1rem">Bray Head Golf Society</div>
     <div id="admin-quick-links" style="display:none;margin-bottom:1rem">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
         <button class="btn" onclick="showTab('players')" style="padding:14px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px">
@@ -984,44 +983,7 @@
       </div>
       <div id="admin-dashboard"></div>
     </div>
-    <button onclick="showTab('knockout')" style="width:100%;margin-bottom:10px;padding:14px;border-radius:var(--radius);border:1px solid var(--amber);background:var(--gold-light);color:var(--gold);font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 10l-3 1.5.5-3.5L3 5.5l3.5-.5z"/></svg>
-      2026 Knockout Competition
-    </button>
-    <button onclick="showStatsModal()" style="width:100%;margin-bottom:1rem;padding:13px 16px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:32px;height:32px;border-radius:8px;background:var(--green-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#C9A84C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="6" y="5" width="3" height="10" rx="1"/><rect x="11" y="1" width="3" height="14" rx="1"/></svg>
-        </div>
-        <div style="text-align:left">
-          <div style="font-weight:500">Season stats</div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:1px">Birdies · Pars · Scratches</div>
-        </div>
-      </div>
-      <span style="color:var(--text-3);font-size:18px">›</span>
-    </button>
-    <div id="noticeboard-feed"><div class="skeleton-card"><div class="skeleton-row">
-          <div class="skeleton" style="width:32px;height:32px;border-radius:50%;flex-shrink:0"></div>
-          <div style="flex:1">
-            <div class="skeleton" style="width:60%;height:13px;margin-bottom:5px;border-radius:4px"></div>
-            <div class="skeleton" style="width:35%;height:11px;border-radius:4px"></div>
-          </div>
-          <div class="skeleton" style="width:42px;height:20px;border-radius:6px"></div>
-        </div><div class="skeleton-row">
-          <div class="skeleton" style="width:32px;height:32px;border-radius:50%;flex-shrink:0"></div>
-          <div style="flex:1">
-            <div class="skeleton" style="width:50%;height:13px;margin-bottom:5px;border-radius:4px"></div>
-            <div class="skeleton" style="width:28%;height:11px;border-radius:4px"></div>
-          </div>
-          <div class="skeleton" style="width:42px;height:20px;border-radius:6px"></div>
-        </div><div class="skeleton-row">
-          <div class="skeleton" style="width:32px;height:32px;border-radius:50%;flex-shrink:0"></div>
-          <div style="flex:1">
-            <div class="skeleton" style="width:55%;height:13px;margin-bottom:5px;border-radius:4px"></div>
-            <div class="skeleton" style="width:40%;height:11px;border-radius:4px"></div>
-          </div>
-          <div class="skeleton" style="width:42px;height:20px;border-radius:6px"></div>
-        </div></div></div>
+    <div id="noticeboard-feed"></div>
   </div>
 
   <!-- KNOCKOUT -->
@@ -4564,372 +4526,221 @@ function togglePastEvents() {
 }
 
 function renderHome() {
-  // Admin dashboard
-  const dash = document.getElementById('admin-dashboard');
+  const dash  = document.getElementById('admin-dashboard');
   const badge = document.getElementById('admin-nav-badge');
+  const feed  = document.getElementById('noticeboard-feed');
+  const ql    = document.getElementById('admin-quick-links');
 
+  // ── Admin dashboard ──────────────────────────────────────────
+  if (ql) ql.style.display = isAdmin ? 'block' : 'none';
   if (dash && isAdmin) {
-    // All unpublished events with rounds
-    const unpublished = [...db.events].filter(e=>!e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date));
-    const allPending = db.rounds.filter(r=>!r.verified);
+    const unpublished  = db.events.filter(e=>!e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date));
+    const allPending   = db.rounds.filter(r=>!r.verified);
     const totalPending = allPending.length;
-
-    // Update nav badge
-    if (badge) {
-      if (totalPending > 0) {
-        badge.style.display = 'flex';
-        badge.textContent = totalPending > 9 ? '9+' : totalPending;
-      } else {
-        badge.style.display = 'none';
-      }
-    }
-
+    if (badge) { badge.style.display = totalPending>0?'flex':'none'; if(totalPending>0) badge.textContent = totalPending>9?'9+':totalPending; }
     let dashHtml = '';
-
-    // Pending rounds section — all unverified rounds across all events
     if (totalPending > 0) {
       const pendingByEvent = {};
-      for (const r of allPending) {
-        if (!pendingByEvent[r.event_id]) pendingByEvent[r.event_id] = [];
-        pendingByEvent[r.event_id].push(r);
-      }
-      dashHtml += `<div class="card" style="margin-bottom:1rem;border-color:#E24B4A">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-          <div class="card-title" style="margin:0;color:#A32D2D">⏳ Pending verification</div>
-          <span style="font-size:12px;font-weight:600;color:#A32D2D;background:#FCEBEB;padding:3px 10px;border-radius:99px">${totalPending} round${totalPending!==1?'s':''}</span>
-        </div>`;
+      for (const r of allPending) { if (!pendingByEvent[r.event_id]) pendingByEvent[r.event_id]=[]; pendingByEvent[r.event_id].push(r); }
+      dashHtml += '<div class="card" style="margin-bottom:1rem;border-color:#E24B4A"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem"><div class="card-title" style="margin:0;color:#A32D2D">⏳ Pending verification</div><span style="font-size:12px;font-weight:600;color:#A32D2D;background:#FCEBEB;padding:3px 10px;border-radius:99px">'+totalPending+' round'+(totalPending!==1?'s':'')+'</span></div>';
       for (const eid in pendingByEvent) {
         const ev = db.events.find(e=>e.id===eid);
         const rounds = pendingByEvent[eid];
         const total = db.rounds.filter(r=>r.event_id===eid).length;
         const verified = total - rounds.length;
-        const allDone = verified === total;
         const isOuting = ev && ev.event_type === 'outing_18';
-        dashHtml += `<div style="background:var(--bg);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <div>
-              <div style="font-size:13px;font-weight:600;color:var(--text)">${ev?ev.course_name:'Unknown event'}</div>
-              <div style="font-size:11px;color:var(--text-3);margin-top:2px">${ev?fmtDate(ev.event_date):''} · ${verified}/${total} verified · <span style="color:#C9A84C;font-weight:500">${isOuting?'Outing':'Sunday'}</span></div>
-            </div>
-          </div>
-          <div style="margin-bottom:8px">
-            ${rounds.map(r => {
-              const p = db.players.find(x=>x.id===r.player_id);
-              return `<div class="admin-pending-row">
-                ${avatarHtml(p||{name:'?'}, 28, 10)}
-                <div style="flex:1;min-width:0">
-                  <div style="font-size:13px;font-weight:500;color:var(--text)">${p?p.name:'Unknown'}</div>
-                  <div style="font-size:11px;color:var(--text-3)">${r.stableford_points} pts · Hcp ${r.course_handicap}</div>
-                </div>
-                ${isAdmin ? `<button class="btn sm danger" onclick="deleteRound('${r.id}')">✕</button>` : ''}
-              </div>`;
-            }).join('')}
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628;flex:1" onclick="verifyAndPublish('${eid}')">✓ Verify & Publish</button>
-            <button class="btn sm" style="flex:1" onclick="verifyAllRounds('${eid}')">Verify only</button>
-          </div>
-        </div>`;
+        dashHtml += '<div style="background:var(--bg);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div><div style="font-size:13px;font-weight:600;color:var(--text)">'+(ev?ev.course_name:'Unknown')+'</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">'+(ev?fmtDate(ev.event_date):'')+' · '+verified+'/'+total+' verified · <span style="color:#C9A84C;font-weight:500">'+(isOuting?'Outing':'Sunday')+'</span></div></div></div>';
+        dashHtml += '<div style="margin-bottom:8px">';
+        dashHtml += rounds.map(r => {
+          const p = db.players.find(x=>x.id===r.player_id);
+          return '<div class="admin-pending-row">'
+            + avatarHtml(p||{name:'?'}, 28, 10)
+            + '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:var(--text)">'+(p?p.name:'Unknown')+'</div><div style="font-size:11px;color:var(--text-3)">'+(r.stableford_points!=null?r.stableford_points+' pts':'no score')+'</div></div>'
+            + '<button onclick="verifyRound(\''+r.id+'\')" style="flex-shrink:0;padding:5px 10px;border-radius:6px;border:none;background:#0a1628;color:#C9A84C;font-size:11px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer">Verify</button>'
+            + '</div>';
+        }).join('');
+        dashHtml += '</div>';
+        if (verified === total && total > 0) {
+          dashHtml += '<button onclick="publishEvent(\''+eid+'\')" style="width:100%;padding:8px;border-radius:6px;border:none;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer">✓ All verified — Publish results</button>';
+        }
+        dashHtml += '</div>';
       }
-      dashHtml += `</div>`;
-    } else if (badge) {
-      badge.style.display = 'none';
+      dashHtml += '</div>';
     }
-
-    // All unpublished events (verified but not published)
-    const verifiedUnpublished = unpublished.filter(e => {
-      const total = db.rounds.filter(r=>r.event_id===e.id).length;
-      const unverified = db.rounds.filter(r=>r.event_id===e.id && !r.verified).length;
-      return total > 0 && unverified === 0;
-    });
-
-    if (verifiedUnpublished.length) {
-      dashHtml += `<div class="card" style="margin-bottom:1rem;border-color:#C9A84C">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-          <div class="card-title" style="margin:0;color:#8a6a1a">✓ Ready to publish</div>
-          <span style="font-size:12px;font-weight:600;color:#8a6a1a;background:#fef8e6;padding:3px 10px;border-radius:99px">${verifiedUnpublished.length} event${verifiedUnpublished.length!==1?'s':''}</span>
-        </div>
-        ${verifiedUnpublished.map(e => {
-          const total = db.rounds.filter(r=>r.event_id===e.id).length;
-          return `<div style="background:var(--bg);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:600;color:var(--text)">${e.course_name}</div>
-              <div style="font-size:11px;color:var(--text-3);margin-top:2px">${fmtDate(e.event_date)} · ${total} rounds verified</div>
-            </div>
-            <button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628;flex-shrink:0" onclick="verifyAndPublish('${e.id}')">Publish</button>
-          </div>`;
-        }).join('')}
-      </div>`;
-    }
-
-    // Upcoming events with no rounds yet
-    dash.innerHTML = dashHtml || '';
-
-    // Admin tools — collapsible dropdown
-    const toolsHtml = `
-      <div class="card" style="margin-bottom:1rem;border-color:#0a1628">
-        <button onclick="toggleAdminTools()" style="width:100%;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0;font-family:'DM Sans',sans-serif">
-          <div class="card-title" style="margin:0">🛠️ Admin tools</div>
-          <span id="admin-tools-chevron" style="font-size:11px;color:var(--text-3);transition:transform 0.2s">▼</span>
-        </button>
-        <div id="admin-tools-body" style="display:none;margin-top:1rem">
-          <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-bottom:8px">
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Full handicap recalculation</div>
-            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Walks every event in chronological order and recalculates all handicap values from scratch.</div>
-            <button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628;width:100%" onclick="runFullHandicapRecalc()">⟳ Recalculate all handicaps</button>
-          </div>
-          <div style="background:var(--bg);border-radius:var(--radius);padding:12px">
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Handicap audit</div>
-            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Step through every player, review and correct handicap values before committing.</div>
-            <button class="btn sm" style="width:100%" onclick="runHandicapAudit()">🔍 Preview audit</button>
-          </div>
-          <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-top:8px">
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Generate VAPID keys</div>
-            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">One-time setup for push notifications. Generate your keys here, then follow the setup steps.</div>
-            <button class="btn sm" style="width:100%" onclick="generateVapidKeys()">🔑 Generate VAPID keys</button>
-            <div id="vapid-output" style="display:none;margin-top:10px"></div>
-          </div>
-          <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-top:8px">
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">App updates</div>
-            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Force all members to reload the latest version of the app.</div>
-            <button class="btn sm" style="width:100%" onclick="checkForUpdates()">🔄 Check for updates</button>
-          </div>
-          <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-top:8px">
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Notification opt-ins</div>
-            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">See which members have enabled push notifications.</div>
-            <button class="btn sm" style="width:100%" onclick="showNotificationStatus()">👥 View opt-in status</button>
-          </div>
-          <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-top:8px">
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Push notification debug</div>
-            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Test push setup on this device.</div>
-            <button class="btn sm" style="width:100%;margin-bottom:8px" onclick="testPushSetup()">🔔 Test push setup</button>
-            <button class="btn sm" style="width:100%;margin-bottom:8px;background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="sendTestNotification()">📨 Send test notification</button>
-            <button class="btn sm" style="width:100%;margin-bottom:8px;background:#FCEBEB;color:#A32D2D;border-color:#F7C1C1" onclick="reRegisterPush()">🔄 Re-register push</button>
-            <div id="push-debug-log" style="font-size:11px;font-family:monospace;background:#0a1628;color:#C9A84C;border-radius:6px;padding:8px;min-height:40px;max-height:200px;overflow-y:auto;display:none"></div>
-          </div>
-            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Scans all completed matches and fills any missing player slots in the next round. Use this to fix TBD players showing in the bracket.</div>
-            <button class="btn sm" style="width:100%" onclick="fixBracketSlots()">🔧 Fix bracket slots</button>
-          </div>
-        </div>
-      </div>`;
-    dash.innerHTML = (dashHtml || '') + toolsHtml;
-  } else if (badge) {
-    badge.style.display = 'none';
+    dash.innerHTML = dashHtml;
   }
 
-  const feed = document.getElementById('noticeboard-feed');
-
-  // Push notification opt-in banner — show to logged-in members who haven't opted in
-  let pushBanner = '';
-  if (currentUser && currentUser.playerId && 'Notification' in window && 'serviceWorker' in navigator) {
-    const dismissed = localStorage.getItem('bhgs_push_dismissed');
-    if (Notification.permission === 'default' && !dismissed) {
-      pushBanner = `
-        <div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:1rem">
-          <span style="font-size:16px;flex-shrink:0">🔔</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:600;color:var(--text)">Enable notifications</div>
-            <div style="font-size:11px;color:var(--text-3)">Get results, fixtures and knockout updates</div>
-          </div>
-          <button onclick="promptPushPermission()" style="flex-shrink:0;padding:6px 10px;border-radius:7px;border:none;background:#C9A84C;color:#0a1628;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer">Enable</button>
-          <button onclick="dismissPushBanner()" style="flex-shrink:0;background:none;border:none;color:var(--text-3);font-size:16px;cursor:pointer;padding:0 4px">×</button>
-        </div>`;
-    } else if (Notification.permission === 'denied') {
-      // Already denied — show subtle hint but don't push it
-      pushBanner = '';
-    }
+  // ── Personal stats bar ──────────────────────────────────────
+  let statsBar = '';
+  if (currentUser && currentUser.playerId) {
+    const pid = currentUser.playerId;
+    const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+    const lbData   = getLeaderboardPositions(publishedEids);
+    const myPos    = lbData[pid]?.pos || 0;
+    const myPts    = lbData[pid]?.lp  || 0;
+    const myPlayer = db.players.find(p=>p.id===pid);
+    const myHcp    = myPlayer ? parseFloat(myPlayer.handicap_index).toFixed(1) : '—';
+    const myRounds = db.rounds.filter(r=>r.player_id===pid&&r.verified&&publishedEids.has(r.event_id)).length;
+    const posLabel = myPos===1?'1st':myPos===2?'2nd':myPos===3?'3rd':myPos>0?(myPos+'th'):'—';
+    const posGrad  = myPos===1?'linear-gradient(135deg,#7a5500,#B8860B,#e8c04a,#B8860B,#7a5500)':myPos===2?'linear-gradient(135deg,#2a2a2a,#707070,#b0b0b0,#707070,#2a2a2a)':myPos===3?'linear-gradient(135deg,#4a1e00,#8B4513,#c07840,#8B4513,#4a1e00)':'';
+    const posStyle = myPos<=3 ? ('background:'+posGrad+';color:white;') : 'background:var(--surface);color:var(--text);';
+    const shimmer  = myPos<=3 ? '<div style="position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);animation:bhgsCountdownShimmer '+(myPos===1?'5s':myPos===2?'6s':'7s')+' ease-in-out infinite;pointer-events:none"></div>' : '';
+    statsBar = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:1rem">'
+      + '<div style="'+posStyle+'border-radius:var(--radius);padding:10px 6px;text-align:center;border:1px solid var(--border);position:relative;overflow:hidden">'+shimmer+'<div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;opacity:0.7;margin-bottom:3px;position:relative">Rank</div><div style="font-size:20px;font-weight:800;line-height:1;position:relative">'+posLabel+'</div></div>'
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Pts</div><div style="font-size:20px;font-weight:800;color:var(--text);line-height:1">'+myPts+'</div></div>'
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Hcp</div><div style="font-size:20px;font-weight:800;color:var(--text);line-height:1">'+myHcp+'</div></div>'
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Rounds</div><div style="font-size:20px;font-weight:800;color:var(--text);line-height:1">'+myRounds+'</div></div>'
+      + '</div>';
   }
+
+  // ── Next event countdown ────────────────────────────────────
+  let countdownHtml = '';
+  const t = new Date();
+  const todayStr = t.toISOString().slice(0,10);
+  const nextEvent = [...db.events]
+    .filter(e => e.event_date > todayStr)
+    .sort((a,b) => a.event_date.localeCompare(b.event_date))[0];
+  if (nextEvent) {
+    const [y,mo,d] = nextEvent.event_date.split('-').map(Number);
+    const diff = Math.round((new Date(y,mo-1,d) - new Date(t.getFullYear(),t.getMonth(),t.getDate())) / 86400000);
+    const daysLabel = diff===0?'Today!':diff===1?'Tomorrow':(diff+' days to go');
+    const isOuting  = nextEvent.event_type === 'outing_18';
+    countdownHtml = '<div style="background:#0a1628;border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:12px">'
+      + '<div><div style="font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Next '+(isOuting?'outing':'sunday')+'</div><div style="font-size:15px;font-weight:600;color:white">'+(nextEvent.course_name||fmtDate(nextEvent.event_date))+'</div><div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">'+fmtDate(nextEvent.event_date)+'</div></div>'
+      + '<div class="bhgs-countdown"><div class="bhgs-countdown-inner">'+daysLabel+'</div></div>'
+      + '</div>';
+  }
+
+  // ── Knockout availability card ──────────────────────────────
   let knockoutCard = '';
   if (currentUser && currentUser.playerId && db.knockout_matches.length) {
     const pid = currentUser.playerId;
-    const myMatch = db.knockout_matches.find(m =>
-      !m.is_bye && m.status === 'pending' &&
-      (m.player1_id === pid || m.player2_id === pid)
-    );
+    const myMatch = db.knockout_matches.find(m => !m.is_bye && m.status!=='complete' && (m.player1_id===pid||m.player2_id===pid));
     if (myMatch) {
       const isP1 = myMatch.player1_id === pid;
       const opponentId = isP1 ? myMatch.player2_id : myMatch.player1_id;
       const opponent = opponentId ? db.players.find(p=>p.id===opponentId) : null;
       const fresh = isAvailabilityFresh(myMatch);
-      const myAvail   = fresh && (isP1 ? myMatch.p1_available : myMatch.p2_available);
-      const oppAvail  = fresh && (isP1 ? myMatch.p2_available : myMatch.p1_available);
+      const myAvail  = fresh && (isP1 ? myMatch.p1_available : myMatch.p2_available);
+      const oppAvail = fresh && (isP1 ? myMatch.p2_available : myMatch.p1_available);
       const bothAvail = myAvail && oppAvail;
-      const round = myMatch.round;
-      const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
-
-      if (bothAvail) {
-        knockoutCard = `
-          <div style="background:linear-gradient(135deg,#0a2a12,#0d3318);border-radius:var(--radius-lg);padding:16px;margin-bottom:1rem;border:1px solid rgba(45,122,79,0.5)">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-              <span style="font-size:22px">🏌️</span>
-              <div>
-                <div style="font-size:14px;font-weight:700;color:white">Match on this week!</div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px">${ROUND_NAMES[round]||'Round '+round} · Both players confirmed</div>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.06);border-radius:var(--radius);padding:10px 12px">
-              ${avatarHtml(db.players.find(p=>p.id===pid), 32, 11)}
-              <div style="font-size:13px;font-weight:600;color:white;flex:1">${db.players.find(p=>p.id===pid)?.name?.split(' ')[0]||'You'}</div>
-              <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.4)">vs</div>
-              <div style="font-size:13px;font-weight:600;color:white;flex:1;text-align:right">${opponent?.name?.split(' ')[0]||'TBD'}</div>
-              ${avatarHtml(opponent, 32, 11)}
-            </div>
-          </div>`;
-      } else {
-        knockoutCard = `
-          <div style="background:linear-gradient(135deg,#0a1628,#162338);border-radius:var(--radius-lg);padding:16px;margin-bottom:1rem;border:1px solid rgba(201,168,76,0.25)">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-              <span style="font-size:22px">🏆</span>
-              <div>
-                <div style="font-size:14px;font-weight:700;color:#C9A84C">${ROUND_NAMES[round]||'Round '+round}</div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:1px">Knockout — are you playing this week?</div>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.05);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px">
-              ${avatarHtml(db.players.find(p=>p.id===pid), 34, 11)}
-              <div style="font-size:13px;font-weight:600;color:white;flex:1">${db.players.find(p=>p.id===pid)?.name?.split(' ')[0]||'You'}</div>
-              <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.3)">vs</div>
-              <div style="font-size:13px;font-weight:600;color:white;flex:1;text-align:right">${opponent?.name?.split(' ')[0]||'TBD'}</div>
-              ${avatarHtml(opponent, 34, 11)}
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <div style="display:flex;align-items:center;gap:6px">
-                <div style="width:10px;height:10px;border-radius:50%;background:${myAvail?'#2d7a4f':'rgba(255,255,255,0.2)'}"></div>
-                <span style="font-size:11px;color:rgba(255,255,255,0.5)">You: ${myAvail?'✓ Available':'Not confirmed'}</span>
-              </div>
-              <div style="display:flex;align-items:center;gap:6px">
-                <span style="font-size:11px;color:rgba(255,255,255,0.5)">${opponent?.name?.split(' ')[0]||'Opponent'}: ${oppAvail?'✓ Available':'Not confirmed'}</span>
-                <div style="width:10px;height:10px;border-radius:50%;background:${oppAvail?'#2d7a4f':'rgba(255,255,255,0.2)'}"></div>
-              </div>
-            </div>
-            <button onclick="toggleMatchAvailability('${myMatch.id}')" style="width:100%;padding:12px;border-radius:var(--radius);border:none;background:${myAvail?'rgba(45,122,79,0.25)':'#C9A84C'};color:${myAvail?'#2d7a4f':'#0a1628'};font-size:14px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer">
-              ${myAvail?'✓ You\'re confirmed — tap to undo':'I\'m available this week'}
-            </button>
-            ${myAvail && !oppAvail ? `<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;margin-top:8px">Waiting for ${opponent?.name?.split(' ')[0]||'opponent'} to confirm</div>` : ''}
-          </div>`;
-      }
+      knockoutCard = '<div style="background:#1a2e1a;border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:1rem;border:1px solid rgba(22,163,74,0.3)">'
+        + '<div style="font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Knockout · Your match</div>'
+        + '<div style="font-size:14px;font-weight:600;color:white;margin-bottom:10px">vs '+(opponent?opponent.name:'TBD')+'</div>'
+        + (bothAvail ? '<div style="background:rgba(22,163,74,0.2);border-radius:8px;padding:8px;text-align:center;font-size:13px;font-weight:600;color:#4ade80">Match on this week! ⛳</div>'
+          : '<button onclick="toggleMatchAvailability(\''+myMatch.id+'\')" style="width:100%;padding:10px;border-radius:8px;border:none;background:'+(myAvail?'rgba(22,163,74,0.2)':'#C9A84C')+';color:'+(myAvail?'#4ade80':'#0a1628')+';font-size:13px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer">'+(myAvail?'✓ You\'re available — tap to undo':'I\'m available this week')+'</button>')
+        + '</div>';
     }
   }
 
-  if (!db.noticeboard.length) {
-    feed.innerHTML = pushBanner + knockoutCard + '<div class="empty" style="padding:3rem;color:var(--text-2)">No updates yet!</div>';
-    return;
-  }
-
-  // ── Compact activity feed ──────────────────────────────────
+  // ── Latest result + older feed ──────────────────────────────
   const sorted = [...db.noticeboard].sort((a,b) => {
-    const dateA = db.events.find(e=>e.id===a.event_id)?.event_date || '';
-    const dateB = db.events.find(e=>e.id===b.event_id)?.event_date || '';
-    return dateB.localeCompare(dateA);
+    const da = db.events.find(e=>e.id===a.event_id)?.event_date || '';
+    const db2 = db.events.find(e=>e.id===b.event_id)?.event_date || '';
+    return db2.localeCompare(da);
   });
 
-  // Personal quick stats bar
-  let statsBar = '';
-  if (currentUser && currentUser.playerId) {
-    const pid = currentUser.playerId;
-    const publishedEids2 = new Set(db.events.filter(e=>e.published).map(e=>e.id));
-    const lbPos2 = getLeaderboardPositions(publishedEids2);
-    const myPos = lbPos2[pid]?.pos || 0;
-    const myPts = lbPos2[pid]?.lp || 0;
-    const myPlayer2 = db.players.find(p=>p.id===pid);
-    const myHcp = myPlayer2 ? parseFloat(myPlayer2.handicap_index).toFixed(1) : '—';
-    const myRounds2 = db.rounds.filter(r=>r.player_id===pid&&r.verified&&publishedEids2.has(r.event_id)).length;
-    const posLabel2 = myPos===1?'1st':myPos===2?'2nd':myPos===3?'3rd':myPos>0?(myPos+'th'):'—';
-    const posGrad = myPos===1?'linear-gradient(135deg,#7a5500,#B8860B,#e8c04a,#B8860B,#7a5500)':myPos===2?'linear-gradient(135deg,#2a2a2a,#707070,#b0b0b0,#707070,#2a2a2a)':myPos===3?'linear-gradient(135deg,#4a1e00,#8B4513,#c07840,#8B4513,#4a1e00)':'';
-    const posStyle = myPos<=3 ? ('background:'+posGrad+';color:white;') : 'background:var(--surface);color:var(--text);';
-    const shimmerDiv = myPos<=3 ? '<div style="position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);animation:bhgsCountdownShimmer '+(myPos===1?'5s':myPos===2?'6s':'7s')+' ease-in-out infinite;pointer-events:none"></div>' : '';
-    statsBar = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:1rem">'
-      + '<div style="'+posStyle+'border-radius:var(--radius);padding:10px 6px;text-align:center;border:1px solid var(--border);position:relative;overflow:hidden">'+shimmerDiv+'<div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;opacity:0.6;margin-bottom:3px;position:relative">Rank</div><div style="font-size:18px;font-weight:800;line-height:1;position:relative">'+posLabel2+'</div></div>'
-      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Points</div><div style="font-size:18px;font-weight:800;color:var(--text);line-height:1">'+myPts+'</div></div>'
-      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Hcp</div><div style="font-size:18px;font-weight:800;color:var(--text);line-height:1">'+myHcp+'</div></div>'
-      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Rounds</div><div style="font-size:18px;font-weight:800;color:var(--text);line-height:1">'+myRounds2+'</div></div>'
-      + '</div>';
-  }
-
-  const MAX_VISIBLE = 3;
-  const showAll = window._feedShowAll || false;
-  const visible = showAll ? sorted : sorted.slice(0, MAX_VISIBLE);
-
-  function renderFeedItem(n) {
+  function renderResultCard(n, expanded) {
     if (n.post_type === 'knockout_results' || n.post_type === 'fixtures') {
       const isResults = n.post_type === 'knockout_results';
-      const matches = n.fixture_matches || [];
+      const matches   = n.fixture_matches || [];
       const completed = matches.filter(function(m){return m.status==='complete'&&!m.isBye;}).length;
-      const total = matches.filter(function(m){return !m.isBye;}).length;
-      const icon = isResults ? '🏆' : '⛳';
-      const title = isResults ? ('Knockout results · '+completed+'/'+total+' complete') : 'Knockout fixtures';
-      const preview = isResults
+      const total     = matches.filter(function(m){return !m.isBye;}).length;
+      const preview   = isResults
         ? matches.filter(function(m){return m.status==='complete'&&m.winnerName;}).slice(0,3).map(function(m){return m.winnerName.split(' ')[0]+' won';}).join(' · ')
         : matches.slice(0,3).map(function(m){return m.p1Name.split(' ')[0]+' vs '+m.p2Name.split(' ')[0];}).join(' · ');
-      const rows = matches.filter(function(m){return !m.isBye;}).map(function(m) {
+      const uid = 'f'+Math.random().toString(36).slice(2);
+      const rows = expanded ? matches.filter(function(m){return !m.isBye;}).map(function(m){
         return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border)">'
-          + '<div style="flex:1;font-size:12px;font-weight:'+(m.winnerName===m.p1Name?'700':'400')+';color:'+(m.winnerName===m.p1Name?'var(--text)':'var(--text-2)')+'">'+m.p1Name+'</div>'
-          + '<div style="font-size:11px;color:var(--text-3);flex-shrink:0">'+(m.result||'vs')+'</div>'
-          + '<div style="flex:1;text-align:right;font-size:12px;font-weight:'+(m.winnerName===m.p2Name?'700':'400')+';color:'+(m.winnerName===m.p2Name?'var(--text)':'var(--text-2)')+'">'+m.p2Name+'</div>'
-          + '</div>';
-      }).join('');
-      const uid = 'feed-'+Math.random().toString(36).slice(2);
+          +'<div style="flex:1;font-size:12px;font-weight:'+(m.winnerName===m.p1Name?'700':'400')+';color:'+(m.winnerName===m.p1Name?'var(--text)':'var(--text-2)')+'">'+m.p1Name+'</div>'
+          +'<div style="font-size:11px;color:var(--text-3)">'+(m.result||'vs')+'</div>'
+          +'<div style="flex:1;text-align:right;font-size:12px;font-weight:'+(m.winnerName===m.p2Name?'700':'400')+';color:'+(m.winnerName===m.p2Name?'var(--text)':'var(--text-2)')+'">'+m.p2Name+'</div>'
+          +'</div>';
+      }).join('') : '';
       return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:8px">'
-        + '<button onclick="var d=document.getElementById(\''+uid+'\');d.style.display=d.style.display===\'none\'?\'block\':\'none\'" style="width:100%;background:none;border:none;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;font-family:\'DM Sans\',sans-serif;text-align:left">'
-        + '<span style="font-size:18px;flex-shrink:0">'+icon+'</span>'
-        + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">'+title+'</div><div style="font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">'+preview+'</div></div>'
-        + '<span style="color:var(--text-3);font-size:10px;flex-shrink:0">▼</span>'
-        + '</button>'
-        + '<div id="'+uid+'" style="display:none;padding:0 14px 12px;border-top:0.5px solid var(--border)">'
-        + rows
-        + '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button onclick="showTab(\'knockout\')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer;font-weight:600">View draw →</button></div>'
-        + '</div></div>';
+        +'<button onclick="var d=document.getElementById(\''+uid+'\');var open=d.style.display===\'none\';d.style.display=open?\'block\':\'none\';this.querySelector(\'span\').style.transform=open?\'rotate(180deg)\':\'\'" style="width:100%;background:none;border:none;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;font-family:\'DM Sans\',sans-serif;text-align:left">'
+        +'<span style="font-size:18px;flex-shrink:0">'+(isResults?'🏆':'⛳')+'</span>'
+        +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">'+(isResults?'Knockout results · '+completed+'/'+total+' complete':'Knockout fixtures')+'</div><div style="font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px">'+preview+'</div></div>'
+        +'<span style="color:var(--text-3);font-size:10px;flex-shrink:0;transition:transform 0.2s'+(expanded?';transform:rotate(180deg)':'')+'">▼</span>'
+        +'</button>'
+        +'<div id="'+uid+'" style="display:'+(expanded?'block':'none')+';padding:0 14px 12px;border-top:0.5px solid var(--border)">'
+        +rows
+        +'<div style="display:flex;justify-content:flex-end;margin-top:10px"><button onclick="showTab(\'knockout\')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer;font-weight:600">View draw →</button></div>'
+        +'</div></div>';
     }
 
     const ev = db.events.find(function(e){return e.id===n.event_id;});
     const eventRounds = db.rounds.filter(function(r){return r.event_id===n.event_id&&r.verified;});
     const ranked = assignLeaguePts(eventRounds.map(function(r){return Object.assign({},r);})).slice(0,3);
     const isOuting = ev && ev.event_type === 'outing_18';
-    const typeTag = isOuting
+    const typeTag  = isOuting
       ? '<span style="font-size:10px;font-weight:600;color:#3C3489;background:#EEEDFE;padding:1px 7px;border-radius:99px">Outing</span>'
       : '<span style="font-size:10px;font-weight:600;color:#1a3c6e;background:#edf2fa;padding:1px 7px;border-radius:99px">Sunday</span>';
+
+    // Top 3 podium for expanded view
     const medalColors = ['#B8860B','#707070','#A0522D'];
-    const top3 = ranked.map(function(r,i) {
+    const top3 = ranked.map(function(r,i){
       const p = db.players.find(function(x){return x.id===r.player_id;});
-      return '<div style="display:flex;align-items:center;gap:5px">'
-        + '<div style="width:18px;height:18px;border-radius:50%;background:'+medalColors[i]+';color:white;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>'
-        + '<span style="font-size:12px;color:var(--text);font-weight:'+(i===0?'600':'400')+'">'+(p?p.name.split(' ')[0]:'?')+'</span>'
-        + '<span style="font-size:11px;color:var(--text-3)">'+r.stableford_points+'pts</span>'
-        + '</div>';
+      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border)">'
+        +'<div style="width:22px;height:22px;border-radius:50%;background:'+medalColors[i]+';color:white;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>'
+        +avatarHtml(p||{name:'?'}, 28, 10)
+        +'<div style="flex:1;font-size:13px;font-weight:'+(i===0?'600':'400')+';color:var(--text)">'+(p?p.name:'?')+'</div>'
+        +'<div style="font-size:14px;font-weight:700;color:'+medalColors[i]+'">'+r.stableford_points+'<span style="font-size:10px;font-weight:400;color:var(--text-3)"> pts</span></div>'
+        +'</div>';
     }).join('');
+
     const extras = [];
-    if (n.closest_to_pin) extras.push('📍 '+n.closest_to_pin.split(' ')[0]);
-    if (n.birdies && n.birdies.length) extras.push('🐦 '+n.birdies.length+' birdie'+(n.birdies.length!==1?'s':''));
-    if (n.best_front_9) extras.push('Front: '+n.best_front_9.split(' ')[0]);
-    if (n.best_back_9) extras.push('Back: '+n.best_back_9.split(' ')[0]);
-    const extrasHtml = extras.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:8px;border-top:0.5px solid var(--border);margin-top:4px">'+extras.map(function(e){return '<span style="font-size:11px;color:var(--text-2);background:var(--bg);padding:3px 8px;border-radius:99px;border:0.5px solid var(--border)">'+e+'</span>';}).join('')+'</div>' : '';
-    const uid2 = 'feed-'+Math.random().toString(36).slice(2);
+    if (n.closest_to_pin) extras.push('📍 '+n.closest_to_pin);
+    if (n.birdies && n.birdies.length) extras.push('🐦 '+n.birdies.join(', '));
+    if (n.best_front_9) extras.push('Front 9: '+n.best_front_9);
+    if (n.best_back_9)  extras.push('Back 9: '+n.best_back_9);
+    const extrasHtml = extras.length ? '<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border);display:flex;flex-direction:column;gap:6px">'+extras.map(function(e){return '<div style="font-size:12px;color:var(--text-2)">'+e+'</div>';}).join('')+'</div>' : '';
+
+    const uid2 = 'f'+Math.random().toString(36).slice(2);
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:8px">'
-      + '<button onclick="var d=document.getElementById(\''+uid2+'\');d.style.display=d.style.display===\'none\'?\'block\':\'none\'" style="width:100%;background:none;border:none;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;font-family:\'DM Sans\',sans-serif;text-align:left">'
-      + '<div style="flex-shrink:0;width:36px;height:36px;border-radius:8px;background:#0a1628;display:flex;align-items:center;justify-content:center;font-size:16px">⛳</div>'
-      + '<div style="flex:1;min-width:0">'
-      + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(ev?ev.course_name:'Event')+'</div>'+typeTag+'</div>'
-      + '<div style="font-size:11px;color:var(--text-3)">'+(ev?fmtDate(ev.event_date):'')+' · '+eventRounds.length+' rounds</div>'
-      + '</div>'
-      + '<span style="color:var(--text-3);font-size:10px;flex-shrink:0">▼</span>'
-      + '</button>'
-      + '<div id="'+uid2+'" style="display:none;padding:10px 14px 12px;border-top:0.5px solid var(--border)">'
-      + '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:'+(extras.length?'10px':'0')+'">' + top3 + '</div>'
-      + extrasHtml
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">'
-      + (ev ? '<button onclick="viewEventResults(\''+ev.id+'\')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer;font-weight:600">Full results →</button>' : '<span></span>')
-      + '<div style="display:flex;gap:8px">'
-      + '<button onclick="generateResultsCard(\''+n.event_id+'\')" style="background:#C9A84C;border:none;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:600;color:#0a1628;font-family:\'DM Sans\',sans-serif;cursor:pointer">Share</button>'
-      + (isAdmin ? '<button onclick="deleteNotice(\''+n.id+'\')" style="background:none;border:none;font-size:11px;color:var(--text-3);font-family:\'DM Sans\',sans-serif;cursor:pointer">Remove</button>' : '')
-      + '</div></div></div></div>';
+      +'<button onclick="var d=document.getElementById(\''+uid2+'\');var open=d.style.display===\'none\';d.style.display=open?\'block\':\'none\';this.querySelector(\'span\').style.transform=open?\'rotate(180deg)\':\'\'" style="width:100%;background:none;border:none;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;font-family:\'DM Sans\',sans-serif;text-align:left">'
+      +'<div style="width:36px;height:36px;border-radius:8px;background:#0a1628;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">⛳</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(ev?ev.course_name:'Event')+'</div>'+typeTag+'</div>'
+      +'<div style="font-size:11px;color:var(--text-3)">'+(ev?fmtDate(ev.event_date):'')+' · '+eventRounds.length+' rounds · '+(ranked[0]?db.players.find(function(p){return p.id===ranked[0].player_id;})?.name.split(' ')[0]+' wins':'TBC')+'</div>'
+      +'</div>'
+      +'<span style="color:var(--text-3);font-size:10px;flex-shrink:0;transition:transform 0.2s'+(expanded?';transform:rotate(180deg)':'')+'">▼</span>'
+      +'</button>'
+      +'<div id="'+uid2+'" style="display:'+(expanded?'block':'none')+';padding:10px 14px 12px;border-top:0.5px solid var(--border)">'
+      +top3
+      +extrasHtml
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">'
+      +(ev?'<button onclick="viewEventResults(\''+ev.id+'\')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer;font-weight:600">Full results →</button>':'<span></span>')
+      +'<div style="display:flex;gap:8px">'
+      +'<button onclick="generateResultsCard(\''+n.event_id+'\')" style="background:#C9A84C;border:none;border-radius:7px;padding:5px 12px;font-size:11px;font-weight:600;color:#0a1628;font-family:\'DM Sans\',sans-serif;cursor:pointer">Share</button>'
+      +(isAdmin?'<button onclick="deleteNotice(\''+n.id+'\')" style="background:none;border:none;font-size:11px;color:var(--text-3);font-family:\'DM Sans\',sans-serif;cursor:pointer">Remove</button>':'')
+      +'</div></div>'
+      +'</div></div>';
   }
 
-  const activityItems = visible.map(renderFeedItem).join('');
-  const showMoreBtn = !showAll && sorted.length > MAX_VISIBLE
-    ? '<button onclick="window._feedShowAll=true;renderHome()" style="width:100%;padding:10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;margin-top:4px">Show '+(sorted.length-MAX_VISIBLE)+' older updates ▼</button>'
-    : '';
+  let feedHtml = '';
+  if (sorted.length) {
+    // Latest result — always expanded
+    feedHtml += renderResultCard(sorted[0], true);
+    // Older results — collapsed, hidden behind button
+    if (sorted.length > 1) {
+      const showOlder = window._feedShowAll || false;
+      if (showOlder) {
+        feedHtml += sorted.slice(1).map(function(n){ return renderResultCard(n, false); }).join('');
+        feedHtml += '<button onclick="window._feedShowAll=false;renderHome()" style="width:100%;padding:10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text-3);font-size:12px;font-family:\'DM Sans\',sans-serif;cursor:pointer;margin-top:4px">Hide older ▲</button>';
+      } else {
+        feedHtml += '<button onclick="window._feedShowAll=true;renderHome()" style="width:100%;padding:10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;margin-top:4px">Show '+(sorted.length-1)+' older result'+(sorted.length>2?'s':'')+'</button>';
+      }
+    }
+  }
 
-  feed.innerHTML = pushBanner + statsBar + knockoutCard + '<div class="stagger-up">' + activityItems + '</div>' + showMoreBtn;
+  // Push notification banner — subtle, at the bottom of stats
+  let pushBanner = '';
+  if (currentUser && currentUser.playerId && 'Notification' in window && Notification.permission === 'default' && !localStorage.getItem('bhgs_push_dismissed')) {
+    pushBanner = '<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:1rem"><span style="font-size:16px;flex-shrink:0">🔔</span><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--text)">Enable notifications</div><div style="font-size:11px;color:var(--text-3)">Results, fixtures and knockout updates</div></div><button onclick="promptPushPermission()" style="flex-shrink:0;padding:6px 10px;border-radius:7px;border:none;background:#C9A84C;color:#0a1628;font-size:11px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer">Enable</button><button onclick="dismissPushBanner()" style="flex-shrink:0;background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer;padding:0 4px">×</button></div>';
+  }
+
+  feed.innerHTML = statsBar + countdownHtml + knockoutCard + pushBanner + feedHtml;
 }
 
 function showAdminLogin() {
