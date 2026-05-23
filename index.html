@@ -4725,18 +4725,14 @@ function renderHome() {
     const dismissed = localStorage.getItem('bhgs_push_dismissed');
     if (Notification.permission === 'default' && !dismissed) {
       pushBanner = `
-        <div style="background:linear-gradient(135deg,#0a1628,#162338);border-radius:var(--radius-lg);padding:14px;margin-bottom:1rem;border:1px solid rgba(201,168,76,0.3)">
-          <div style="display:flex;align-items:flex-start;gap:10px">
-            <span style="font-size:22px;flex-shrink:0">🔔</span>
-            <div style="flex:1">
-              <div style="font-size:13px;font-weight:600;color:white;margin-bottom:3px">Stay in the loop</div>
-              <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:10px">Get notified when results are posted, fixtures are added and knockout matches are confirmed.</div>
-              <div style="display:flex;gap:8px">
-                <button onclick="promptPushPermission()" style="flex:1;padding:8px;border-radius:7px;border:none;background:#C9A84C;color:#0a1628;font-size:12px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer">Enable notifications</button>
-                <button onclick="dismissPushBanner()" style="padding:8px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.4);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer">Not now</button>
-              </div>
-            </div>
+        <div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:1rem">
+          <span style="font-size:16px;flex-shrink:0">🔔</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:600;color:var(--text)">Enable notifications</div>
+            <div style="font-size:11px;color:var(--text-3)">Get results, fixtures and knockout updates</div>
           </div>
+          <button onclick="promptPushPermission()" style="flex-shrink:0;padding:6px 10px;border-radius:7px;border:none;background:#C9A84C;color:#0a1628;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer">Enable</button>
+          <button onclick="dismissPushBanner()" style="flex-shrink:0;background:none;border:none;color:var(--text-3);font-size:16px;cursor:pointer;padding:0 4px">×</button>
         </div>`;
     } else if (Notification.permission === 'denied') {
       // Already denied — show subtle hint but don't push it
@@ -4816,208 +4812,124 @@ function renderHome() {
   }
 
   if (!db.noticeboard.length) {
-    feed.innerHTML = pushBanner + knockoutCard + `<div class="empty" style="padding:3rem;color:var(--text-2)">No updates yet — check back after the next round!</div>`;
-      return;
+    feed.innerHTML = pushBanner + knockoutCard + '<div class="empty" style="padding:3rem;color:var(--text-2)">No updates yet!</div>';
+    return;
   }
-  feed.innerHTML = pushBanner + `<div class="stagger-up">` + knockoutCard + db.noticeboard.map(n => {
-    // Knockout results post
-    if (n.post_type === 'knockout_results') {
-      const matches = n.fixture_matches || [];
-      const completed = matches.filter(m=>m.status==='complete'&&!m.isBye).length;
-      const total = matches.filter(m=>!m.isBye).length;
-      const allDone = completed === total;
 
-      const matchRows = matches.filter(m=>!m.isBye).map(m=>{
-        const isComplete = m.status==='complete';
-        const isPlayoff = m.status==='playoff';
-        const isPending = !isComplete && !isPlayoff;
-        return `<div class="fixture-row" style="${isComplete?'background:rgba(201,168,76,0.06)':''}">
-          <div class="fixture-player">
-            <div class="fixture-avatar" style="${isComplete&&m.winnerName===m.p1Name?'background:#C9A84C;color:#3a2000':''}">${m.p1Name.split(' ').map(w=>w[0]).join('').slice(0,2)}</div>
-            <div>
-              <div class="fixture-player-name${isComplete&&m.winnerName===m.p1Name?'" style="color:#C9A84C;font-weight:700':''}">${m.p1Name}${isComplete&&m.winnerName===m.p1Name?' 🏆':''}</div>
-            </div>
-          </div>
-          <div class="fixture-vs">${isPlayoff?'⚡':isPending?'VS':'VS'}</div>
-          <div class="fixture-player" style="justify-content:flex-end">
-            <div style="text-align:right">
-              <div class="fixture-player-name${isComplete&&m.winnerName===m.p2Name?'" style="color:#C9A84C;font-weight:700':''}">${isComplete&&m.winnerName===m.p2Name?'🏆 ':''}${m.p2Name}</div>
-              ${isComplete&&m.result?`<div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:1px">${m.result}</div>`:''}
-              ${isPlayoff?`<div style="font-size:10px;color:#C9A84C;margin-top:1px">Playoff</div>`:''}
-            </div>
-            <div class="fixture-avatar" style="${isComplete&&m.winnerName===m.p2Name?'background:#C9A84C;color:#3a2000':''}">${m.p2Name.split(' ').map(w=>w[0]).join('').slice(0,2)}</div>
-          </div>
-        </div>`;
+  // ── Compact activity feed ──────────────────────────────────
+  const sorted = [...db.noticeboard].sort((a,b) => {
+    const dateA = db.events.find(e=>e.id===a.event_id)?.event_date || '';
+    const dateB = db.events.find(e=>e.id===b.event_id)?.event_date || '';
+    return dateB.localeCompare(dateA);
+  });
+
+  // Personal quick stats bar
+  let statsBar = '';
+  if (currentUser && currentUser.playerId) {
+    const pid = currentUser.playerId;
+    const publishedEids2 = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+    const lbPos2 = getLeaderboardPositions(publishedEids2);
+    const myPos = lbPos2[pid]?.pos || 0;
+    const myPts = lbPos2[pid]?.lp || 0;
+    const myPlayer2 = db.players.find(p=>p.id===pid);
+    const myHcp = myPlayer2 ? parseFloat(myPlayer2.handicap_index).toFixed(1) : '—';
+    const myRounds2 = db.rounds.filter(r=>r.player_id===pid&&r.verified&&publishedEids2.has(r.event_id)).length;
+    const posLabel2 = myPos===1?'1st':myPos===2?'2nd':myPos===3?'3rd':myPos>0?(myPos+'th'):'—';
+    const posGrad = myPos===1?'linear-gradient(135deg,#7a5500,#B8860B,#e8c04a,#B8860B,#7a5500)':myPos===2?'linear-gradient(135deg,#2a2a2a,#707070,#b0b0b0,#707070,#2a2a2a)':myPos===3?'linear-gradient(135deg,#4a1e00,#8B4513,#c07840,#8B4513,#4a1e00)':'';
+    const posStyle = myPos<=3 ? ('background:'+posGrad+';color:white;') : 'background:var(--surface);color:var(--text);';
+    const shimmerDiv = myPos<=3 ? '<div style="position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);animation:bhgsCountdownShimmer '+(myPos===1?'5s':myPos===2?'6s':'7s')+' ease-in-out infinite;pointer-events:none"></div>' : '';
+    statsBar = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:1rem">'
+      + '<div style="'+posStyle+'border-radius:var(--radius);padding:10px 6px;text-align:center;border:1px solid var(--border);position:relative;overflow:hidden">'+shimmerDiv+'<div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;opacity:0.6;margin-bottom:3px;position:relative">Rank</div><div style="font-size:18px;font-weight:800;line-height:1;position:relative">'+posLabel2+'</div></div>'
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Points</div><div style="font-size:18px;font-weight:800;color:var(--text);line-height:1">'+myPts+'</div></div>'
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Hcp</div><div style="font-size:18px;font-weight:800;color:var(--text);line-height:1">'+myHcp+'</div></div>'
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Rounds</div><div style="font-size:18px;font-weight:800;color:var(--text);line-height:1">'+myRounds2+'</div></div>'
+      + '</div>';
+  }
+
+  const MAX_VISIBLE = 3;
+  const showAll = window._feedShowAll || false;
+  const visible = showAll ? sorted : sorted.slice(0, MAX_VISIBLE);
+
+  function renderFeedItem(n) {
+    if (n.post_type === 'knockout_results' || n.post_type === 'fixtures') {
+      const isResults = n.post_type === 'knockout_results';
+      const matches = n.fixture_matches || [];
+      const completed = matches.filter(function(m){return m.status==='complete'&&!m.isBye;}).length;
+      const total = matches.filter(function(m){return !m.isBye;}).length;
+      const icon = isResults ? '🏆' : '⛳';
+      const title = isResults ? ('Knockout results · '+completed+'/'+total+' complete') : 'Knockout fixtures';
+      const preview = isResults
+        ? matches.filter(function(m){return m.status==='complete'&&m.winnerName;}).slice(0,3).map(function(m){return m.winnerName.split(' ')[0]+' won';}).join(' · ')
+        : matches.slice(0,3).map(function(m){return m.p1Name.split(' ')[0]+' vs '+m.p2Name.split(' ')[0];}).join(' · ');
+      const rows = matches.filter(function(m){return !m.isBye;}).map(function(m) {
+        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border)">'
+          + '<div style="flex:1;font-size:12px;font-weight:'+(m.winnerName===m.p1Name?'700':'400')+';color:'+(m.winnerName===m.p1Name?'var(--text)':'var(--text-2)')+'">'+m.p1Name+'</div>'
+          + '<div style="font-size:11px;color:var(--text-3);flex-shrink:0">'+(m.result||'vs')+'</div>'
+          + '<div style="flex:1;text-align:right;font-size:12px;font-weight:'+(m.winnerName===m.p2Name?'700':'400')+';color:'+(m.winnerName===m.p2Name?'var(--text)':'var(--text-2)')+'">'+m.p2Name+'</div>'
+          + '</div>';
       }).join('');
-
-      return `<div class="fixture-post">
-        <div class="fixture-post-hdr">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:36px;height:36px;border-radius:8px;background:rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">🏆</div>
-            <div>
-              <div class="fixture-post-title">Round 1 Results</div>
-              <div class="fixture-post-note">${completed}/${total} matches complete${allDone?' · Round 1 done!':''}</div>
-            </div>
-          </div>
-        </div>
-        ${matchRows}
-        <div class="fixture-post-footer">
-          <span style="font-size:11px;color:rgba(255,255,255,0.3)">${total - completed} match${total-completed!==1?'es':''} still to play</span>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button onclick="generateKnockoutResultsCard(${JSON.stringify(matches).replace(/"/g,'&quot;')})" style="background:#C9A84C;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#0a1628;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:5px">
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#0a1628" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M5 8l3 3 3-3"/><rect x="2" y="12" width="12" height="2" rx="1"/></svg>
-              Share card
-            </button>
-            <button onclick="showTab('knockout')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:600">View draw →</button>
-          </div>
-        </div>
-      </div>`;
+      const uid = 'feed-'+Math.random().toString(36).slice(2);
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:8px">'
+        + '<button onclick="var d=document.getElementById(\''+uid+'\');d.style.display=d.style.display===\'none\'?\'block\':\'none\'" style="width:100%;background:none;border:none;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;font-family:\'DM Sans\',sans-serif;text-align:left">'
+        + '<span style="font-size:18px;flex-shrink:0">'+icon+'</span>'
+        + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">'+title+'</div><div style="font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">'+preview+'</div></div>'
+        + '<span style="color:var(--text-3);font-size:10px;flex-shrink:0">▼</span>'
+        + '</button>'
+        + '<div id="'+uid+'" style="display:none;padding:0 14px 12px;border-top:0.5px solid var(--border)">'
+        + rows
+        + '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button onclick="showTab(\'knockout\')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer;font-weight:600">View draw →</button></div>'
+        + '</div></div>';
     }
 
-    // Fixture post — different layout
-    if (n.post_type === 'fixtures') {
-      const matches = n.fixture_matches || [];
-      const roundNames = {1:'Round of 32',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
-      const matchRows = matches.map(m=>`
-        <div class="fixture-row">
-          <div class="fixture-player">
-            <div class="fixture-avatar">${m.p1Name.split(' ').map(w=>w[0]).join('').slice(0,2)}</div>
-            <div class="fixture-player-name">${m.p1Name}</div>
-          </div>
-          <div class="fixture-vs">VS</div>
-          <div class="fixture-player" style="justify-content:flex-end">
-            <div class="fixture-player-name" style="text-align:right">${m.p2Name}</div>
-            <div class="fixture-avatar">${m.p2Name.split(' ').map(w=>w[0]).join('').slice(0,2)}</div>
-          </div>
-        </div>
-        ${m.isPlayoff?`<div style="background:rgba(201,168,76,0.15);padding:4px 16px;font-size:11px;color:#C9A84C;font-weight:600">⚡ Playoff match</div>`:''}
-      `).join('');
-      return `<div class="fixture-post">
-        <div class="fixture-post-hdr">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:36px;height:36px;border-radius:8px;background:rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">⛳</div>
-            <div>
-              <div class="fixture-post-title">This week's knockout fixtures</div>
-              ${n.custom_text?`<div class="fixture-post-note">${n.custom_text}</div>`:''}
-            </div>
-          </div>
-        </div>
-        ${matchRows}
-        <div class="fixture-post-footer">
-          <span style="font-size:11px;color:rgba(255,255,255,0.3)">${matches.length} match${matches.length!==1?'es':''} this week</span>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button onclick="generateFixtureCard(${JSON.stringify(matches).replace(/"/g,'&quot;')},${JSON.stringify(n.custom_text||'').replace(/"/g,'&quot;')})" style="background:#C9A84C;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#0a1628;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:5px">
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#0a1628" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M5 8l3 3 3-3"/><rect x="2" y="12" width="12" height="2" rx="1"/></svg>
-              Share card
-            </button>
-            <button onclick="showTab('knockout')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:600">View draw →</button>
-          </div>
-        </div>
-      </div>`;
-    }
+    const ev = db.events.find(function(e){return e.id===n.event_id;});
+    const eventRounds = db.rounds.filter(function(r){return r.event_id===n.event_id&&r.verified;});
+    const ranked = assignLeaguePts(eventRounds.map(function(r){return Object.assign({},r);})).slice(0,3);
+    const isOuting = ev && ev.event_type === 'outing_18';
+    const typeTag = isOuting
+      ? '<span style="font-size:10px;font-weight:600;color:#3C3489;background:#EEEDFE;padding:1px 7px;border-radius:99px">Outing</span>'
+      : '<span style="font-size:10px;font-weight:600;color:#1a3c6e;background:#edf2fa;padding:1px 7px;border-radius:99px">Sunday</span>';
+    const medalColors = ['#B8860B','#707070','#A0522D'];
+    const top3 = ranked.map(function(r,i) {
+      const p = db.players.find(function(x){return x.id===r.player_id;});
+      return '<div style="display:flex;align-items:center;gap:5px">'
+        + '<div style="width:18px;height:18px;border-radius:50%;background:'+medalColors[i]+';color:white;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>'
+        + '<span style="font-size:12px;color:var(--text);font-weight:'+(i===0?'600':'400')+'">'+(p?p.name.split(' ')[0]:'?')+'</span>'
+        + '<span style="font-size:11px;color:var(--text-3)">'+r.stableford_points+'pts</span>'
+        + '</div>';
+    }).join('');
+    const extras = [];
+    if (n.closest_to_pin) extras.push('📍 '+n.closest_to_pin.split(' ')[0]);
+    if (n.birdies && n.birdies.length) extras.push('🐦 '+n.birdies.length+' birdie'+(n.birdies.length!==1?'s':''));
+    if (n.best_front_9) extras.push('Front: '+n.best_front_9.split(' ')[0]);
+    if (n.best_back_9) extras.push('Back: '+n.best_back_9.split(' ')[0]);
+    const extrasHtml = extras.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:8px;border-top:0.5px solid var(--border);margin-top:4px">'+extras.map(function(e){return '<span style="font-size:11px;color:var(--text-2);background:var(--bg);padding:3px 8px;border-radius:99px;border:0.5px solid var(--border)">'+e+'</span>';}).join('')+'</div>' : '';
+    const uid2 = 'feed-'+Math.random().toString(36).slice(2);
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:8px">'
+      + '<button onclick="var d=document.getElementById(\''+uid2+'\');d.style.display=d.style.display===\'none\'?\'block\':\'none\'" style="width:100%;background:none;border:none;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;font-family:\'DM Sans\',sans-serif;text-align:left">'
+      + '<div style="flex-shrink:0;width:36px;height:36px;border-radius:8px;background:#0a1628;display:flex;align-items:center;justify-content:center;font-size:16px">⛳</div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(ev?ev.course_name:'Event')+'</div>'+typeTag+'</div>'
+      + '<div style="font-size:11px;color:var(--text-3)">'+(ev?fmtDate(ev.event_date):'')+' · '+eventRounds.length+' rounds</div>'
+      + '</div>'
+      + '<span style="color:var(--text-3);font-size:10px;flex-shrink:0">▼</span>'
+      + '</button>'
+      + '<div id="'+uid2+'" style="display:none;padding:10px 14px 12px;border-top:0.5px solid var(--border)">'
+      + '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:'+(extras.length?'10px':'0')+'">' + top3 + '</div>'
+      + extrasHtml
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">'
+      + (ev ? '<button onclick="viewEventResults(\''+ev.id+'\')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer;font-weight:600">Full results →</button>' : '<span></span>')
+      + '<div style="display:flex;gap:8px">'
+      + '<button onclick="generateResultsCard(\''+n.event_id+'\')" style="background:#C9A84C;border:none;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:600;color:#0a1628;font-family:\'DM Sans\',sans-serif;cursor:pointer">Share</button>'
+      + (isAdmin ? '<button onclick="deleteNotice(\''+n.id+'\')" style="background:none;border:none;font-size:11px;color:var(--text-3);font-family:\'DM Sans\',sans-serif;cursor:pointer">Remove</button>' : '')
+      + '</div></div></div></div>';
+  }
 
-    // Regular event post
-    const ev = db.events.find(e=>e.id===n.event_id);
-    const eventRounds = db.rounds.filter(r=>r.event_id===n.event_id);
-    const ranked = assignLeaguePts(eventRounds.map(r=>({...r}))).slice(0,3);
-    const isOutingPost = ev && ev.event_type === 'outing_18';
-    const totalRounds = eventRounds.length;
+  const activityItems = visible.map(renderFeedItem).join('');
+  const showMoreBtn = !showAll && sorted.length > MAX_VISIBLE
+    ? '<button onclick="window._feedShowAll=true;renderHome()" style="width:100%;padding:10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;margin-top:4px">Show '+(sorted.length-MAX_VISIBLE)+' older updates ▼</button>'
+    : '';
 
-    // Rich podium — visual slots: [2nd, 1st, 3rd] left to right
-    // finishIdx = actual finish (0=1st, 1=2nd, 2=3rd)
-    // slotCfg drives SIZE by visual slot position (centre is biggest)
-    const medals = ['🥇','🥈','🥉'];
-    const podiumHtml = ranked.length ? (() => {
-      const visualOrder = [1, 0, 2]; // which finishIdx goes in each visual slot
-      // Size config per visual slot (0=left/2nd, 1=centre/1st, 2=right/3rd)
-      const slotSize = [
-        { mt:'24px', pad:'10px 8px', medal:'20px', avatar:32, nameSize:'12px', ptsSize:'17px' },
-        { mt:'0px',  pad:'16px 8px', medal:'30px', avatar:44, nameSize:'14px', ptsSize:'24px' },
-        { mt:'36px', pad:'10px 8px', medal:'20px', avatar:32, nameSize:'12px', ptsSize:'17px' },
-      ];
-      // Colour config per finish position (0=1st gold, 1=2nd silver, 2=3rd bronze)
-      const finishCol = [
-        { bg:'rgba(201,168,76,0.15)',  border:'rgba(201,168,76,0.6)',  pts:'#C9A84C', avatarBg:'#C9A84C', avatarCol:'#0a1628', nameCol:'#C9A84C', avatarBorder:'border:2px solid rgba(201,168,76,0.5)' },
-        { bg:'rgba(112,112,112,0.12)', border:'rgba(112,112,112,0.2)', pts:'#707070', avatarBg:'#1a3050', avatarCol:'#C9A84C', nameCol:'rgba(255,255,255,0.85)', avatarBorder:'' },
-        { bg:'rgba(160,82,45,0.12)', border:'rgba(160,82,45,0.2)', pts:'#A0522D', avatarBg:'#1a3050', avatarCol:'#C9A84C', nameCol:'rgba(255,255,255,0.85)', avatarBorder:'' },
-      ];
-      return `<div style="display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:6px;margin-bottom:14px;align-items:start">
-        ${visualOrder.map((finishIdx, slotIdx) => {
-          const r = ranked[finishIdx];
-          if (!r) return '<div></div>';
-          const p = db.players.find(x=>x.id===r.player_id);
-          const sz = slotSize[slotIdx];
-          const col = finishCol[finishIdx];
-          const initls = p ? p.name.split(' ').map(w=>w[0]).join('').slice(0,2) : '?';
-          return `<div style="background:${col.bg};border-radius:12px;padding:${sz.pad};text-align:center;border:1.5px solid ${col.border};margin-top:${sz.mt}">
-            <div style="font-size:${sz.medal};margin-bottom:6px">${medals[finishIdx]}</div>
-            <div style="width:${sz.avatar}px;height:${sz.avatar}px;border-radius:50%;background:${col.avatarBg};color:${col.avatarCol};font-size:${finishIdx===0?'14':'11'}px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;${col.avatarBorder}">${initls}</div>
-            <div style="font-size:${sz.nameSize};font-weight:700;color:${col.nameCol};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p?p.name.split(' ')[0]:'?'}</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p?p.name.split(' ').slice(1).join(' '):''}</div>
-            <div style="font-size:${sz.ptsSize};font-weight:800;color:${col.pts};margin-top:8px;line-height:1">${r.stableford_points}</div>
-            <div style="font-size:9px;color:rgba(255,255,255,0.3);margin-top:2px">pts</div>
-          </div>`;
-        }).join('')}
-      </div>`;
-    })() : '';
-
-    const frontBackHtml = isOutingPost && (n.best_front_9 || n.best_back_9) ? `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-        <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px">
-          <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Front 9</div>
-          <div style="font-size:13px;font-weight:600;color:white">⛳ ${n.best_front_9||'—'}</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px">
-          <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Back 9</div>
-          <div style="font-size:13px;font-weight:600;color:white">⛳ ${n.best_back_9||'—'}</div>
-        </div>
-      </div>` : '';
-
-    const ctpHtml = n.closest_to_pin ? `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.07)">
-        <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Closest to pin</div>
-        <div style="font-size:13px;font-weight:600;color:white">📍 ${n.closest_to_pin}</div>
-      </div>` : '';
-
-    const birdiesHtml = !isOutingPost && n.birdies && n.birdies.length ? `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.07)">
-        <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Birdies</div>
-        <div style="font-size:13px;font-weight:600;color:white">🐦 ${n.birdies.join(', ')}</div>
-      </div>` : '';
-
-    const customHtml = n.custom_text ? `
-      <div style="font-size:12px;color:rgba(255,255,255,0.45);font-style:italic;border-left:2px solid #C9A84C;padding-left:10px;margin-bottom:10px">${n.custom_text}</div>` : '';
-
-    return `<div style="background:#0a1628;border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1rem;border:1px solid rgba(201,168,76,0.3)">
-      <div style="background:linear-gradient(135deg,#0f2040,#162338);padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:36px;height:36px;border-radius:8px;background:rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">⛳</div>
-          <div>
-            <div style="font-family:'DM Serif Display',serif;font-size:17px;color:white">${ev?ev.course_name:'Event'}</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px">${ev?fmtDate(ev.event_date):''} · ${isOutingPost?'Outing':'Sunday 9'}</div>
-          </div>
-        </div>
-      </div>
-      <div style="padding:14px 16px">
-        ${podiumHtml}
-        ${frontBackHtml}
-        ${ctpHtml}
-        ${birdiesHtml}
-        ${customHtml}
-      </div>
-      <div style="padding:10px 16px 14px;border-top:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:11px;color:rgba(255,255,255,0.3)">${totalRounds} round${totalRounds!==1?'s':''} submitted</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          ${ev ? `<button onclick="viewEventResults('${ev.id}')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:600">Full results →</button>` : ''}
-          <button onclick="generateResultsCard('${n.event_id}')" style="background:#C9A84C;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#0a1628;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:5px">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#0a1628" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v9M5 8l3 3 3-3"/><rect x="2" y="12" width="12" height="2" rx="1"/></svg>
-            Share card
-          </button>
-          ${isAdmin ? `<button onclick="deleteNotice('${n.id}')" style="background:none;border:none;font-size:12px;color:rgba(255,255,255,0.3);font-family:'DM Sans',sans-serif;cursor:pointer">Remove</button>` : ''}
-        </div>
-      </div>
-    </div>`;
-  }).join('') + '</div>';
+  feed.innerHTML = pushBanner + statsBar + knockoutCard + '<div class="stagger-up">' + activityItems + '</div>' + showMoreBtn;
 }
 
 function showAdminLogin() {
