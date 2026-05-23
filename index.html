@@ -4460,7 +4460,9 @@ function showHandicapSheet(eid) {
 
   const rows = sortedPlayers.map(p => {
     const hcpIdx = p.provisional ? 7.0 : (parseFloat(p.handicap_index) || 0);
-    const courseHcp = calcOutingCourseHcp(hcpIdx, ev.slope_rating, ev.course_rating, ev.par, p.id);
+    const courseHcp = isOuting
+      ? calcOutingCourseHcp(hcpIdx, ev.slope_rating, ev.course_rating, ev.par, p.id)
+      : calcCourseHcp(hcpIdx, ev.slope_rating, ev.course_rating, ev.par);
     return { player: p, hcpIdx, courseHcp };
   }).sort((a,b) => a.courseHcp - b.courseHcp);
 
