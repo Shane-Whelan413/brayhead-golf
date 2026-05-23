@@ -490,7 +490,11 @@
     100% { left: 160%; }
   }
 
-  /* Text stays above shimmer overlay */
+  .lb-card-gold { overflow: visible !important; }
+  .lb-card-silver { overflow: visible !important; }
+  .lb-card-bronze { overflow: visible !important; }
+  .lb-slide-wrap { overflow: hidden; border-radius: var(--radius); margin-bottom: 6px; }
+  .lb-slide-wrap .lb-card { margin-bottom: 0; border-radius: var(--radius); }
   .lb-card-gold > *,
   .lb-card-silver > *,
   .lb-card-bronze > * { position: relative; z-index: 2; }
@@ -7795,7 +7799,10 @@ function addRipple(e) {
   btn.style.position = 'relative';
   btn.style.overflow = 'hidden';
   btn.appendChild(wave);
-  wave.addEventListener('animationend', () => wave.remove());
+  // Remove via both animationend and a timer fallback
+  const cleanup = () => wave.remove();
+  wave.addEventListener('animationend', cleanup);
+  setTimeout(cleanup, 700);
 }
 
 function numberRoll(el, newVal) {
