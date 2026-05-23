@@ -4407,6 +4407,8 @@ function showHandicapSheet(eid) {
     return { player: p, hcpIdx, courseHcp };
   }).sort((a,b) => a.courseHcp - b.courseHcp);
 
+  const isOuting = ev.event_type === 'outing_18';
+
   document.getElementById('modal-title').textContent = '📋 Handicap sheet';
   document.getElementById('modal-body').innerHTML = `
     <div style="border-radius:var(--radius);overflow:hidden;border:0.5px solid var(--border)">
@@ -4420,11 +4422,11 @@ function showHandicapSheet(eid) {
         <div style="flex:1;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.05em">Player</div>
         <div style="width:40px;text-align:center;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.05em">Index</div>
         <div style="width:40px;text-align:center;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.05em">Shots</div>
-        <div style="width:40px;text-align:center;font-size:10px;font-weight:600;color:#A32D2D;text-transform:uppercase;letter-spacing:0.05em">Pen.</div>
+        ${isOuting ? `<div style="width:40px;text-align:center;font-size:10px;font-weight:600;color:#A32D2D;text-transform:uppercase;letter-spacing:0.05em">Pen.</div>` : ''}
       </div>
 
       ${rows.map(r => {
-        const penalty = r.player.next_outing_penalty || 0;
+        const penalty = isOuting ? (r.player.next_outing_penalty || 0) : 0;
         return `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:0.5px solid var(--border);${penalty?'background:rgba(226,75,74,0.04);':''}">
           <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
@@ -4436,14 +4438,14 @@ function showHandicapSheet(eid) {
           </div>
           <div style="width:40px;text-align:center;font-size:12px;color:var(--text-2);flex-shrink:0">${r.hcpIdx.toFixed(1)}</div>
           <div style="width:40px;text-align:center;font-size:15px;font-weight:700;color:#0a1628;flex-shrink:0">${r.courseHcp}</div>
-          <div style="width:40px;text-align:center;flex-shrink:0">${penalty
+          ${isOuting ? `<div style="width:40px;text-align:center;flex-shrink:0">${penalty
             ? `<span style="font-size:11px;font-weight:700;color:#A32D2D;background:#FCEBEB;padding:3px 7px;border-radius:99px">−${penalty}</span>`
             : `<span style="font-size:12px;color:var(--text-3)">—</span>`
-          }</div>
+          }</div>` : ''}
         </div>`;
       }).join('')}
 
-      ${rows.some(r => r.player.next_outing_penalty > 0) ? `
+      ${isOuting && rows.some(r => r.player.next_outing_penalty > 0) ? `
       <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:#FCEBEB">
         <span style="font-size:13px">⚠️</span>
         <span style="font-size:11px;font-weight:500;color:#A32D2D">${rows.filter(r=>r.player.next_outing_penalty>0).length} player${rows.filter(r=>r.player.next_outing_penalty>0).length!==1?'s have':' has'} a shot penalty from the last outing</span>
