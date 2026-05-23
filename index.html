@@ -4493,7 +4493,7 @@ function showHandicapSheet(eid) {
   const ev = db.events.find(e=>e.id===eid);
   if (!ev) return;
 
-  const n = 18;
+  const isOuting = ev.event_type === 'outing_18';
   const sortedPlayers = [...db.players]
     .sort((a,b) => a.name.localeCompare(b.name));
 
@@ -4504,8 +4504,6 @@ function showHandicapSheet(eid) {
       : calcCourseHcp(hcpIdx, ev.slope_rating, ev.course_rating, ev.par);
     return { player: p, hcpIdx, courseHcp };
   }).sort((a,b) => a.courseHcp - b.courseHcp);
-
-  const isOuting = ev.event_type === 'outing_18';
 
   document.getElementById('modal-title').textContent = '📋 Handicap sheet';
   document.getElementById('modal-body').innerHTML = `
