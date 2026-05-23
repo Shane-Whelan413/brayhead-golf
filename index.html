@@ -436,8 +436,6 @@
     from { opacity: 0; transform: translateY(40%); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  @keyframes bhgsRipple {
-    from { transform: scale(0); opacity: 0.5; }
     to   { transform: scale(5); opacity: 0; }
   }
   @keyframes bhgsCountdownPulse {
@@ -511,9 +509,6 @@
 
   /* Number roll */
   .bhgs-roll { display: inline-block; animation: bhgsRoll 0.35s cubic-bezier(0.22,1,0.36,1) both; }
-
-  /* Ripple */
-  .bhgs-ripple { position: absolute; border-radius: 50%; background: rgba(201,168,76,0.45); width: 44px; height: 44px; margin-top: -22px; margin-left: -22px; animation: bhgsRipple 0.55s ease-out forwards; pointer-events: none; }
 
   /* Countdown */
   .bhgs-countdown { display: inline-block; animation: bhgsCountdownPulse 4s ease-in-out infinite; }
@@ -1956,7 +1951,7 @@ function renderLeaderboard() {
     const podiumClass = pos===1?'lb-card-gold':pos===2?'lb-card-silver':pos===3?'lb-card-bronze':'';
 
     return `<div class="lb-slide-wrap">
-      <button onclick="showPlayerProfile('${p.id}')" onpointerdown="addRipple(event)" class="lb-card ${podiumClass}" style="width:100%;text-align:left;">
+      <button onclick="showPlayerProfile('${p.id}')" class="lb-card ${podiumClass}" style="width:100%;text-align:left;">
         <div class="lb-rank-pill" style="width:34px;height:34px;border-radius:50%;background:${pos<=3?'rgba(255,255,255,0.25)':'#0a1628'};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
         <div style="flex-shrink:0;${pos<=3?`padding:2px;border-radius:50%;background:rgba(255,255,255,0.4);`:''}">
           ${avatarHtml(p, 34, 12)}
