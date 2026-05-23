@@ -441,32 +441,32 @@
   .match-pulse { animation: matchPulse 2.2s ease-in-out infinite; border-width: 2px !important; }
   .my-match    { animation: myMatchGlow 2.4s ease-in-out infinite; }
 
-  /* ── Gold shimmer ── */
+  /* ── 1st place card glow ── */
+  @keyframes firstPlaceGlow {
+    0%,100% { box-shadow: 0 0 0 0 rgba(184,134,11,0), 0 1px 3px rgba(0,0,0,0.08); }
+    50%     { box-shadow: 0 0 0 3px rgba(184,134,11,0.3), 0 4px 24px rgba(184,134,11,0.2); }
+  }
+  .lb-card-first { animation: firstPlaceGlow 2.5s ease-in-out infinite; }
+
+  /* ── Countdown shimmer ── */
   @keyframes goldShimmer {
     0%   { background-position: -200% center; }
     100% { background-position: 200% center; }
   }
-  .gold-shimmer {
-    background: linear-gradient(90deg, #C9A84C 0%, #C9A84C 35%, #fff8e0 50%, #C9A84C 65%, #C9A84C 100%);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: goldShimmer 2.5s linear infinite;
-  }
   .gold-shimmer-bg {
-    background: linear-gradient(90deg, #C9A84C 0%, #C9A84C 30%, #fef3b4 50%, #C9A84C 70%, #C9A84C 100%);
+    background: linear-gradient(90deg, #B8860B 0%, #C9A84C 30%, #fef3b4 50%, #C9A84C 70%, #B8860B 100%);
     background-size: 250% auto;
     animation: goldShimmer 2s linear infinite;
+    color: #0a1628;
+    font-size: 22px; font-weight: 800;
+    padding: 8px 24px; border-radius: 99px;
+    display: inline-block;
   }
   @keyframes countdownPulse {
     0%,100% { transform: scale(1); }
     50%     { transform: scale(1.04); }
   }
-  .countdown-pill {
-    display: inline-block;
-    animation: countdownPulse 2s ease-in-out infinite;
-  }
+  .countdown-pill { display: inline-block; animation: countdownPulse 2s ease-in-out infinite; }
 
   /* ── Number roll ── */
   @keyframes numberRoll {
@@ -480,14 +480,7 @@
     0%   { transform: scale(0); opacity: 0.5; }
     100% { transform: scale(4); opacity: 0; }
   }
-  .ripple-wave { position: absolute; border-radius: 50%; background: rgba(201,168,76,0.35); width: 40px; height: 40px; margin-top: -20px; margin-left: -20px; animation: rippleFade 0.55s ease-out forwards; pointer-events: none; }
-
-  /* ── 1st place card glow ── */
-  @keyframes firstPlaceGlow {
-    0%,100% { box-shadow: 0 0 0 0 rgba(184,134,11,0); }
-    50%     { box-shadow: 0 2px 20px rgba(184,134,11,0.35), 0 0 0 2px rgba(184,134,11,0.15); }
-  }
-  .lb-card-first { animation: firstPlaceGlow 2.5s ease-in-out infinite; }
+  .ripple-wave { position: absolute; border-radius: 50%; background: rgba(201,168,76,0.4); width: 44px; height: 44px; margin-top: -22px; margin-left: -22px; animation: rippleFade 0.6s ease-out forwards; pointer-events: none; }
   #score-keypad {
     position: fixed;
     bottom: 0; left: 0; right: 0;
@@ -1909,7 +1902,7 @@ function renderLeaderboard() {
     const rankBg = pos===1?'#B8860B':pos===2?'#707070':pos===3?'#A0522D':'#0a1628';
     const firstClass = pos===1 ? 'lb-card-first' : '';
 
-    return `<button onclick="showPlayerProfile('${p.id}')" onmousedown="addRipple(event)" ontouchstart="addRipple(event)" class="lb-card ${firstClass}" style="width:100%;text-align:left;${borderLeft?'border-left:'+borderLeft+';':''}${bgTint?'background:'+bgTint+';':''}">
+    return `<button onclick="showPlayerProfile('${p.id}')" onpointerdown="addRipple(event)" class="lb-card ${firstClass}" style="width:100%;text-align:left;${borderLeft?'border-left:'+borderLeft+';':''}${bgTint?'background:'+bgTint+';':''}">
       <div style="width:36px;height:36px;border-radius:50%;background:${rankBg};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
       ${avatarHtml(p, 36, 12)}
       <div class="lb-card-info">
@@ -1919,7 +1912,7 @@ function renderLeaderboard() {
         </div>
         <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
       </div>
-      <div class="lb-card-pts ${pos===1?'gold-shimmer':''}" style="${pos===1?'':'color:'+ptsColor}">${p.lp}</div>
+      <div class="lb-card-pts" style="color:${ptsColor};${pos===1?'font-weight:800;':''}">${p.lp}</div>
     </button>`;
   }).join('') + '</div>';
   setTimeout(() => {
@@ -7719,11 +7712,16 @@ function toggleKoAdminMenu() {
 function addRipple(e) {
   const btn = e.currentTarget;
   if (!btn) return;
+  // Remove any existing ripples
+  btn.querySelectorAll('.ripple-wave').forEach(w => w.remove());
   const wave = document.createElement('span');
   wave.className = 'ripple-wave';
   const rect = btn.getBoundingClientRect();
-  wave.style.left = (e.clientX - rect.left) + 'px';
-  wave.style.top  = (e.clientY - rect.top) + 'px';
+  const x = (e.clientX || (e.touches && e.touches[0].clientX) || rect.left + rect.width/2) - rect.left;
+  const y = (e.clientY || (e.touches && e.touches[0].clientY) || rect.top + rect.height/2) - rect.top;
+  wave.style.left = x + 'px';
+  wave.style.top  = y + 'px';
+  wave.style.position = 'absolute';
   btn.style.position = 'relative';
   btn.style.overflow = 'hidden';
   btn.appendChild(wave);
