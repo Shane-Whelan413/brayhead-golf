@@ -5254,6 +5254,83 @@ function _renderKnockoutResultsCard(matches, logoImg) {
   toast('Results card downloaded \u2014 share to WhatsApp!', 'success');
 }
 
+function showFixturePost() {
+  const matches = db.knockout_matches;
+  const rounds = [...new Set(matches.map(m=>m.round))].sort((a,b)=>a-b);
+  const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+
+  const roundOptions = rounds.map(r => {
+    const rMatches = matches.filter(m => m.round===r && !m.is_bye);
+    return `<div onclick="selectFixtureRound(${r})" id="fpr-${r}" style="padding:12px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${ROUND_NAMES[r]||'Round '+r}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${rMatches.length} matches</div>
+      </div>
+      <div id="fpr-check-${r}" style="display:none;color:#16a34a;font-size:18px">✓</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('modal-title').textContent = '📋 Post fixtures';
+  document.getElementById('modal-body').innerHTML = `
+    <p style="font-size:13px;color:var(--text-2);margin-bottom:1rem">Select a round to post to the noticeboard as a fixture announcement.</p>
+    ${roundOptions}
+    <div style="margin-top:4px">
+      <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px">Add a note (optional)</label>
+      <textarea id="fixture-note" placeholder="e.g. Matches to be played before 31st May…" style="width:100%;padding:10px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;resize:none;height:72px"></textarea>
+    </div>
+    <button onclick="postFixtureFromModal()" class="btn primary" style="width:100%;margin-top:12px">Post to noticeboard</button>
+  `;
+  window._selectedFixtureRound = null;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function selectFixtureRound(r) {
+  const rounds = [...new Set(db.knockout_matches.map(m=>m.round))];
+  rounds.forEach(rr => {
+    const el = document.getElementById('fpr-'+rr);
+    const chk = document.getElementById('fpr-check-'+rr);
+    if (el) el.style.border = rr===r ? '1.5px solid #C9A84C' : '1px solid var(--border)';
+    if (chk) chk.style.display = rr===r ? 'block' : 'none';
+  });
+  window._selectedFixtureRound = r;
+}
+
+async function postFixtureFromModal() {
+  const r = window._selectedFixtureRound;
+  if (!r) { toast('Select a round first', 'error'); return; }
+  const note = document.getElementById('fixture-note')?.value || '';
+  const matches = db.knockout_matches.filter(m => m.round===r && !m.is_bye);
+  const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+
+  const fixtureMeta = matches.map(m => {
+    const p1 = db.players.find(p=>p.id===m.player1_id);
+    const p2 = db.players.find(p=>p.id===m.player2_id);
+    return {
+      p1Name: p1?.name||'TBD', p2Name: p2?.name||'TBD',
+      status: m.status, result: m.result||null,
+      winnerName: m.winner_id ? db.players.find(p=>p.id===m.winner_id)?.name : null,
+      isBye: m.is_bye
+    };
+  });
+
+  try {
+    await post('noticeboard', {
+      post_type: 'fixtures',
+      event_id: null,
+      fixture_round: r,
+      fixture_round_name: ROUND_NAMES[r]||('Round '+r),
+      fixture_matches: fixtureMeta,
+      note: note
+    });
+    toast('Fixtures posted to noticeboard!', 'success');
+    closeModal();
+    await loadAll(); renderAll();
+    // Generate shareable image
+    generateFixtureCard(fixtureMeta, note || (ROUND_NAMES[r]||'Round '+r)+' fixtures');
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+
 function generateFixtureCard(matches, note) {
   // Load logo from the already-rendered topbar image
   const logoImg = document.getElementById('topbar-logo');
