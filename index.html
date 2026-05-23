@@ -106,37 +106,6 @@
   .anim-fade-up { animation: fadeSlideUp 0.35s cubic-bezier(0.34,1.1,0.64,1) both; }
   .anim-fade    { animation: fadeIn 0.25s ease both; }
 
-  /* ── Leaderboard: slide-in applied via JS, shimmer via CSS ── */
-  @keyframes lbSlideIn {
-    from { opacity: 0; transform: translateX(-24px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
-  @keyframes lbShimmer {
-    0%   { background-position: -300% center; }
-    100% { background-position: 300% center; }
-  }
-  .lb-card-gold {
-    background: linear-gradient(105deg, #fef8e6 0%, #fef8e6 35%, #fffce0 50%, #fef8e6 65%, #fef8e6 100%);
-    background-size: 300% auto;
-    border-color: rgba(184,134,11,0.4) !important;
-    border-left: 3px solid #B8860B !important;
-    animation: lbShimmer 2.5s linear infinite;
-  }
-  .lb-card-silver {
-    background: linear-gradient(105deg, #f7f7f7 0%, #f7f7f7 35%, #fdfdfd 50%, #f7f7f7 65%, #f7f7f7 100%);
-    background-size: 300% auto;
-    border-color: rgba(112,112,112,0.3) !important;
-    border-left: 3px solid #707070 !important;
-    animation: lbShimmer 3s linear infinite;
-  }
-  .lb-card-bronze {
-    background: linear-gradient(105deg, #fdf3ee 0%, #fdf3ee 35%, #fef9f6 50%, #fdf3ee 65%, #fdf3ee 100%);
-    background-size: 300% auto;
-    border-color: rgba(160,82,45,0.3) !important;
-    border-left: 3px solid #A0522D !important;
-    animation: lbShimmer 3.5s linear infinite;
-  }
-
   /* Feed items stagger up */
   .stagger-up > * { opacity: 0; animation: fadeSlideUp 0.35s cubic-bezier(0.34,1.1,0.64,1) forwards; }
   .stagger-up > *:nth-child(1) { animation-delay: 0ms; }
@@ -458,61 +427,89 @@
     0%   { background-position: -300% center; }
     100% { background-position: 300% center; }
   }
-  .lb-card-gold {
-    background: linear-gradient(105deg, #fef8e6 0%, #fef8e6 30%, #fffbe8 50%, #fef8e6 70%, #fef8e6 100%);
-    background-size: 300% auto;
-    border-color: rgba(184,134,11,0.4) !important;
-    border-left: 3px solid #B8860B !important;
-    animation: slideInLeft 0.42s cubic-bezier(0.22,1,0.36,1) forwards, shimmerSweep 2.5s linear 0.5s infinite;
+
+  /* ── All leaderboard animations ── */
+  @keyframes bhgsSlide {
+    from { opacity: 0; transform: translateX(-22px); }
+    to   { opacity: 1; transform: translateX(0); }
   }
-  .lb-card-silver {
-    background: linear-gradient(105deg, #f6f6f6 0%, #f6f6f6 30%, #fafafa 50%, #f6f6f6 70%, #f6f6f6 100%);
-    background-size: 300% auto;
-    border-color: rgba(112,112,112,0.3) !important;
-    border-left: 3px solid #707070 !important;
-    animation: slideInLeft 0.42s cubic-bezier(0.22,1,0.36,1) 110ms forwards, shimmerSweep 3s linear 0.6s infinite;
+  @keyframes bhgsShimmer {
+    0%   { background-position: -400% center; }
+    100% { background-position: 400% center; }
   }
-  .lb-card-bronze {
-    background: linear-gradient(105deg, #fdf3ee 0%, #fdf3ee 30%, #fef8f4 50%, #fdf3ee 70%, #fdf3ee 100%);
-    background-size: 300% auto;
-    border-color: rgba(160,82,45,0.3) !important;
-    border-left: 3px solid #A0522D !important;
-    animation: slideInLeft 0.42s cubic-bezier(0.22,1,0.36,1) 220ms forwards, shimmerSweep 3.5s linear 0.7s infinite;
+  @keyframes bhgsRoll {
+    from { opacity: 0; transform: translateY(40%); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes bhgsRipple {
+    from { transform: scale(0); opacity: 0.5; }
+    to   { transform: scale(5); opacity: 0; }
+  }
+  @keyframes bhgsCountdown {
+    0%,100% { transform: scale(1); }
+    50%     { transform: scale(1.03); }
+  }
+  @keyframes bhgsGoldSweep {
+    0%   { background-position: -400% center; }
+    100% { background-position: 400% center; }
   }
 
-  /* ── Countdown shimmer ── */
-  @keyframes goldShimmer {
-    0%   { background-position: -200% center; }
-    100% { background-position: 200% center; }
+  /* Solid podium cards with shimmer */
+  .lb-card-gold {
+    background: linear-gradient(90deg, #B8860B 0%, #B8860B 38%, #e8c04a 50%, #B8860B 62%, #B8860B 100%) !important;
+    background-size: 400% auto !important;
+    border: 1px solid #B8860B !important;
+    border-left: 3px solid #8a6200 !important;
+    animation: bhgsShimmer 2.2s linear infinite !important;
   }
-  .gold-shimmer-bg {
-    background: linear-gradient(90deg, #B8860B 0%, #C9A84C 30%, #fef3b4 50%, #C9A84C 70%, #B8860B 100%);
-    background-size: 250% auto;
-    animation: goldShimmer 2s linear infinite;
-    color: #0a1628;
+  .lb-card-gold .lb-card-name,
+  .lb-card-gold .lb-card-sub { color: rgba(255,255,255,0.9) !important; }
+  .lb-card-gold .lb-card-pts { color: white !important; font-weight: 800 !important; }
+
+  .lb-card-silver {
+    background: linear-gradient(90deg, #5a5a5a 0%, #5a5a5a 38%, #909090 50%, #5a5a5a 62%, #5a5a5a 100%) !important;
+    background-size: 400% auto !important;
+    border: 1px solid #5a5a5a !important;
+    border-left: 3px solid #3a3a3a !important;
+    animation: bhgsShimmer 2.8s linear infinite !important;
+  }
+  .lb-card-silver .lb-card-name,
+  .lb-card-silver .lb-card-sub { color: rgba(255,255,255,0.9) !important; }
+  .lb-card-silver .lb-card-pts { color: white !important; font-weight: 700 !important; }
+
+  .lb-card-bronze {
+    background: linear-gradient(90deg, #8B4513 0%, #8B4513 38%, #c07040 50%, #8B4513 62%, #8B4513 100%) !important;
+    background-size: 400% auto !important;
+    border: 1px solid #8B4513 !important;
+    border-left: 3px solid #5a2d0a !important;
+    animation: bhgsShimmer 3.4s linear infinite !important;
+  }
+  .lb-card-bronze .lb-card-name,
+  .lb-card-bronze .lb-card-sub { color: rgba(255,255,255,0.9) !important; }
+  .lb-card-bronze .lb-card-pts { color: white !important; font-weight: 700 !important; }
+
+  /* Rank pills on coloured cards */
+  .lb-card-gold .lb-rank-pill,
+  .lb-card-silver .lb-rank-pill,
+  .lb-card-bronze .lb-rank-pill { background: rgba(255,255,255,0.2) !important; color: white !important; }
+
+  /* Number roll */
+  .bhgs-roll { display: inline-block; animation: bhgsRoll 0.35s cubic-bezier(0.22,1,0.36,1) both; }
+
+  /* Ripple */
+  .bhgs-ripple { position: absolute; border-radius: 50%; background: rgba(201,168,76,0.45); width: 44px; height: 44px; margin-top: -22px; margin-left: -22px; animation: bhgsRipple 0.55s ease-out forwards; pointer-events: none; }
+
+  /* Countdown */
+  .bhgs-countdown { display: inline-block; animation: bhgsCountdown 2s ease-in-out infinite; }
+  .bhgs-countdown-inner {
+    background: linear-gradient(90deg, #B8860B 0%, #B8860B 30%, #f0d060 50%, #B8860B 70%, #B8860B 100%);
+    background-size: 400% auto;
+    animation: bhgsGoldSweep 2s linear infinite;
+    color: #3a2000;
     font-size: 22px; font-weight: 800;
     padding: 8px 24px; border-radius: 99px;
     display: inline-block;
   }
-  @keyframes countdownPulse {
-    0%,100% { transform: scale(1); }
-    50%     { transform: scale(1.04); }
-  }
-  .countdown-pill { display: inline-block; animation: countdownPulse 2s ease-in-out infinite; }
-
-  /* ── Number roll ── */
-  @keyframes numberRoll {
-    0%   { transform: translateY(50%); opacity: 0; }
-    100% { transform: translateY(0); opacity: 1; }
-  }
-  .number-roll { display: inline-block; animation: numberRoll 0.35s cubic-bezier(0.22,1,0.36,1) both; }
-
-  /* ── Ripple tap ── */
-  @keyframes rippleFade {
-    0%   { transform: scale(0); opacity: 0.5; }
-    100% { transform: scale(4); opacity: 0; }
-  }
-  .ripple-wave { position: absolute; border-radius: 50%; background: rgba(201,168,76,0.4); width: 44px; height: 44px; margin-top: -22px; margin-left: -22px; animation: rippleFade 0.6s ease-out forwards; pointer-events: none; }
   #score-keypad {
     position: fixed;
     bottom: 0; left: 0; right: 0;
@@ -1928,12 +1925,13 @@ function renderLeaderboard() {
       ? `<span style="font-size:10px;font-weight:700;color:#A32D2D;background:#FCEBEB;padding:2px 5px;border-radius:99px;flex-shrink:0">&#9660;${Math.abs(p.movement)}</span>`
       : '';
 
-    const ptsColor = pos===1?'#B8860B':pos===2?'#707070':pos===3?'#A0522D':'var(--green-mid)';
-    const rankBg   = pos===1?'#B8860B':pos===2?'#707070':pos===3?'#A0522D':'#0a1628';
+    const ptsColor = pos<=3 ? 'white' : 'var(--green-mid)';
+    const rankBg   = pos===1?'rgba(255,255,255,0.25)':pos===2?'rgba(255,255,255,0.25)':pos===3?'rgba(255,255,255,0.25)':'#0a1628';
+    const rankColor= pos<=3 ? 'white' : 'white';
     const podiumClass = pos===1?'lb-card-gold':pos===2?'lb-card-silver':pos===3?'lb-card-bronze':'';
 
     return `<button onclick="showPlayerProfile('${p.id}')" onpointerdown="addRipple(event)" class="lb-card ${podiumClass}" style="width:100%;text-align:left;">
-      <div style="width:34px;height:34px;border-radius:50%;background:${rankBg};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
+      <div class="lb-rank-pill" style="width:34px;height:34px;border-radius:50%;background:${pos<=3?'rgba(255,255,255,0.25)':'#0a1628'};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
       ${avatarHtml(p, 34, 12)}
       <div class="lb-card-info">
         <div style="display:flex;align-items:center;gap:6px">
@@ -1963,9 +1961,9 @@ function renderLeaderboard() {
   setTimeout(() => {
     document.querySelectorAll('#lb-table .lb-card-pts').forEach(el => {
       const val = el.textContent.trim();
-      numberRoll(el, val);
+      el.innerHTML = `<span class="bhgs-roll">${val}</span>`;
     });
-  }, 300);
+  }, 400);
 }
 
 
@@ -4361,7 +4359,7 @@ function renderSchedule() {
         <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Next outing</div>
         <div style="font-size:18px;font-weight:700;color:white;margin-bottom:4px">${outName}</div>
         <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:10px">${fmtDate(outDate)}</div>
-        <div class="countdown-pill"><div class="gold-shimmer-bg" style="color:#0a1628;font-size:22px;font-weight:800;padding:8px 24px;border-radius:99px;display:inline-block">${daysLabel}</div></div>
+        <div class="bhgs-countdown"><div class="bhgs-countdown-inner">${daysLabel}</div></div>
       </div>`;
   }
 
@@ -7757,16 +7755,14 @@ function toggleKoAdminMenu() {
 function addRipple(e) {
   const btn = e.currentTarget;
   if (!btn) return;
-  // Remove any existing ripples
-  btn.querySelectorAll('.ripple-wave').forEach(w => w.remove());
+  btn.querySelectorAll('.bhgs-ripple').forEach(w => w.remove());
   const wave = document.createElement('span');
-  wave.className = 'ripple-wave';
+  wave.className = 'bhgs-ripple';
   const rect = btn.getBoundingClientRect();
-  const x = (e.clientX || (e.touches && e.touches[0].clientX) || rect.left + rect.width/2) - rect.left;
-  const y = (e.clientY || (e.touches && e.touches[0].clientY) || rect.top + rect.height/2) - rect.top;
+  const x = (e.clientX || rect.left + rect.width/2) - rect.left;
+  const y = (e.clientY || rect.top + rect.height/2) - rect.top;
   wave.style.left = x + 'px';
   wave.style.top  = y + 'px';
-  wave.style.position = 'absolute';
   btn.style.position = 'relative';
   btn.style.overflow = 'hidden';
   btn.appendChild(wave);
