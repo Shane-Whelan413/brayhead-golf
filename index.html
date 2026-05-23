@@ -7866,14 +7866,18 @@ function renderKnockout() {
       function playerRow(player, won, lost, isMe) {
         const name = player ? player.name : 'TBD';
         const isTbd = !player;
-        const nameSt = won ? 'font-weight:700;color:var(--text)' : lost ? 'color:var(--text-3);text-decoration:line-through' : isTbd ? 'color:var(--text-3)' : 'color:var(--text)';
-        const avBg = isTbd ? 'background:var(--bg);color:var(--text-3)' : 'background:#0a1628;color:#C9A84C';
-        const ring = isMe ? 'box-shadow:0 0 0 2px #C9A84C' : '';
-        const dot = won ? '#C9A84C' : lost ? 'var(--border-strong)' : !done && player ? 'rgba(201,168,76,0.4)' : 'var(--border)';
-        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px">
+        const rowBg = won ? 'background:#0a1628' : lost ? 'background:var(--bg);opacity:0.5' : '';
+        const nameSt = won ? 'font-weight:700;color:white' : lost ? 'color:var(--text-3)' : isTbd ? 'color:var(--text-3)' : 'color:var(--text)';
+        const avBg = won ? 'background:#C9A84C;color:#0a1628' : isTbd ? 'background:var(--bg);color:var(--text-3)' : 'background:#0a1628;color:#C9A84C';
+        const ring = isMe && !won && !lost ? 'box-shadow:0 0 0 2px #C9A84C' : '';
+        const badge = won ? '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(201,168,76,0.2);color:#C9A84C;flex-shrink:0">Won ✓</span>' 
+                    : lost ? '<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;background:rgba(0,0,0,0.06);color:var(--text-3);flex-shrink:0">Lost</span>' 
+                    : !done && player ? '<div style="width:8px;height:8px;border-radius:50%;background:rgba(201,168,76,0.4);flex-shrink:0"></div>' 
+                    : '<div style="width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0"></div>';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;${rowBg}">
           <div style="width:28px;height:28px;border-radius:50%;${avBg};font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;${ring}">${isTbd?'?':initials(player.name)}</div>
           <div style="flex:1;font-size:13px;${nameSt}">${name}</div>
-          <div style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0"></div>
+          ${badge}
         </div>`;
       }
 
