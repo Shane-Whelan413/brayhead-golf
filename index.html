@@ -404,15 +404,32 @@
     to   { opacity: 1; transform: translateX(0); }
   }
   @keyframes matchPulse {
-    0%,100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); border-color:#16a34a; }
-    40%     { box-shadow: 0 0 0 6px rgba(22,163,74,0.25); border-color:#16a34a; }
+    0%   { box-shadow: 0 0 0 0 rgba(22,163,74,0); border-color:#16a34a; }
+    40%  { box-shadow: 0 0 0 8px rgba(22,163,74,0.15); border-color:#16a34a; }
+    70%  { box-shadow: 0 0 0 12px rgba(22,163,74,0.05); border-color:#16a34a; }
+    100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); border-color:#16a34a; }
   }
   @keyframes myMatchGlow {
     0%,100% { box-shadow: 0 0 0 0 rgba(10,22,40,0); }
-    40%     { box-shadow: 0 0 0 6px rgba(10,22,40,0.2); }
+    40%     { box-shadow: 0 0 0 6px rgba(10,22,40,0.18); }
   }
-  .match-pulse { animation: matchPulse 1.8s ease-in-out infinite; border-width: 1.5px !important; }
+  .match-pulse { animation: matchPulse 2.2s ease-in-out infinite; border-width: 2px !important; }
   .my-match    { animation: myMatchGlow 2.2s ease-in-out infinite; }
+
+  /* Number roll animation */
+  @keyframes numberRoll {
+    0%   { transform: translateY(60%); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+  .number-roll { display: inline-block; animation: numberRoll 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+
+  /* Ripple tap effect */
+  @keyframes ripple {
+    0%   { transform: scale(0); opacity: 0.4; }
+    100% { transform: scale(4); opacity: 0; }
+  }
+  .ripple-container { position: relative; overflow: hidden; }
+  .ripple-wave { position: absolute; border-radius: 50%; background: rgba(201,168,76,0.3); width: 40px; height: 40px; margin-top: -20px; margin-left: -20px; animation: ripple 0.6s ease-out forwards; pointer-events: none; }
     0%   { transform: scale(1); }
     30%  { transform: scale(1.4); }
     60%  { transform: scale(0.92); }
@@ -962,7 +979,6 @@
       <div id="lb-season-sub" style="font-size:11px;color:var(--text-3);margin-bottom:1rem"></div>
       <input type="hidden" id="lb-filter-val" value="all" />
       <div id="lb-season-summary" style="margin-bottom:1rem"></div>
-      <div id="lb-penalty-box" style="display:none;margin-bottom:1rem"></div>
       <div class="pts-bar" id="pts-bar"></div>
       <div class="tbl-wrap" id="lb-table"><div class="skeleton-card"><div class="skeleton-row">
           <div class="skeleton" style="width:32px;height:32px;border-radius:50%;flex-shrink:0"></div>
@@ -986,6 +1002,7 @@
           </div>
           <div class="skeleton" style="width:42px;height:20px;border-radius:6px"></div>
         </div></div></div>
+      <div id="lb-penalty-box" style="display:none;margin-top:1rem"></div>
     </div>
   </div>
 
@@ -1859,7 +1876,7 @@ function renderLeaderboard() {
     const bgTint = pos===1?'rgba(184,134,11,0.06)':pos===2?'rgba(112,112,112,0.05)':pos===3?'rgba(160,82,45,0.05)':'';
     const rankBg = pos===1?'#B8860B':pos===2?'#707070':pos===3?'#A0522D':'#0a1628';
 
-    return `<button onclick="showPlayerProfile('${p.id}')" class="lb-card" style="width:100%;text-align:left;${borderLeft?'border-left:'+borderLeft+';':''}${bgTint?'background:'+bgTint+';':''}">
+    return `<button onclick="showPlayerProfile('${p.id}')" onmousedown="addRipple(event)" ontouchstart="addRipple(event)" class="lb-card" style="width:100%;text-align:left;${borderLeft?'border-left:'+borderLeft+';':''}${bgTint?'background:'+bgTint+';':''}">
       <div style="width:36px;height:36px;border-radius:50%;background:${rankBg};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
       ${avatarHtml(p, 36, 12)}
       <div class="lb-card-info">
@@ -1867,11 +1884,17 @@ function renderLeaderboard() {
           <div class="lb-card-name">${p.name}</div>
           ${movHtml}
         </div>
-        <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}${hasPenalty ? ` &nbsp;&#9888; &minus;${p.penalty} next outing` : ''}</div>
+        <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
       </div>
       <div class="lb-card-pts" style="color:${ptsColor}">${p.lp}</div>
     </button>`;
   }).join('') + '</div>';
+  setTimeout(() => {
+    document.querySelectorAll('#lb-table .lb-card-pts').forEach(el => {
+      const val = el.textContent.trim();
+      numberRoll(el, val);
+    });
+  }, 200);
 }
 
 
@@ -4315,7 +4338,7 @@ function renderSchedule() {
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${typeLabel}
-          ${ev&&isOutingRow?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋</button>`:''}
+          ${ev?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋</button>`:''}
           ${ev?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="font-size:11px">Results</button>`:''}
         </div>
       </div>`;
@@ -4332,7 +4355,7 @@ function renderSchedule() {
           <div style="font-size:13px;color:#2a6b1a;font-weight:500">${fmtDate(d)}</div>
           ${courseName?`<div style="font-size:15px;font-weight:700;color:#1a4a0a;margin-top:2px">${courseName}</div>`:''}
         </div>
-        ${ev&&isOutingRow?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628;flex-shrink:0" onclick="showHandicapSheet('${ev.id}')">📋 Hcp sheet</button>`:''}
+        ${ev?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628;flex-shrink:0" onclick="showHandicapSheet('${ev.id}')">📋 Hcp sheet</button>`:''}
       </div>`;
     }
 
@@ -4344,7 +4367,7 @@ function renderSchedule() {
         ${courseName?`<div style="font-size:15px;font-weight:600;color:var(--text);margin-top:2px">${courseName}</div>`:''}
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
-        ${ev&&isOutingRow?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋 Hcp sheet</button>`:''}
+        ${ev?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋 Hcp sheet</button>`:''}
         ${ev?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0">Results</button>`:''}
       </div>
     </div>`;
@@ -7658,6 +7681,25 @@ function toggleKoAdminMenu() {
 }
 
 // ── Countup animation ─────────────────────────────────────────
+function addRipple(e) {
+  const btn = e.currentTarget;
+  if (!btn) return;
+  const wave = document.createElement('span');
+  wave.className = 'ripple-wave';
+  const rect = btn.getBoundingClientRect();
+  wave.style.left = (e.clientX - rect.left) + 'px';
+  wave.style.top  = (e.clientY - rect.top) + 'px';
+  btn.style.position = 'relative';
+  btn.style.overflow = 'hidden';
+  btn.appendChild(wave);
+  wave.addEventListener('animationend', () => wave.remove());
+}
+
+function numberRoll(el, newVal) {
+  if (!el) return;
+  el.innerHTML = `<span class="number-roll">${newVal}</span>`;
+}
+
 function countUp(el, target, duration, decimals) {
   if (!el) return;
   const start = Date.now();
