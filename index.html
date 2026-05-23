@@ -4651,65 +4651,63 @@ function renderHome() {
   });
 
   function renderResultCard(n, expanded) {
+    // Knockout post
     if (n.post_type === 'knockout_results' || n.post_type === 'fixtures') {
-      const isResults = n.post_type === 'knockout_results';
-      const matches   = n.fixture_matches || [];
-      const completed = matches.filter(function(m){return m.status==='complete'&&!m.isBye;}).length;
-      const total     = matches.filter(function(m){return !m.isBye;}).length;
-      const preview   = isResults
-        ? matches.filter(function(m){return m.status==='complete'&&m.winnerName;}).slice(0,3).map(function(m){return m.winnerName.split(' ')[0]+' won';}).join(' · ')
-        : matches.slice(0,3).map(function(m){return m.p1Name.split(' ')[0]+' vs '+m.p2Name.split(' ')[0];}).join(' · ');
-      const uid  = 'f'+Math.random().toString(36).slice(2);
-      const rows = expanded ? matches.filter(function(m){return !m.isBye;}).map(function(m){
-        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid #e8e4de">'
-          +'<div style="flex:1;font-size:12px;font-weight:'+(m.winnerName===m.p1Name?'700':'400')+';color:'+(m.winnerName===m.p1Name?'#1a1510':'#888780')+'">'+m.p1Name+'</div>'
-          +'<div style="font-size:11px;color:#b4b2a9">'+(m.result||'vs')+'</div>'
-          +'<div style="flex:1;text-align:right;font-size:12px;font-weight:'+(m.winnerName===m.p2Name?'700':'400')+';color:'+(m.winnerName===m.p2Name?'#1a1510':'#888780')+'">'+m.p2Name+'</div>'
-          +'</div>';
-      }).join('') : '';
+      const isRes   = n.post_type === 'knockout_results';
+      const matches = n.fixture_matches || [];
+      const done    = matches.filter(m => m.status==='complete' && !m.isBye).length;
+      const total   = matches.filter(m => !m.isBye).length;
+      const preview = isRes
+        ? matches.filter(m => m.status==='complete' && m.winnerName).slice(0,3).map(m => m.winnerName.split(' ')[0]+' won').join(' · ')
+        : matches.slice(0,3).map(m => m.p1Name.split(' ')[0]+' vs '+m.p2Name.split(' ')[0]).join(' · ');
+      const uid = 'f'+Math.random().toString(36).slice(2);
+      const rows = expanded ? matches.filter(m => !m.isBye).map(m =>
+        '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid #e8e4de">'
+        + '<div style="flex:1;font-size:12px;font-weight:'+(m.winnerName===m.p1Name?'700':'400')+';color:'+(m.winnerName===m.p1Name?'#1a1510':'#888780')+'">'+m.p1Name+'</div>'
+        + '<div style="font-size:11px;color:#b4b2a9">'+(m.result||'vs')+'</div>'
+        + '<div style="flex:1;text-align:right;font-size:12px;font-weight:'+(m.winnerName===m.p2Name?'700':'400')+';color:'+(m.winnerName===m.p2Name?'#1a1510':'#888780')+'">'+m.p2Name+'</div>'
+        + '</div>'
+      ).join('') : '';
       return '<div style="background:white;border:1px solid #e8e4de;border-radius:14px;overflow:hidden;margin-bottom:10px">'
-        +'<div style="background:linear-gradient(135deg,#0a1628,#162338);padding:12px 14px;position:relative;overflow:hidden">'
-        +'<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5500,#C9A84C,#e8c04a,#C9A84C,#7a5500)"></div>'
-        +'<div style="display:flex;align-items:center;gap:10px;position:relative">'
-        +'<div style="width:38px;height:38px;border-radius:50%;background:rgba(201,168,76,0.15);border:1.5px solid rgba(201,168,76,0.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">'+(isResults?'🏆':'⛳')+'</div>'
-        +'<div><div style="font-family:\'DM Serif Display\',serif;font-size:16px;color:white;margin-bottom:2px">'+(isResults?'Knockout results':'Knockout fixtures')+'</div>'
-        +'<div style="font-size:11px;color:rgba(255,255,255,0.45)">'+completed+'/'+total+' matches complete</div></div>'
-        +'</div></div>'
-        +'<div style="padding:12px 14px">'
-        +'<button onclick="var d=document.getElementById(\''+uid+'\');var open=d.style.display===\'none\';d.style.display=open?\'block\':\'none\'" style="width:100%;background:none;border:none;padding:0;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-family:\'DM Sans\',sans-serif;margin-bottom:8px">'
-        +'<div style="font-size:12px;color:#888780;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+preview+'</div>'
-        +'<span style="color:#888780;font-size:10px;flex-shrink:0;margin-left:8px">'+(expanded?'▲':'▼')+'</span>'
-        +'</button>'
-        +'<div id="'+uid+'" style="display:'+(expanded?'block':'none')+'">'
-        +rows
-        +'<div style="display:flex;justify-content:flex-end;margin-top:10px"><button onclick="showTab(\'knockout\')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer;font-weight:600">View draw →</button></div>'
-        +'</div></div></div>';
+        + '<div style="background:#0a1628;padding:12px 14px;position:relative">'
+        + '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5500,#C9A84C,#e8c04a,#C9A84C,#7a5500)"></div>'
+        + '<div style="display:flex;align-items:center;gap:10px">'
+        + '<div style="width:38px;height:38px;border-radius:50%;background:rgba(201,168,76,0.15);border:1.5px solid rgba(201,168,76,0.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">'+(isRes?'🏆':'⛳')+'</div>'
+        + '<div><div style="font-family:'DM Serif Display',serif;font-size:16px;color:white;margin-bottom:2px">'+(isRes?'Knockout results':'Knockout fixtures')+'</div>'
+        + '<div style="font-size:11px;color:rgba(255,255,255,0.45)">'+done+'/'+total+' matches complete</div></div>'
+        + '</div></div>'
+        + '<div style="padding:12px 14px">'
+        + '<button onclick="var d=document.getElementById(''+uid+'');var open=d.style.display==='none';d.style.display=open?'block':'none'" style="width:100%;background:none;border:none;padding:0;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:8px">'
+        + '<div style="font-size:12px;color:#888780;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+preview+'</div>'
+        + '<span style="color:#888780;font-size:10px;flex-shrink:0;margin-left:8px">'+(expanded?'▲':'▼')+'</span>'
+        + '</button>'
+        + '<div id="'+uid+'" style="display:'+(expanded?'block':'none')+'">'
+        + rows
+        + '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button onclick="showTab('knockout')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:600">View draw →</button></div>'
+        + '</div></div></div>';
     }
 
-    const ev = db.events.find(function(e){return e.id===n.event_id;});
-    const eventRounds = db.rounds.filter(function(r){return r.event_id===n.event_id&&r.verified;});
-    const ranked = assignLeaguePts(eventRounds.map(function(r){return Object.assign({},r);})).slice(0,3);
-    const isOuting = ev && ev.event_type === 'outing_18';
+    // Regular event post
+    const ev          = db.events.find(e => e.id === n.event_id);
+    const eventRounds = db.rounds.filter(r => r.event_id === n.event_id && r.verified);
+    const ranked      = assignLeaguePts(eventRounds.map(r => Object.assign({},r))).slice(0,3);
+    const isOuting    = ev && ev.event_type === 'outing_18';
+
     const typeTag = isOuting
-      ? '<span style="font-size:10px;font-weight:600;color:#3C3489;background:#EEEDFE;padding:1px 7px;border-radius:99px">Outing</span>'
-      : '<span style="font-size:10px;font-weight:600;color:#1a3c6e;background:#edf2fa;padding:1px 7px;border-radius:99px">Sunday</span>';
+      ? '<span style="font-size:10px;font-weight:600;color:#C9A84C;background:rgba(201,168,76,0.15);padding:1px 7px;border-radius:99px">Outing</span>'
+      : '<span style="font-size:10px;font-weight:600;color:#93c5fd;background:rgba(147,197,253,0.12);padding:1px 7px;border-radius:99px">Sunday</span>';
 
-    const medalGrads = [
-      'linear-gradient(135deg,#7a5500,#B8860B,#e8c04a,#B8860B,#7a5500)',
-      'linear-gradient(135deg,#2a2a2a,#707070,#b0b0b0,#707070,#2a2a2a)',
-      'linear-gradient(135deg,#4a1e00,#8B4513,#c07840,#8B4513,#4a1e00)'
-    ];
-    const medalColors = ['#B8860B','#707070','#8B4513'];
+    const medalBg  = ['#B8860B','#888','#8B4513'];
+    const medalCol = ['#B8860B','#666','#8B4513'];
 
-    const top3 = ranked.map(function(r,i){
-      const p = db.players.find(function(x){return x.id===r.player_id;});
+    const top3 = ranked.map((r, i) => {
+      const p = db.players.find(x => x.id === r.player_id);
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid #f0ece5">'
-        +'<div style="width:28px;height:28px;border-radius:50%;background:'+medalGrads[i]+';color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;overflow:hidden">'
-        +'<div style="width:28px;height:28px;border-radius:50%;background:'+medalGrads[i]+';color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>'
-        +avatarHtml(p||{name:'?'}, 30, 10)
-        +'<div style="flex:1;font-size:13px;font-weight:'+(i===0?'700':'400')+';color:'+(i===0?'#0a1628':'#444441')+'">'+(p?p.name:'?')+'</div>'
-        +'<div style="font-size:16px;font-weight:800;color:'+medalColors[i]+'">'+r.stableford_points+'<span style="font-size:10px;font-weight:400;color:#b4b2a9"> pts</span></div>'
-        +'</div>';
+        + '<div style="width:28px;height:28px;border-radius:50%;background:'+medalBg[i]+';color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>'
+        + avatarHtml(p||{name:'?'}, 30, 10)
+        + '<div style="flex:1;font-size:13px;font-weight:'+(i===0?'700':'400')+';color:'+(i===0?'#0a1628':'#444441')+'">'+(p?p.name:'?')+'</div>'
+        + '<div style="font-size:16px;font-weight:800;color:'+medalCol[i]+'">'+r.stableford_points+'<span style="font-size:10px;font-weight:400;color:#b4b2a9"> pts</span></div>'
+        + '</div>';
     }).join('');
 
     const extras = [];
@@ -4718,36 +4716,35 @@ function renderHome() {
     if (n.best_front_9) extras.push('Front 9: '+n.best_front_9);
     if (n.best_back_9)  extras.push('Back 9: '+n.best_back_9);
     const extrasStrip = extras.length
-      ? '<div style="padding:8px 14px;background:#f8f5ee;border-top:0.5px solid #e8e4de;display:flex;flex-wrap:wrap;gap:6px">'+extras.map(function(e){return '<div style="font-size:11px;color:#444441;background:white;border:0.5px solid #e8e4de;border-radius:99px;padding:3px 10px">'+e+'</div>';}).join('')+'</div>'
+      ? '<div style="padding:8px 14px;background:#f8f5ee;border-top:0.5px solid #e8e4de;display:flex;flex-wrap:wrap;gap:6px">'
+        + extras.map(e => '<div style="font-size:11px;color:#444441;background:white;border:0.5px solid #e8e4de;border-radius:99px;padding:3px 10px">'+e+'</div>').join('')
+        + '</div>'
       : '';
 
     const uid2 = 'f'+Math.random().toString(36).slice(2);
     return '<div style="background:white;border:1px solid #e8e4de;border-radius:14px;overflow:hidden;margin-bottom:10px">'
-      // Navy header with gold bar and shimmer
-      +'<div style="background:linear-gradient(135deg,#0a1628,#162338);padding:14px 16px;position:relative;overflow:hidden">'
-      +'<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5500,#C9A84C,#e8c04a,#C9A84C,#7a5500)"></div>'
-      +'<div style="display:flex;align-items:center;gap:12px;position:relative">'
-      +'<div style="width:40px;height:40px;border-radius:50%;background:rgba(201,168,76,0.15);border:1.5px solid rgba(201,168,76,0.4);display:none;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">⛳</div>'
-      +'<div style="flex:1;min-width:0">'
-      +'<div style="font-family:\'DM Serif Display\',serif;font-size:17px;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(ev?ev.course_name:'Event')+'</div>'
-      +'<div style="display:flex;align-items:center;gap:6px;margin-top:2px">'
-      +'<span style="font-size:11px;color:rgba(255,255,255,0.45)">'+(ev?fmtDate(ev.event_date):'')+'</span>'
-      +typeTag.replace('color:#3C3489;background:#EEEDFE','color:#C9A84C;background:rgba(201,168,76,0.15)').replace('color:#1a3c6e;background:#edf2fa','color:#93c5fd;background:rgba(147,197,253,0.12)')
-      +'</div></div></div></div>'
-      // Podium rows
-      +'<div style="padding:4px 16px 0">'
-      +top3
-      +'</div>'
-      // Extras strip
-      +extrasStrip
+      // Header
+      + '<div style="background:#0a1628;padding:14px 16px;position:relative">'
+      + '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5500,#C9A84C,#e8c04a,#C9A84C,#7a5500)"></div>'
+      + '<div style="display:flex;align-items:center;gap:12px">'
+      + '<img src="icon-192.png" style="width:40px;height:40px;border-radius:50%;border:1.5px solid rgba(201,168,76,0.5);flex-shrink:0;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">'
+      + '<div style="width:40px;height:40px;border-radius:50%;background:rgba(201,168,76,0.15);border:1.5px solid rgba(201,168,76,0.4);display:none;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">⛳</div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-family:'DM Serif Display',serif;font-size:17px;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(ev?ev.course_name:'Event')+'</div>'
+      + '<div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span style="font-size:11px;color:rgba(255,255,255,0.45)">'+(ev?fmtDate(ev.event_date):'')+'</span>'+typeTag+'</div>'
+      + '</div></div></div>'
+      // Podium
+      + '<div style="padding:4px 16px 0">'+top3+'</div>'
+      // Extras
+      + extrasStrip
       // Footer
-      +'<div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid #e8e4de">'
-      +'<span style="font-size:11px;color:#b4b2a9">'+eventRounds.length+' round'+(eventRounds.length!==1?'s':'')+' submitted</span>'
-      +'<div style="display:flex;gap:8px;align-items:center">'
-      +(ev?'<button onclick="viewEventResults(\''+ev.id+'\')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer;font-weight:600">Full results →</button>':'')
-      +'<button onclick="generateResultsCard(\''+n.event_id+'\')" style="background:#C9A84C;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;color:#0a1628;font-family:\'DM Sans\',sans-serif;cursor:pointer">Share</button>'
-      +(isAdmin?'<button onclick="deleteNotice(\''+n.id+'\')" style="background:none;border:none;font-size:11px;color:#b4b2a9;font-family:\'DM Sans\',sans-serif;cursor:pointer">Remove</button>':'')
-      +'</div></div></div>';
+      + '<div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid #e8e4de">'
+      + '<span style="font-size:11px;color:#b4b2a9">'+eventRounds.length+' round'+(eventRounds.length!==1?'s':'')+' submitted</span>'
+      + '<div style="display:flex;gap:8px;align-items:center">'
+      + (ev?'<button onclick="viewEventResults(''+ev.id+'')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:600">Full results →</button>':'')
+      + '<button onclick="generateResultsCard(''+n.event_id+'')" style="background:#C9A84C;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;color:#0a1628;font-family:'DM Sans',sans-serif;cursor:pointer">Share</button>'
+      + (isAdmin?'<button onclick="deleteNotice(''+n.id+'')" style="background:none;border:none;font-size:11px;color:#b4b2a9;font-family:'DM Sans',sans-serif;cursor:pointer">Remove</button>':'')
+      + '</div></div></div>';
   }
 
   let feedHtml = '';
