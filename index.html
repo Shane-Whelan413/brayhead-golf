@@ -433,11 +433,6 @@
     from { opacity: 0; transform: translateX(-22px); }
     to   { opacity: 1; transform: translateX(0); }
   }
-  @keyframes bhgsShimmer {
-    0%   { background-position: -400% center; }
-    100% { background-position: 400% center; }
-  }
-  @keyframes bhgsRoll {
     from { opacity: 0; transform: translateY(40%); }
     to   { opacity: 1; transform: translateY(0); }
   }
@@ -454,25 +449,25 @@
     100% { background-position: 400% center; }
   }
 
-  /* Solid podium cards with shimmer via pseudo-element */
+  /* Metallic podium cards */
   .lb-card-gold {
-    background: #B8860B !important;
+    background: linear-gradient(135deg, #7a5500 0%, #B8860B 25%, #e8c04a 50%, #B8860B 75%, #7a5500 100%) !important;
     border: 1px solid #9a7000 !important;
-    border-left: 3px solid #7a5500 !important;
+    border-left: 3px solid #5a3e00 !important;
     position: relative;
     overflow: hidden;
   }
   .lb-card-silver {
-    background: #5a5a5a !important;
-    border: 1px solid #444 !important;
-    border-left: 3px solid #2a2a2a !important;
+    background: linear-gradient(135deg, #2a2a2a 0%, #707070 25%, #b0b0b0 50%, #707070 75%, #2a2a2a 100%) !important;
+    border: 1px solid #555 !important;
+    border-left: 3px solid #222 !important;
     position: relative;
     overflow: hidden;
   }
   .lb-card-bronze {
-    background: #8B4513 !important;
+    background: linear-gradient(135deg, #4a1e00 0%, #8B4513 25%, #c07840 50%, #8B4513 75%, #4a1e00 100%) !important;
     border: 1px solid #6a3000 !important;
-    border-left: 3px solid #4a1e00 !important;
+    border-left: 3px solid #3a1000 !important;
     position: relative;
     overflow: hidden;
   }
@@ -481,15 +476,19 @@
   .lb-card-bronze::after {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
-    background-size: 300% auto;
-    animation: bhgsShimmer 2s linear infinite;
+    top: 0; left: -100%; width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.22) 50%, transparent 100%);
+    animation: bhgsShimmer 4s ease-in-out infinite;
     pointer-events: none;
     z-index: 1;
   }
-  .lb-card-silver::after { animation-duration: 2.6s; }
-  .lb-card-bronze::after { animation-duration: 3.2s; }
+  .lb-card-silver::after { animation-duration: 5s; animation-delay: 0.8s; }
+  .lb-card-bronze::after { animation-duration: 6s; animation-delay: 1.6s; }
+
+  @keyframes bhgsShimmer {
+    0%   { left: -100%; }
+    100% { left: 160%; }
+  }
 
   /* Text stays above shimmer overlay */
   .lb-card-gold > *,
@@ -599,6 +598,7 @@
     cursor: pointer; font-family: 'DM Sans', sans-serif;
     -webkit-tap-highlight-color: transparent;
     border-left-width: 3px;
+    will-change: transform, opacity;
   }
   .lb-card .avatar { width: 36px; height: 36px; font-size: 12px; flex-shrink: 0; }
   .lb-card-info { flex: 1; min-width: 0; }
@@ -1943,21 +1943,23 @@ function renderLeaderboard() {
     const rankColor= pos<=3 ? 'white' : 'white';
     const podiumClass = pos===1?'lb-card-gold':pos===2?'lb-card-silver':pos===3?'lb-card-bronze':'';
 
-    return `<button onclick="showPlayerProfile('${p.id}')" onpointerdown="addRipple(event)" class="lb-card ${podiumClass}" style="width:100%;text-align:left;">
-      <div class="lb-rank-pill" style="width:34px;height:34px;border-radius:50%;background:${pos<=3?'rgba(255,255,255,0.25)':'#0a1628'};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
-      ${avatarHtml(p, 34, 12)}
-      <div class="lb-card-info">
-        <div style="display:flex;align-items:center;gap:6px">
-          <div class="lb-card-name">${p.name}</div>
-          ${movHtml}
+    return `<div class="lb-slide-wrap">
+      <button onclick="showPlayerProfile('${p.id}')" onpointerdown="addRipple(event)" class="lb-card ${podiumClass}" style="width:100%;text-align:left;">
+        <div class="lb-rank-pill" style="width:34px;height:34px;border-radius:50%;background:${pos<=3?'rgba(255,255,255,0.25)':'#0a1628'};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
+        ${avatarHtml(p, 34, 12)}
+        <div class="lb-card-info">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="lb-card-name">${p.name}</div>
+            ${movHtml}
+          </div>
+          <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
         </div>
-        <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
-      </div>
-      <div class="lb-card-pts" style="color:${ptsColor};font-weight:${pos<=3?'700':'600'}">${p.lp}</div>
-    </button>`;
+        <div class="lb-card-pts" style="color:${ptsColor};font-weight:${pos<=3?'700':'600'}">${p.lp}</div>
+      </button>
+    </div>`;
   }).join('');
   setTimeout(() => {
-    const cards = Array.from(document.querySelectorAll('#lb-table .lb-card'));
+    const cards = Array.from(document.querySelectorAll('#lb-table .lb-slide-wrap'));
     cards.forEach((card, i) => {
       card.style.opacity = '0';
       card.style.transform = 'translateX(-22px)';
