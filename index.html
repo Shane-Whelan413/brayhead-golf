@@ -1635,8 +1635,16 @@ function assignLeaguePts(rounds) {
 }
 
 async function loadAll() {
+  const fetchWithTimeout = (path, ms=8000) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    return api(path, { method:'GET', prefer:'', cache:'no-store', signal: controller.signal })
+      .finally(() => clearTimeout(timer));
+  };
   const safeGet = async (path) => {
-    try { return await get(path); } catch(e) { console.error('safeGet error:', path, e.message); return []; }
+    try { return await fetchWithTimeout(path); } catch(e) {
+      console.error('safeGet error:', path, e.message); return [];
+    }
   };
   try {
     const [players, events, rounds, noticeboard, knockout_matches] = await Promise.all([
@@ -1653,10 +1661,13 @@ async function loadAll() {
     db.knockout_matches = knockout_matches || [];
     const pill = document.getElementById('conn-pill');
     pill.textContent = 'Connected'; pill.className = 'conn-pill ok';
+    setTimeout(() => { pill.style.opacity = '0'; }, 2000);
   } catch(e) {
     console.error('loadAll error:', e.message);
     const pill = document.getElementById('conn-pill');
-    pill.textContent = 'Offline'; pill.className = 'conn-pill err';
+    pill.textContent = 'Offline — tap to retry'; pill.className = 'conn-pill err';
+    pill.style.cursor = 'pointer';
+    pill.onclick = () => { pill.textContent = 'Connecting…'; pill.className = 'conn-pill'; loadAll().then(() => renderAll()); };
   }
 }
 
@@ -4590,6 +4601,7 @@ function renderHome() {
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Hcp</div><div style="font-size:20px;font-weight:800;color:var(--text);line-height:1">'+myHcp+'</div></div>'
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Rounds</div><div style="font-size:20px;font-weight:800;color:var(--text);line-height:1">'+myRounds+'</div></div>'
       + '</div>';
+  }
 
   // ── Next event countdown ────────────────────────────────────
   let countdownHtml = '';
