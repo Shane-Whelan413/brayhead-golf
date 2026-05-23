@@ -7809,145 +7809,217 @@ function renderKnockout() {
   const el = document.getElementById('knockout-content');
   if (!el) return;
   try {
-  const matches = db.knockout_matches;
-  const pid = currentUser?.playerId;
-  const rounds = [...new Set(matches.map(m=>m.round))].sort((a,b)=>a-b);
-  const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
-  const ROUND_SHORT = {1:'R1',2:'R16',3:'QF',4:'SF',5:'Final'};
+    const matches = db.knockout_matches;
+    const pid = currentUser?.playerId;
+    const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+    const ROUND_SHORT = {1:'R1',2:'R16',3:'QF',4:'SF',5:'Final'};
+    const MATCH_H = 66;
+    const AVAIL_H = 28;
+    const GAP = 10;
 
-  const adminBtns = isAdmin ? `
-    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;position:relative">
-      <button onclick="toggleKoAdminMenu()" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:#fef8e6;color:#633806;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">
-        &#9881; Admin <span style="font-size:10px;opacity:0.6">▾</span>
-      </button>
-      <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:white;border:1px solid #e8e4de;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:50;min-width:180px;overflow:hidden">
-        ${matches.length===0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">Set up draw</button>`:''}
-        ${matches.length>0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">✏️ Edit draw</button>`:''}
-        ${matches.length>0?`<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">📋 Post fixtures</button>`:''}
-        ${matches.length>0?`<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510">📊 Post results</button>`:''}
-      </div>
-    </div>` : '';
+    const adminBtns = isAdmin ? `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;position:relative">
+        <button onclick="toggleKoAdminMenu()" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:#fef8e6;color:#633806;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">
+          &#9881; Admin <span style="font-size:10px;opacity:0.6">▾</span>
+        </button>
+        <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:white;border:1px solid #e8e4de;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:50;min-width:180px;overflow:hidden">
+          ${matches.length===0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">Set up draw</button>`:''}
+          ${matches.length>0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">✏️ Edit draw</button>`:''}
+          ${matches.length>0?`<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">📋 Post fixtures</button>`:''}
+          ${matches.length>0?`<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510">📊 Post results</button>`:''}
+        </div>
+      </div>` : '';
 
-  if (!matches.length) {
-    el.innerHTML = adminBtns + '<div class="empty" style="padding:3rem;text-align:center;color:var(--text-2)">No knockout draw yet</div>';
-    return;
-  }
+    if (!matches.length) {
+      el.innerHTML = adminBtns + '<div class="empty" style="padding:3rem;text-align:center;color:var(--text-2)">No knockout draw yet</div>';
+      return;
+    }
 
-  // Determine live round = highest round with incomplete non-bye matches
-  const liveRound = rounds.reduce((live, r) => {
-    const incomplete = matches.filter(m => m.round===r && !m.is_bye && m.status!=='complete').length;
-    return incomplete > 0 ? r : live;
-  }, rounds[rounds.length-1]);
+    const rounds = [...new Set(matches.map(m => m.round))].sort((a,b) => a-b);
 
-  // Build tree CSS
-  const treeCSS = `
-    <style>
-      .ko-tree-scroll{overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch}
-      .ko-tree{display:flex;gap:0;align-items:stretch}
-      .ko-col{display:flex;flex-direction:column;flex-shrink:0;transition:all 0.2s}
-      .ko-col.collapsed .ko-slots{display:none}
-      .ko-col-header{padding:7px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:8px;margin-bottom:6px;user-select:none;min-width:52px}
-      .ko-col-header.live{background:#0a1628}
-      .ko-col-header.done{background:var(--surface);border:0.5px solid var(--border)}
-      .ko-col-header.future{background:var(--bg);border:0.5px solid var(--border)}
-      .ko-col-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
-      .ko-col-header.live .ko-col-title{color:#C9A84C}
-      .ko-col-header.done .ko-col-title{color:var(--text)}
-      .ko-col-header.future .ko-col-title{color:var(--text-3)}
-      .ko-col-pill{font-size:8px;font-weight:600;padding:1px 5px;border-radius:99px}
-      .ko-col-header.live .ko-col-pill{background:rgba(201,168,76,0.2);color:#C9A84C}
-      .ko-col-header.done .ko-col-pill{background:var(--bg);color:var(--text-3)}
-      .ko-col-header.future .ko-col-pill{background:var(--bg);color:var(--text-3)}
-      .ko-col-chev{font-size:8px;color:var(--text-3)}
-      .ko-col-header.live .ko-col-chev{color:rgba(255,255,255,0.4)}
-      .ko-slots{flex:1;display:flex;flex-direction:column;justify-content:space-around}
-      .ko-match{display:flex;flex-direction:column;flex:1;justify-content:center;padding:3px 0;position:relative}
-      .ko-match:not(:last-child)::after{content:'';position:absolute;right:-6px;top:50%;width:6px;border-top:1px solid var(--border)}
-      .ko-seed{background:var(--surface);border:0.5px solid var(--border);border-radius:7px;padding:5px 6px;margin:2px 3px 2px 4px;display:flex;align-items:center;gap:4px;min-width:90px;max-width:110px}
-      .ko-seed.me{border-color:rgba(201,168,76,0.7);background:rgba(201,168,76,0.07)}
-      .ko-seed.won{border-left:2px solid #0a1628}
-      .ko-seed.lost{opacity:0.35}
-      .ko-seed.tbd{opacity:0.4}
-      .ko-av{width:20px;height:20px;border-radius:50%;background:#0a1628;color:#C9A84C;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-      .ko-av.g{background:var(--bg);color:var(--text-3)}
-      .ko-name{font-size:11px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:54px}
-      .ko-name.w{font-weight:700}
-      .ko-name.l{color:var(--text-3)}
-      .ko-name.tbd{color:var(--text-3)}
-      .ko-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-      .ko-avail{background:rgba(201,168,76,0.1);border-top:0.5px solid rgba(201,168,76,0.3);padding:4px 6px;margin:0 3px 2px 4px;border-radius:0 0 6px 6px;cursor:pointer;font-size:9px;font-weight:600;color:#B8860B;text-align:center}
-      .ko-trophy{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 8px;gap:4px;flex-shrink:0}
-      .ko-trophy-icon{width:34px;height:34px;border-radius:50%;background:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:16px}
-      .ko-trophy-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#B8860B}
-    </style>`;
+    // Determine live round = highest with incomplete non-bye matches
+    let liveRound = rounds[rounds.length - 1];
+    for (const r of rounds) {
+      const incomplete = matches.filter(m => m.round===r && !m.is_bye && m.status!=='complete').length;
+      if (incomplete > 0) { liveRound = r; break; }
+    }
 
-  // Build each column
-  const cols = rounds.map(r => {
-    const roundMatches = matches.filter(m => m.round === r);
-    const nonBye = roundMatches.filter(m => !m.is_bye);
-    const isLive = r === liveRound;
-    const isDone = r < liveRound;
-    const isFuture = r > liveRound;
-    const isCollapsed = r !== liveRound;
-    const headerClass = isLive ? 'live' : isDone ? 'done' : 'future';
-    const pillText = isLive ? 'Live' : isDone ? 'Done' : nonBye.length + ' matches';
-    const chevron = isCollapsed ? '▶' : '▼';
-    const chevClass = isCollapsed ? '' : 'open';
+    // Which rounds are collapsed — default: all except live
+    if (!window._koCollapsed) {
+      window._koCollapsed = {};
+      rounds.forEach(r => { window._koCollapsed[r] = (r !== liveRound); });
+    }
 
-    const seedHtml = nonBye.map(m => {
+    // Match height including avail strip if needed
+    function mh(m, roundNum) {
+      const isLive = roundNum === liveRound;
+      const isMyPending = isLive && pid && !m.is_bye && m.status !== 'complete' && (m.player1_id===pid || m.player2_id===pid);
+      return MATCH_H + (isMyPending ? AVAIL_H : 0);
+    }
+
+    // Total column height for a round
+    function colH(r) {
+      const rMatches = matches.filter(m => m.round===r && !m.is_bye);
+      return rMatches.reduce((h,m,i) => h + mh(m,r) + (i>0?GAP:0), 0);
+    }
+
+    // Midpoints array for a round's matches
+    function midpoints(r) {
+      const rMatches = matches.filter(m => m.round===r && !m.is_bye);
+      const pts = [];
+      let y = 0;
+      rMatches.forEach((m,i) => {
+        const h = mh(m,r);
+        pts.push(y + h/2);
+        y += h + (i < rMatches.length-1 ? GAP : 0);
+      });
+      return pts;
+    }
+
+    // Y positions for each match in a round, centred between feeders
+    function yPositions(r, ri) {
+      const rMatches = matches.filter(m => m.round===r && !m.is_bye);
+      if (ri === 0) {
+        const ys = [];
+        let y = 0;
+        rMatches.forEach((m,i) => { ys.push(y); y += mh(m,r) + GAP; });
+        return ys;
+      }
+      const prevR = rounds[ri-1];
+      const prevMids = midpoints(prevR);
+      const ratio = matches.filter(m=>m.round===prevR&&!m.is_bye).length / rMatches.length;
+      return rMatches.map((m,i) => {
+        const f1 = prevMids[Math.floor(i * ratio)];
+        const f2 = prevMids[Math.floor(i * ratio + ratio - 1)];
+        const centre = (f1 + f2) / 2;
+        return Math.max(0, centre - mh(m,r)/2);
+      });
+    }
+
+    // SVG bracket lines between two rounds
+    function svgLines(ri) {
+      const r = rounds[ri];
+      const nextR = rounds[ri+1];
+      if (!nextR) return '';
+      const fromMids = midpoints(r);
+      const toMids = midpoints(nextR);
+      const nextRMatches = matches.filter(m => m.round===nextR && !m.is_bye).length;
+      const ratio = fromMids.length / nextRMatches;
+      let paths = '';
+      for (let ni = 0; ni < nextRMatches; ni++) {
+        const f1y = fromMids[ni * ratio];
+        const f2y = fromMids[ni * ratio + ratio - 1];
+        if (f1y === undefined || f2y === undefined) continue;
+        const midY = (f1y + f2y) / 2;
+        paths += `<path d="M0,${f1y} L8,${f1y} L8,${f2y} L0,${f2y}" fill="none" stroke="var(--border)" stroke-width="1"/>`;
+        paths += `<line x1="8" y1="${midY}" x2="16" y2="${midY}" stroke="var(--border)" stroke-width="1"/>`;
+      }
+      const h = colH(r);
+      return `<svg style="position:absolute;top:0;right:-16px;width:16px;height:${h}px;overflow:visible;pointer-events:none">${paths}</svg>`;
+    }
+
+    // Render a single match card
+    function renderMatch(m, r, yPos) {
+      const isLive = r === liveRound;
       const p1 = db.players.find(p => p.id === m.player1_id);
       const p2 = db.players.find(p => p.id === m.player2_id);
       const done = m.status === 'complete';
-      const isMyMatch = pid && !m.is_bye && m.status !== 'complete' && (m.player1_id===pid || m.player2_id===pid);
+      const isMyMatch = isLive && pid && !m.is_bye && !done && (m.player1_id===pid || m.player2_id===pid);
       const fresh = isAvailabilityFresh(m);
       const myAvail = fresh && (m.player1_id===pid ? m.p1_available : m.p2_available);
+      const isMe1 = pid === m.player1_id, isMe2 = pid === m.player2_id;
 
-      function seedEl(player, isWinner, isLoser, isMe) {
+      function playerRow(player, isWinner, isLoser, isMe) {
         const name = player ? player.name.split(' ')[0] : 'TBD';
         const isTbd = !player;
-        const cls = isMe ? 'me' : isWinner ? 'won' : isLoser ? 'lost' : isTbd ? 'tbd' : '';
-        const nameCls = isWinner ? 'w' : isLoser ? 'l' : isTbd ? 'tbd' : '';
-        const dotColor = isWinner ? '#C9A84C' : isLoser ? 'var(--border)' : isTbd ? 'var(--border)' : 'rgba(201,168,76,0.4)';
-        const av = isTbd ? '<div class="ko-av g"></div>' : '<div class="ko-av">'+initials(player.name)+'</div>';
-        return '<div class="ko-seed '+cls+'">'+av+'<div class="ko-name '+nameCls+'">'+name+'</div><div class="ko-dot" style="background:'+dotColor+'"></div></div>';
+        const nameCls = isWinner ? 'font-weight:700;color:var(--text)' : isLoser ? 'color:var(--text-3);text-decoration:line-through' : isTbd ? 'color:var(--text-3)' : 'color:var(--text)';
+        const avBg = isTbd ? 'background:var(--bg);color:var(--text-3)' : 'background:#0a1628;color:#C9A84C';
+        const avTxt = isTbd ? '?' : initials(player.name);
+        const dotColor = isWinner ? '#C9A84C' : isLoser ? 'var(--border-strong)' : !done && player ? 'rgba(201,168,76,0.4)' : 'var(--border)';
+        const meRing = isMe ? 'box-shadow:0 0 0 1.5px #C9A84C' : '';
+        return `<div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-top:0.5px solid var(--border)">
+          <div style="width:22px;height:22px;border-radius:50%;${avBg};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;${meRing}">${avTxt}</div>
+          <div style="flex:1;font-size:11px;${nameCls};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+          <div style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0"></div>
+        </div>`;
       }
 
-      const s1 = done ? seedEl(p1, m.winner_id===m.player1_id, m.winner_id!==m.player1_id, pid===m.player1_id) : seedEl(p1, false, false, pid===m.player1_id);
-      const s2 = done ? seedEl(p2, m.winner_id===m.player2_id, m.winner_id!==m.player2_id, pid===m.player2_id) : seedEl(p2, false, false, pid===m.player2_id);
-      const availStrip = isMyMatch && isLive ? '<div class="ko-avail" onclick="toggleMatchAvailability(\''+m.id+'\')">'+(myAvail?'✓ Available':'Tap to confirm')+'</div>' : '';
+      const p1won = done && m.winner_id === m.player1_id;
+      const p2won = done && m.winner_id === m.player2_id;
+      const cardBorder = isMyMatch ? 'border:1px solid rgba(201,168,76,0.7);background:rgba(201,168,76,0.04)' : 'border:0.5px solid var(--border)';
+      const availStrip = isMyMatch
+        ? `<div onclick="toggleMatchAvailability('${m.id}')" style="padding:5px 8px;background:${myAvail?'rgba(22,163,74,0.15)':'rgba(201,168,76,0.12)'};border-top:0.5px solid ${myAvail?'rgba(22,163,74,0.3)':'rgba(201,168,76,0.3)'};font-size:10px;font-weight:600;color:${myAvail?'#16a34a':'#B8860B'};cursor:pointer;text-align:center">${myAvail?'✓ Available — tap to undo':'Tap to confirm availability'}</div>`
+        : '';
 
-      return '<div class="ko-match'+(isMyMatch?' ko-match-mine':'')+'">'+s1+s2+availStrip+'</div>';
+      const h = mh(m, r);
+      return `<div style="position:absolute;left:4px;right:4px;top:${yPos}px;height:${h}px;border-radius:8px;overflow:hidden;${cardBorder}">
+        <div style="border-top:none">${playerRow(p1,p1won,done&&!p1won,isMe1)}</div>
+        <div>${playerRow(p2,p2won,done&&!p2won,isMe2)}</div>
+        ${availStrip}
+      </div>`;
+    }
+
+    // Build HTML for each round column
+    const cols = rounds.map((r, ri) => {
+      const rMatches = matches.filter(m => m.round===r && !m.is_bye);
+      const isLive = r === liveRound;
+      const isDone = r < liveRound;
+      const isCollapsed = window._koCollapsed[r];
+      const pill = isLive ? 'Live' : isDone ? 'Done' : rMatches.length + ' matches';
+      const headBg = isLive ? 'background:#0a1628' : isDone ? 'background:var(--surface);border:0.5px solid var(--border)' : 'background:var(--bg);border:0.5px solid var(--border)';
+      const titleColor = isLive ? '#C9A84C' : 'var(--text)';
+      const pillBg = isLive ? 'background:rgba(201,168,76,0.2);color:#C9A84C' : 'background:var(--bg);color:var(--text-3)';
+      const chevron = isCollapsed ? '▶' : '▼';
+
+      if (isCollapsed) {
+        return `<div style="flex-shrink:0;width:46px;display:flex;flex-direction:column" id="kocol-${r}">
+          <div style="padding:7px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:8px;margin:0 2px 4px;${headBg}" onclick="toggleKoCol(${r})">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${titleColor};white-space:nowrap">${ROUND_SHORT[r]||'R'+r}</div>
+            <div style="font-size:7px;font-weight:600;padding:1px 4px;border-radius:99px;${pillBg};white-space:nowrap">${pill}</div>
+            <div style="font-size:8px;color:var(--text-3)">${chevron}</div>
+          </div>
+        </div>`;
+      }
+
+      const totalH = colH(r);
+      const ys = yPositions(r, ri);
+      const matchCards = rMatches.map((m,i) => renderMatch(m, r, ys[i])).join('');
+      const lines = svgLines(ri);
+
+      return `<div style="flex-shrink:0;width:130px;display:flex;flex-direction:column" id="kocol-${r}">
+        <div style="padding:7px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:8px;margin:0 4px 4px;${headBg}" onclick="toggleKoCol(${r})">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${titleColor}">${ROUND_SHORT[r]||'R'+r}</div>
+          <div style="font-size:8px;font-weight:600;padding:1px 6px;border-radius:99px;${pillBg}">${pill}</div>
+          <div style="font-size:8px;color:${isLive?'rgba(255,255,255,0.4)':'var(--text-3)'}">▼</div>
+        </div>
+        <div style="position:relative;height:${totalH}px;flex-shrink:0">
+          ${matchCards}
+          ${lines}
+        </div>
+      </div>`;
     }).join('');
 
-    return `<div class="ko-col${isCollapsed?' collapsed':''}" id="ko-col-${r}">
-      <div class="ko-col-header ${headerClass}" onclick="toggleKoCol(${r})">
-        <div class="ko-col-title">${ROUND_SHORT[r]||('R'+r)}</div>
-        <div class="ko-col-pill">${pillText}</div>
-        <div class="ko-col-chev ${chevClass}">${chevron}</div>
-      </div>
-      <div class="ko-slots">${seedHtml}</div>
+    // Trophy
+    const finalRound = rounds[rounds.length-1];
+    const finalMatch = matches.find(m => m.round===finalRound && !m.is_bye);
+    const winnerPlayer = finalMatch?.winner_id ? db.players.find(p=>p.id===finalMatch.winner_id) : null;
+    const trophyLabel = winnerPlayer ? winnerPlayer.name.split(' ')[0] : 'Winner';
+    const trophy = `<div style="flex-shrink:0;width:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding-top:28px">
+      <div style="width:34px;height:34px;border-radius:50%;background:#C9A84C;display:flex;align-items:center;justify-content:center;font-size:16px">🏆</div>
+      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#B8860B;text-align:center">${trophyLabel}</div>
     </div>`;
-  }).join('');
 
-  const winner = matches.find(m => m.round === Math.max(...rounds) && m.status === 'complete');
-  const winnerPlayer = winner ? db.players.find(p => p.id === winner.winner_id) : null;
-  const trophyCol = `<div class="ko-trophy">
-    <div class="ko-trophy-icon">🏆</div>
-    <div class="ko-trophy-label">${winnerPlayer ? winnerPlayer.name.split(' ')[0] : 'Final'}</div>
-  </div>`;
+    el.innerHTML = adminBtns + `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px"><div style="display:flex;align-items:flex-start;gap:0">${cols}${trophy}</div></div>`;
 
-  el.innerHTML = adminBtns + treeCSS + `<div class="ko-tree-scroll"><div class="ko-tree">${cols}${trophyCol}</div></div>`;
-
-  } catch(e) { console.error('renderKnockout error:', e); }
+  } catch(e) { console.error('renderKnockout error:', e.message, e.stack); }
 }
 
 function toggleKoCol(r) {
-  const col = document.getElementById('ko-col-'+r);
-  if (!col) return;
-  const collapsed = col.classList.toggle('collapsed');
-  const chev = col.querySelector('.ko-col-chev');
-  if (chev) { chev.textContent = collapsed ? '▶' : '▼'; chev.classList.toggle('open', !collapsed); }
+  if (!window._koCollapsed) window._koCollapsed = {};
+  window._koCollapsed[r] = !window._koCollapsed[r];
+  safeRender(renderKnockout);
 }
+
 
 function showKnockoutSetup() {
   // Pre-fill existing values
