@@ -440,13 +440,13 @@
     from { transform: scale(0); opacity: 0.5; }
     to   { transform: scale(5); opacity: 0; }
   }
-  @keyframes bhgsCountdown {
+  @keyframes bhgsCountdownPulse {
     0%,100% { transform: scale(1); }
-    50%     { transform: scale(1.03); }
+    50%     { transform: scale(1.025); }
   }
-  @keyframes bhgsGoldSweep {
-    0%   { background-position: -400% center; }
-    100% { background-position: 400% center; }
+  @keyframes bhgsCountdownShimmer {
+    0%   { left: -80%; }
+    100% { left: 160%; }
   }
 
   /* Metallic podium cards */
@@ -512,15 +512,23 @@
   .bhgs-ripple { position: absolute; border-radius: 50%; background: rgba(201,168,76,0.45); width: 44px; height: 44px; margin-top: -22px; margin-left: -22px; animation: bhgsRipple 0.55s ease-out forwards; pointer-events: none; }
 
   /* Countdown */
-  .bhgs-countdown { display: inline-block; animation: bhgsCountdown 4s ease-in-out infinite; }
+  .bhgs-countdown { display: inline-block; animation: bhgsCountdownPulse 4s ease-in-out infinite; }
   .bhgs-countdown-inner {
-    background: linear-gradient(90deg, #B8860B 0%, #B8860B 30%, #f0d060 50%, #B8860B 70%, #B8860B 100%);
-    background-size: 400% auto;
-    animation: bhgsGoldSweep 5s linear infinite;
+    background: linear-gradient(90deg, #7a5500 0%, #B8860B 35%, #d4a020 65%, #B8860B 80%, #7a5500 100%);
     color: #3a2000;
     font-size: 22px; font-weight: 800;
     padding: 8px 24px; border-radius: 99px;
     display: inline-block;
+    position: relative;
+    overflow: hidden;
+  }
+  .bhgs-countdown-inner::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -80%; width: 50%; height: 100%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+    animation: bhgsCountdownShimmer 5s ease-in-out infinite;
+    pointer-events: none;
   }
   #score-keypad {
     position: fixed;
@@ -1946,7 +1954,9 @@ function renderLeaderboard() {
     return `<div class="lb-slide-wrap">
       <button onclick="showPlayerProfile('${p.id}')" onpointerdown="addRipple(event)" class="lb-card ${podiumClass}" style="width:100%;text-align:left;">
         <div class="lb-rank-pill" style="width:34px;height:34px;border-radius:50%;background:${pos<=3?'rgba(255,255,255,0.25)':'#0a1628'};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
-        ${avatarHtml(p, 34, 12)}
+        <div style="flex-shrink:0;${pos<=3?`padding:2px;border-radius:50%;background:rgba(255,255,255,0.4);`:''}">
+          ${avatarHtml(p, 34, 12)}
+        </div>
         <div class="lb-card-info">
           <div style="display:flex;align-items:center;gap:6px">
             <div class="lb-card-name">${p.name}</div>
@@ -1954,7 +1964,7 @@ function renderLeaderboard() {
           </div>
           <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
         </div>
-        <div class="lb-card-pts" style="color:${ptsColor};font-weight:${pos<=3?'700':'600'}">${p.lp}</div>
+        <div class="lb-card-pts" style="color:${ptsColor};font-weight:${pos<=3?'700':'600'}">${p.lp}<span style="font-size:11px;font-weight:400;margin-left:2px;opacity:0.7">pts</span></div>
       </button>
     </div>`;
   }).join('');
@@ -6254,10 +6264,11 @@ function showPlayerProfile(pid) {
 
     <div id="mptab-content-overview">
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:1rem">
-        <div class="stat" style="background:${posColor};border-radius:var(--radius)">
-          <div class="stat-label" style="color:${posText}">Leaderboard</div>
-          <div class="stat-value" style="color:${posText}">${posLabel}</div>
-          <div style="font-size:11px;color:${posText};margin-top:2px">${myLeaguePts} pts</div>
+        <div class="stat" style="${lbPos===1?'background:linear-gradient(135deg,#7a5500 0%,#B8860B 30%,#e8c04a 60%,#B8860B 80%,#7a5500 100%);position:relative;overflow:hidden;':lbPos===2?'background:linear-gradient(135deg,#2a2a2a 0%,#707070 30%,#b0b0b0 60%,#707070 80%,#2a2a2a 100%);position:relative;overflow:hidden;':lbPos===3?'background:linear-gradient(135deg,#4a1e00 0%,#8B4513 30%,#c07840 60%,#8B4513 80%,#4a1e00 100%);position:relative;overflow:hidden;':'background:'+posColor+';'}border-radius:var(--radius)">
+          ${lbPos<=3?`<div style="position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.2) 50%,transparent 100%);animation:bhgsCountdownShimmer ${lbPos===1?'5s':lbPos===2?'6s':'7s'} ease-in-out infinite;pointer-events:none"></div>`:''}
+          <div class="stat-label" style="color:${posText};position:relative">Season rank</div>
+          <div class="stat-value" style="color:${posText};position:relative">${posLabel}</div>
+          <div style="font-size:11px;color:${posText};margin-top:2px;position:relative">${myLeaguePts} pts</div>
         </div>
         <div class="stat"><div class="stat-label">Handicap</div><div class="stat-value">${parseFloat(player.handicap_index).toFixed(1)}</div></div>
         <div class="stat"><div class="stat-label">Rounds played</div><div class="stat-value">${myRounds.length}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">${attendance}% attendance</div></div>
@@ -6776,10 +6787,11 @@ function renderProfile() {
     <!-- OVERVIEW TAB -->
     <div id="ptab-content-overview">
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:1rem">
-        <div class="stat" style="background:${posColor};border-radius:var(--radius)">
-          <div class="stat-label" style="color:${posText}">Leaderboard</div>
-          <div class="stat-value" style="color:${posText}">${posLabel}</div>
-          <div style="font-size:11px;color:${posText};margin-top:2px">${myLeaguePts} league pts</div>
+        <div class="stat" style="${lbPos===1?'background:linear-gradient(135deg,#7a5500 0%,#B8860B 30%,#e8c04a 60%,#B8860B 80%,#7a5500 100%);position:relative;overflow:hidden;':lbPos===2?'background:linear-gradient(135deg,#2a2a2a 0%,#707070 30%,#b0b0b0 60%,#707070 80%,#2a2a2a 100%);position:relative;overflow:hidden;':lbPos===3?'background:linear-gradient(135deg,#4a1e00 0%,#8B4513 30%,#c07840 60%,#8B4513 80%,#4a1e00 100%);position:relative;overflow:hidden;':'background:'+posColor+';'}border-radius:var(--radius)">
+          ${lbPos<=3?`<div style="position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.2) 50%,transparent 100%);animation:bhgsCountdownShimmer ${lbPos===1?'5s':lbPos===2?'6s':'7s'} ease-in-out infinite;pointer-events:none"></div>`:''}
+          <div class="stat-label" style="color:${posText};position:relative">Season rank</div>
+          <div class="stat-value" style="color:${posText};position:relative">${posLabel}</div>
+          <div style="font-size:11px;color:${posText};margin-top:2px;position:relative">${myLeaguePts} league pts</div>
         </div>
         <div class="stat"><div class="stat-label">Handicap</div><div class="stat-value">${parseFloat(player.handicap_index).toFixed(1)}</div></div>
         <div class="stat"><div class="stat-label">Rounds played</div><div class="stat-value">${totalRounds}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">${attendance}% attendance</div></div>
