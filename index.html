@@ -5454,8 +5454,15 @@ function _renderFixtureCard(matches, note, logoImg) {
     const rowTop = curY;
     const rowMid = rowTop + MATCH_H / 2;
 
-    // Subtle row tint
-    if (idx % 2 === 0) {
+    // ── Row background ──
+    if (m.bothAvail) {
+      // Bright green tint for the whole match block
+      ctx.fillStyle = 'rgba(22,163,74,0.18)';
+      ctx.fillRect(PAD, rowTop, W - PAD*2, MATCH_H);
+      // Green left accent bar
+      ctx.fillStyle = '#16a34a';
+      ctx.fillRect(PAD, rowTop, 4, MATCH_H);
+    } else if (idx % 2 === 0) {
       ctx.fillStyle = 'rgba(255,255,255,0.03)';
       ctx.fillRect(PAD, rowTop, W - PAD*2, MATCH_H);
     }
@@ -5463,9 +5470,9 @@ function _renderFixtureCard(matches, note, logoImg) {
     // ── Player 1 (left side) ──
     const av1x = PAD + 22;
     // Avatar circle
-    ctx.fillStyle = 'rgba(201,168,76,0.18)';
+    ctx.fillStyle = m.bothAvail ? 'rgba(22,163,74,0.35)' : 'rgba(201,168,76,0.18)';
     ctx.beginPath(); ctx.arc(av1x, rowMid, 20, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = GOLD;
+    ctx.fillStyle = m.bothAvail ? '#ffffff' : GOLD;
     ctx.font = 'bold 12px DM Sans,sans-serif';
     ctx.textAlign = 'center';
     const p1ini = m.p1Name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -5475,24 +5482,36 @@ function _renderFixtureCard(matches, note, logoImg) {
     ctx.fillStyle = WHITE;
     ctx.font = '600 17px DM Sans,sans-serif';
     ctx.textAlign = 'left';
-    // Truncate if too long
     let p1display = m.p1Name;
-    while (ctx.measureText(p1display).width > 170 && p1display.length > 4) p1display = p1display.slice(0,-1);
+    while (ctx.measureText(p1display).width > 155 && p1display.length > 4) p1display = p1display.slice(0,-1);
     if (p1display !== m.p1Name) p1display = p1display.trim() + '…';
     ctx.fillText(p1display, av1x + 28, rowMid + 6);
 
-    // ── VS ──
+    // ── VS or GAME ON badge ──
     const vsX = W / 2;
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.font = '700 12px DM Sans,sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('VS', vsX, rowMid + 4);
+    if (m.bothAvail) {
+      // Green pill badge
+      const badgeW = 78, badgeH = 24, badgeR = 12;
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath();
+      ctx.roundRect(vsX - badgeW/2, rowMid - badgeH/2, badgeW, badgeH, badgeR);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 11px DM Sans,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('GAME ON ⛳', vsX, rowMid + 4);
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.font = '700 12px DM Sans,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('VS', vsX, rowMid + 4);
+    }
 
     // ── Player 2 (right side) ──
     const av2x = W - PAD - 22;
-    ctx.fillStyle = 'rgba(201,168,76,0.18)';
+    ctx.fillStyle = m.bothAvail ? 'rgba(22,163,74,0.35)' : 'rgba(201,168,76,0.18)';
     ctx.beginPath(); ctx.arc(av2x, rowMid, 20, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = GOLD;
+    ctx.fillStyle = m.bothAvail ? '#ffffff' : GOLD;
     ctx.font = 'bold 12px DM Sans,sans-serif';
     ctx.textAlign = 'center';
     const p2ini = m.p2Name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -5503,23 +5522,11 @@ function _renderFixtureCard(matches, note, logoImg) {
     ctx.font = '600 17px DM Sans,sans-serif';
     ctx.textAlign = 'right';
     let p2display = m.p2Name;
-    while (ctx.measureText(p2display).width > 170 && p2display.length > 4) p2display = p2display.slice(0,-1);
+    while (ctx.measureText(p2display).width > 155 && p2display.length > 4) p2display = p2display.slice(0,-1);
     if (p2display !== m.p2Name) p2display = p2display.trim() + '…';
     ctx.fillText(p2display, av2x - 28, rowMid + 6);
 
     curY += MATCH_H;
-
-    // Both available indicator
-    if (m.bothAvail) {
-      curY -= 18;
-      ctx.fillStyle = 'rgba(22,163,74,0.15)';
-      ctx.fillRect(PAD, curY, W - PAD*2, 18);
-      ctx.fillStyle = '#16a34a';
-      ctx.font = '600 10px DM Sans,sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('⛳  Both available this week', W/2, curY + 12);
-      curY += 18;
-    }
 
     // Row divider
     ctx.fillStyle = DIVIDER;
