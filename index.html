@@ -124,6 +124,10 @@
   .stagger-children > *:nth-child(9)  { animation-delay: 880ms; }
   .stagger-children > *:nth-child(10) { animation-delay: 990ms; }
   .stagger-children > *:nth-child(n+11) { animation-delay: 1100ms; }
+  /* Podium cards override stagger — they have their own animation with slide built in */
+  .stagger-children > .lb-card-gold,
+  .stagger-children > .lb-card-silver,
+  .stagger-children > .lb-card-bronze { animation-delay: unset; }
 
   /* Feed items stagger up */
   .stagger-up > * { opacity: 0; animation: fadeSlideUp 0.35s cubic-bezier(0.34,1.1,0.64,1) forwards; }
@@ -441,19 +445,32 @@
   .match-pulse { animation: matchPulse 2.2s ease-in-out infinite; border-width: 2px !important; }
   .my-match    { animation: myMatchGlow 2.4s ease-in-out infinite; }
 
-  /* ── 1st place card glow ── */
-  @keyframes firstPlaceGlow {
-    0%,100% { border-color: rgba(184,134,11,0.4); box-shadow: inset 0 0 0 0 rgba(184,134,11,0); }
-    50%     { border-color: rgba(184,134,11,0.9); box-shadow: inset 0 0 12px rgba(184,134,11,0.12); }
+  /* ── Leaderboard podium shimmer ── */
+  @keyframes shimmerSweep {
+    0%   { background-position: -300% center; }
+    100% { background-position: 300% center; }
   }
-  /* Slide in first, then glow — delay glow until after slide completes */
-  .lb-card-first {
-    animation: slideInLeft 0.42s cubic-bezier(0.22,1,0.36,1) forwards,
-               firstPlaceGlow 2s ease-in-out 0.5s infinite;
-    border-left-color: #B8860B !important;
+  .lb-card-gold {
+    background: linear-gradient(105deg, #fef8e6 0%, #fef8e6 30%, #fffbe8 50%, #fef8e6 70%, #fef8e6 100%);
+    background-size: 300% auto;
+    border-color: rgba(184,134,11,0.4) !important;
+    border-left: 3px solid #B8860B !important;
+    animation: slideInLeft 0.42s cubic-bezier(0.22,1,0.36,1) forwards, shimmerSweep 2.5s linear 0.5s infinite;
   }
-  /* Override stagger so first card doesn't get double-animated */
-  .stagger-children > *:nth-child(1).lb-card-first { animation-delay: 0ms; }
+  .lb-card-silver {
+    background: linear-gradient(105deg, #f6f6f6 0%, #f6f6f6 30%, #fafafa 50%, #f6f6f6 70%, #f6f6f6 100%);
+    background-size: 300% auto;
+    border-color: rgba(112,112,112,0.3) !important;
+    border-left: 3px solid #707070 !important;
+    animation: slideInLeft 0.42s cubic-bezier(0.22,1,0.36,1) 110ms forwards, shimmerSweep 3s linear 0.6s infinite;
+  }
+  .lb-card-bronze {
+    background: linear-gradient(105deg, #fdf3ee 0%, #fdf3ee 30%, #fef8f4 50%, #fdf3ee 70%, #fdf3ee 100%);
+    background-size: 300% auto;
+    border-color: rgba(160,82,45,0.3) !important;
+    border-left: 3px solid #A0522D !important;
+    animation: slideInLeft 0.42s cubic-bezier(0.22,1,0.36,1) 220ms forwards, shimmerSweep 3.5s linear 0.7s infinite;
+  }
 
   /* ── Countdown shimmer ── */
   @keyframes goldShimmer {
@@ -1904,22 +1921,20 @@ function renderLeaderboard() {
       : '';
 
     const ptsColor = pos===1?'#B8860B':pos===2?'#707070':pos===3?'#A0522D':'var(--green-mid)';
-    const borderLeft = pos===1?'3px solid #B8860B':pos===2?'3px solid #707070':pos===3?'3px solid #A0522D':'';
-    const bgTint = pos===1?'rgba(184,134,11,0.06)':pos===2?'rgba(112,112,112,0.05)':pos===3?'rgba(160,82,45,0.05)':'';
-    const rankBg = pos===1?'#B8860B':pos===2?'#707070':pos===3?'#A0522D':'#0a1628';
-    const firstClass = pos===1 ? 'lb-card-first' : '';
+    const rankBg   = pos===1?'#B8860B':pos===2?'#707070':pos===3?'#A0522D':'#0a1628';
+    const podiumClass = pos===1?'lb-card-gold':pos===2?'lb-card-silver':pos===3?'lb-card-bronze':'';
 
-    return `<button onclick="showPlayerProfile('${p.id}')" onpointerdown="addRipple(event)" class="lb-card ${firstClass}" style="width:100%;text-align:left;${borderLeft?'border-left:'+borderLeft+';':''}${bgTint?'background:'+bgTint+';':''}">
-      <div style="width:36px;height:36px;border-radius:50%;background:${rankBg};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
-      ${avatarHtml(p, 36, 12)}
+    return `<button onclick="showPlayerProfile('${p.id}')" onpointerdown="addRipple(event)" class="lb-card ${podiumClass}" style="width:100%;text-align:left;">
+      <div style="width:34px;height:34px;border-radius:50%;background:${rankBg};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
+      ${avatarHtml(p, 34, 12)}
       <div class="lb-card-info">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap">
+        <div style="display:flex;align-items:center;gap:6px">
           <div class="lb-card-name">${p.name}</div>
           ${movHtml}
         </div>
         <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
       </div>
-      <div class="lb-card-pts" style="color:${ptsColor};${pos===1?'font-weight:800;':''}">${p.lp}</div>
+      <div class="lb-card-pts" style="color:${ptsColor};font-weight:${pos<=3?'700':'600'}">${p.lp}</div>
     </button>`;
   }).join('') + '</div>';
   setTimeout(() => {
