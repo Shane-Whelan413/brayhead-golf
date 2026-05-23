@@ -454,44 +454,57 @@
     100% { background-position: 400% center; }
   }
 
-  /* Solid podium cards with shimmer */
+  /* Solid podium cards with shimmer via pseudo-element */
   .lb-card-gold {
-    background: linear-gradient(90deg, #B8860B 0%, #B8860B 38%, #e8c04a 50%, #B8860B 62%, #B8860B 100%) !important;
-    background-size: 400% auto !important;
-    border: 1px solid #B8860B !important;
-    border-left: 3px solid #8a6200 !important;
-    animation: bhgsShimmer 2.2s linear infinite !important;
+    background: #B8860B !important;
+    border: 1px solid #9a7000 !important;
+    border-left: 3px solid #7a5500 !important;
+    position: relative;
+    overflow: hidden;
   }
+  .lb-card-silver {
+    background: #5a5a5a !important;
+    border: 1px solid #444 !important;
+    border-left: 3px solid #2a2a2a !important;
+    position: relative;
+    overflow: hidden;
+  }
+  .lb-card-bronze {
+    background: #8B4513 !important;
+    border: 1px solid #6a3000 !important;
+    border-left: 3px solid #4a1e00 !important;
+    position: relative;
+    overflow: hidden;
+  }
+  .lb-card-gold::after,
+  .lb-card-silver::after,
+  .lb-card-bronze::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+    background-size: 300% auto;
+    animation: bhgsShimmer 2s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .lb-card-silver::after { animation-duration: 2.6s; }
+  .lb-card-bronze::after { animation-duration: 3.2s; }
+
+  /* Text stays above shimmer overlay */
+  .lb-card-gold > *,
+  .lb-card-silver > *,
+  .lb-card-bronze > * { position: relative; z-index: 2; }
+
   .lb-card-gold .lb-card-name,
   .lb-card-gold .lb-card-sub { color: rgba(255,255,255,0.9) !important; }
   .lb-card-gold .lb-card-pts { color: white !important; font-weight: 800 !important; }
-
-  .lb-card-silver {
-    background: linear-gradient(90deg, #5a5a5a 0%, #5a5a5a 38%, #909090 50%, #5a5a5a 62%, #5a5a5a 100%) !important;
-    background-size: 400% auto !important;
-    border: 1px solid #5a5a5a !important;
-    border-left: 3px solid #3a3a3a !important;
-    animation: bhgsShimmer 2.8s linear infinite !important;
-  }
   .lb-card-silver .lb-card-name,
   .lb-card-silver .lb-card-sub { color: rgba(255,255,255,0.9) !important; }
   .lb-card-silver .lb-card-pts { color: white !important; font-weight: 700 !important; }
-
-  .lb-card-bronze {
-    background: linear-gradient(90deg, #8B4513 0%, #8B4513 38%, #c07040 50%, #8B4513 62%, #8B4513 100%) !important;
-    background-size: 400% auto !important;
-    border: 1px solid #8B4513 !important;
-    border-left: 3px solid #5a2d0a !important;
-    animation: bhgsShimmer 3.4s linear infinite !important;
-  }
   .lb-card-bronze .lb-card-name,
   .lb-card-bronze .lb-card-sub { color: rgba(255,255,255,0.9) !important; }
   .lb-card-bronze .lb-card-pts { color: white !important; font-weight: 700 !important; }
-
-  /* Rank pills on coloured cards */
-  .lb-card-gold .lb-rank-pill,
-  .lb-card-silver .lb-rank-pill,
-  .lb-card-bronze .lb-rank-pill { background: rgba(255,255,255,0.2) !important; color: white !important; }
 
   /* Number roll */
   .bhgs-roll { display: inline-block; animation: bhgsRoll 0.35s cubic-bezier(0.22,1,0.36,1) both; }
@@ -500,11 +513,11 @@
   .bhgs-ripple { position: absolute; border-radius: 50%; background: rgba(201,168,76,0.45); width: 44px; height: 44px; margin-top: -22px; margin-left: -22px; animation: bhgsRipple 0.55s ease-out forwards; pointer-events: none; }
 
   /* Countdown */
-  .bhgs-countdown { display: inline-block; animation: bhgsCountdown 2s ease-in-out infinite; }
+  .bhgs-countdown { display: inline-block; animation: bhgsCountdown 3s ease-in-out infinite; }
   .bhgs-countdown-inner {
     background: linear-gradient(90deg, #B8860B 0%, #B8860B 30%, #f0d060 50%, #B8860B 70%, #B8860B 100%);
     background-size: 400% auto;
-    animation: bhgsGoldSweep 2s linear infinite;
+    animation: bhgsGoldSweep 3.5s linear infinite;
     color: #3a2000;
     font-size: 22px; font-weight: 800;
     padding: 8px 24px; border-radius: 99px;
@@ -1944,28 +1957,30 @@ function renderLeaderboard() {
     </button>`;
   }).join('');
   setTimeout(() => {
-    const cards = document.querySelectorAll('#lb-table .lb-card');
+    const cards = Array.from(document.querySelectorAll('#lb-table .lb-card'));
     cards.forEach((card, i) => {
       card.style.opacity = '0';
-      card.style.transform = 'translateX(-24px)';
+      card.style.transform = 'translateX(-22px)';
       card.style.transition = 'none';
       setTimeout(() => {
-        card.style.transition = 'opacity 0.38s ease, transform 0.38s cubic-bezier(0.22,1,0.36,1)';
-        card.style.opacity = '1';
-        card.style.transform = 'translateX(0)';
-      }, i * 110);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            card.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.22,1,0.36,1)';
+            card.style.opacity = '1';
+            card.style.transform = 'translateX(0)';
+          });
+        });
+      }, 80 + i * 110);
     });
   }, 50);
 
-  // Roll numbers in after cards appear
   setTimeout(() => {
     document.querySelectorAll('#lb-table .lb-card-pts').forEach(el => {
       const val = el.textContent.trim();
       el.innerHTML = `<span class="bhgs-roll">${val}</span>`;
     });
-  }, 400);
+  }, 600);
 }
-
 
 function renderPlayers() {
   const el = document.getElementById('players-table');
