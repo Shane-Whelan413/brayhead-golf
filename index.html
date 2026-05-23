@@ -5259,76 +5259,91 @@ function showFixturePost() {
   const rounds = [...new Set(matches.map(m=>m.round))].sort((a,b)=>a-b);
   const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
 
-  const roundOptions = rounds.map(r => {
-    const rMatches = matches.filter(m => m.round===r && !m.is_bye);
-    return `<div onclick="selectFixtureRound(${r})" id="fpr-${r}" style="padding:12px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+  const roundCards = rounds.map(r => {
+    const pending = matches.filter(m => m.round===r && !m.is_bye && m.status!=='complete');
+    const total   = matches.filter(m => m.round===r && !m.is_bye).length;
+    const done    = total - pending.length;
+    if (!pending.length) return ''; // skip fully complete rounds
+    return `<div onclick="previewFixtureRound(${r})" style="padding:12px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;user-select:none" id="fpr-${r}">
       <div>
         <div style="font-size:13px;font-weight:600;color:var(--text)">${ROUND_NAMES[r]||'Round '+r}</div>
-        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${rMatches.length} matches</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${pending.length} remaining · ${done}/${total} complete</div>
       </div>
-      <div id="fpr-check-${r}" style="display:none;color:#16a34a;font-size:18px">✓</div>
+      <span style="font-size:20px;color:var(--text-3)">›</span>
     </div>`;
-  }).join('');
+  }).filter(Boolean).join('');
 
-  document.getElementById('modal-title').textContent = '📋 Post fixtures';
-  document.getElementById('modal-body').innerHTML = `
-    <p style="font-size:13px;color:var(--text-2);margin-bottom:1rem">Select a round to post to the noticeboard as a fixture announcement.</p>
-    ${roundOptions}
-    <div style="margin-top:4px">
-      <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px">Add a note (optional)</label>
-      <textarea id="fixture-note" placeholder="e.g. Matches to be played before 31st May…" style="width:100%;padding:10px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;resize:none;height:72px"></textarea>
-    </div>
-    <button onclick="postFixtureFromModal()" class="btn primary" style="width:100%;margin-top:12px">Post to noticeboard</button>
-  `;
-  window._selectedFixtureRound = null;
+  document.getElementById('modal-title').textContent = '📋 Share fixture card';
+  document.getElementById('modal-body').innerHTML = roundCards ||
+    '<div style="padding:2rem;text-align:center;color:var(--text-3)">All rounds complete!</div>';
   document.getElementById('modal-overlay').classList.add('open');
 }
 
-function selectFixtureRound(r) {
-  const rounds = [...new Set(db.knockout_matches.map(m=>m.round))];
-  rounds.forEach(rr => {
-    const el = document.getElementById('fpr-'+rr);
-    const chk = document.getElementById('fpr-check-'+rr);
-    if (el) el.style.border = rr===r ? '1.5px solid #C9A84C' : '1px solid var(--border)';
-    if (chk) chk.style.display = rr===r ? 'block' : 'none';
-  });
-  window._selectedFixtureRound = r;
-}
-
-async function postFixtureFromModal() {
-  const r = window._selectedFixtureRound;
-  if (!r) { toast('Select a round first', 'error'); return; }
-  const note = document.getElementById('fixture-note')?.value || '';
-  const matches = db.knockout_matches.filter(m => m.round===r && !m.is_bye);
+function previewFixtureRound(r) {
   const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+  const pending = db.knockout_matches.filter(m => m.round===r && !m.is_bye && m.status!=='complete');
+  const total   = db.knockout_matches.filter(m => m.round===r && !m.is_bye).length;
+  const done    = total - pending.length;
+  const roundName = ROUND_NAMES[r] || 'Round '+r;
 
-  const fixtureMeta = matches.map(m => {
+  const matchList = pending.map(m => {
     const p1 = db.players.find(p=>p.id===m.player1_id);
     const p2 = db.players.find(p=>p.id===m.player2_id);
+    const fresh = isAvailabilityFresh(m);
+    const p1a = fresh && m.p1_available;
+    const p2a = fresh && m.p2_available;
+    const both = p1a && p2a;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${both?'rgba(22,163,74,0.06)':'var(--surface)'};border-radius:var(--radius);margin-bottom:6px;border:1px solid ${both?'rgba(22,163,74,0.25)':'var(--border)'}">
+      <div style="flex:1;font-size:13px;font-weight:600;color:var(--text);text-align:right">${p1?p1.name:'TBD'}</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text-3);flex-shrink:0;padding:0 4px">VS</div>
+      <div style="flex:1;font-size:13px;font-weight:600;color:var(--text)">${p2?p2.name:'TBD'}</div>
+      ${both?'<span style="font-size:10px;font-weight:600;color:#16a34a;flex-shrink:0">⛳ On</span>':''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('modal-title').textContent = roundName+' — remaining';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="background:var(--bg);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:12px;color:var(--text-2)">${pending.length} match${pending.length!==1?'es':''} remaining</div>
+      <div style="font-size:12px;color:var(--text-3)">${done}/${total} complete</div>
+    </div>
+    ${matchList}
+    <div style="margin-top:4px">
+      <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px">Add a note (optional)</label>
+      <textarea id="fixture-note" placeholder="e.g. To be played before 31st May…" style="width:100%;padding:10px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;resize:none;height:60px"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button onclick="showFixturePost()" class="btn sm" style="flex-shrink:0">← Back</button>
+      <button onclick="generateFixtureRoundCard(${r})" class="btn primary" style="flex:1">Generate & share image ↗</button>
+    </div>
+  `;
+}
+
+function generateFixtureRoundCard(r) {
+  const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+  const pending = db.knockout_matches.filter(m => m.round===r && !m.is_bye && m.status!=='complete');
+  const note = document.getElementById('fixture-note')?.value?.trim() || '';
+  const roundName = ROUND_NAMES[r] || 'Round '+r;
+
+  const fixtureMeta = pending.map(m => {
+    const p1 = db.players.find(p=>p.id===m.player1_id);
+    const p2 = db.players.find(p=>p.id===m.player2_id);
+    const fresh = isAvailabilityFresh(m);
     return {
-      p1Name: p1?.name||'TBD', p2Name: p2?.name||'TBD',
-      status: m.status, result: m.result||null,
-      winnerName: m.winner_id ? db.players.find(p=>p.id===m.winner_id)?.name : null,
-      isBye: m.is_bye
+      p1Name: p1?.name||'TBD',
+      p2Name: p2?.name||'TBD',
+      status: m.status,
+      result: m.result||null,
+      winnerName: null,
+      isBye: false,
+      bothAvail: fresh && m.p1_available && m.p2_available
     };
   });
 
-  try {
-    await post('noticeboard', {
-      post_type: 'fixtures',
-      event_id: null,
-      fixture_round: r,
-      fixture_round_name: ROUND_NAMES[r]||('Round '+r),
-      fixture_matches: fixtureMeta,
-      note: note
-    });
-    toast('Fixtures posted to noticeboard!', 'success');
-    closeModal();
-    await loadAll(); renderAll();
-    // Generate shareable image
-    generateFixtureCard(fixtureMeta, note || (ROUND_NAMES[r]||'Round '+r)+' fixtures');
-  } catch(e) { toast('Error: '+e.message, 'error'); }
+  closeModal();
+  generateFixtureCard(fixtureMeta, note || roundName+' — remaining fixtures');
 }
+
 
 
 function generateFixtureCard(matches, note) {
@@ -5425,7 +5440,8 @@ function _renderFixtureCard(matches, note, logoImg) {
 
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '14px DM Sans,sans-serif';
-  ctx.fillText('This week\u2019s matches \u00b7 2026', htx, hdrMid + 26);
+  const noteLabel = note.includes('Round')||note.includes('round') ? note : (note || 'Remaining matches · 2026');
+  ctx.fillText(noteLabel, htx, hdrMid + 26);
 
   // Header bottom divider
   ctx.fillStyle = 'rgba(201,168,76,0.3)';
@@ -5492,6 +5508,18 @@ function _renderFixtureCard(matches, note, logoImg) {
     ctx.fillText(p2display, av2x - 28, rowMid + 6);
 
     curY += MATCH_H;
+
+    // Both available indicator
+    if (m.bothAvail) {
+      curY -= 18;
+      ctx.fillStyle = 'rgba(22,163,74,0.15)';
+      ctx.fillRect(PAD, curY, W - PAD*2, 18);
+      ctx.fillStyle = '#16a34a';
+      ctx.font = '600 10px DM Sans,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⛳  Both available this week', W/2, curY + 12);
+      curY += 18;
+    }
 
     // Row divider
     ctx.fillStyle = DIVIDER;
