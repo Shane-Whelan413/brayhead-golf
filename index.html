@@ -7911,6 +7911,11 @@ function renderKnockout() {
           ? 'border:1.5px solid rgba(201,168,76,0.6)'
           : 'border:1px solid var(--border)';
 
+        const adminSettle = isAdmin && !done
+          ? `<div onclick="showMatchEntry('${m.id}')" style="padding:9px 12px;background:#0a1628;border-top:0.5px solid rgba(255,255,255,0.08);font-size:12px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px">
+              <span style="font-size:14px">⚙</span> Settle match from round card
+            </div>` : '';
+
         const availStrip = isMyMatch ? `
           <div onclick="toggleMatchAvailability('${m.id}')" style="padding:9px 12px;background:${myAvail?'rgba(22,163,74,0.12)':'rgba(201,168,76,0.1)'};border-top:0.5px solid ${myAvail?'rgba(22,163,74,0.3)':'rgba(201,168,76,0.25)'};font-size:12px;font-weight:600;color:${myAvail?'#16a34a':'#B8860B'};cursor:pointer;text-align:center">
             ${myAvail?'✓ You\'re available — tap to undo':'Tap to confirm availability this week'}
@@ -7921,6 +7926,7 @@ function renderKnockout() {
           ${vsDivider}
           ${playerRow(p2,p2won,done&&!p2won,pid===m.player2_id)}
           ${availStrip}
+          ${adminSettle}
         </div>`;
       }).join('');
 
