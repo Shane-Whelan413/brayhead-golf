@@ -447,87 +447,46 @@
     100% { left: 160%; }
   }
 
-  /* Metallic podium cards */
+  /* Podium cards — soft tinted, no shimmer */
   .lb-card-gold {
-    background: linear-gradient(135deg, #7a5500 0%, #B8860B 25%, #e8c04a 50%, #B8860B 75%, #7a5500 100%) !important;
-    border: 1px solid #9a7000 !important;
-    border-left: 3px solid #5a3e00 !important;
-    position: relative;
-    overflow: hidden;
+    background: #fef8e6 !important;
+    border: 1px solid #ddc050 !important;
+    border-left: 3px solid #B8860B !important;
   }
   .lb-card-silver {
-    background: linear-gradient(135deg, #2a2a2a 0%, #707070 25%, #b0b0b0 50%, #707070 75%, #2a2a2a 100%) !important;
-    border: 1px solid #555 !important;
-    border-left: 3px solid #222 !important;
-    position: relative;
-    overflow: hidden;
+    background: #f5f5f5 !important;
+    border: 1px solid #bebebe !important;
+    border-left: 3px solid #888 !important;
   }
   .lb-card-bronze {
-    background: linear-gradient(135deg, #4a1e00 0%, #8B4513 25%, #c07840 50%, #8B4513 75%, #4a1e00 100%) !important;
-    border: 1px solid #6a3000 !important;
-    border-left: 3px solid #3a1000 !important;
-    position: relative;
-    overflow: hidden;
+    background: #fdf3ee !important;
+    border: 1px solid #c8855a !important;
+    border-left: 3px solid #8B4513 !important;
   }
-  .lb-card-gold::after,
-  .lb-card-silver::after,
-  .lb-card-bronze::after {
-    content: '';
-    position: absolute;
-    top: 0; left: -100%; width: 60%; height: 100%;
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.22) 50%, transparent 100%);
-    animation: bhgsShimmer 4s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 1;
-  }
-  .lb-card-silver::after { animation-duration: 5s; animation-delay: 0.8s; }
-  .lb-card-bronze::after { animation-duration: 6s; animation-delay: 1.6s; }
-
-  @keyframes bhgsShimmer {
-    0%   { left: -100%; }
-    100% { left: 160%; }
-  }
-
-  .lb-card-gold { overflow: visible !important; }
-  .lb-card-silver { overflow: visible !important; }
-  .lb-card-bronze { overflow: visible !important; }
   .lb-slide-wrap { overflow: hidden; border-radius: var(--radius); margin-bottom: 6px; }
   .lb-slide-wrap .lb-card { margin-bottom: 0; border-radius: var(--radius); }
-  .lb-card-gold > *,
-  .lb-card-silver > *,
-  .lb-card-bronze > * { position: relative; z-index: 2; }
 
   .lb-card-gold .lb-card-name,
-  .lb-card-gold .lb-card-sub { color: rgba(255,255,255,0.9) !important; }
-  .lb-card-gold .lb-card-pts { color: white !important; font-weight: 800 !important; }
+  .lb-card-gold .lb-card-sub,
   .lb-card-silver .lb-card-name,
-  .lb-card-silver .lb-card-sub { color: rgba(255,255,255,0.9) !important; }
-  .lb-card-silver .lb-card-pts { color: white !important; font-weight: 700 !important; }
+  .lb-card-silver .lb-card-sub,
   .lb-card-bronze .lb-card-name,
-  .lb-card-bronze .lb-card-sub { color: rgba(255,255,255,0.9) !important; }
-  .lb-card-bronze .lb-card-pts { color: white !important; font-weight: 700 !important; }
+  .lb-card-bronze .lb-card-sub { color: #1a1510 !important; }
+  .lb-card-gold .lb-card-sub,
+  .lb-card-silver .lb-card-sub,
+  .lb-card-bronze .lb-card-sub { color: #888780 !important; }
 
   /* Number roll */
   .bhgs-roll { display: inline-block; animation: bhgsRoll 0.35s cubic-bezier(0.22,1,0.36,1) both; }
 
   /* Countdown */
-  .bhgs-countdown { display: inline-block; animation: bhgsCountdownPulse 4s ease-in-out infinite; }
+  .bhgs-countdown { display: inline-block; }
   .bhgs-countdown-inner {
-    background: linear-gradient(90deg, #7a5500 0%, #B8860B 35%, #d4a020 65%, #B8860B 80%, #7a5500 100%);
+    background: #C9A84C;
     color: #3a2000;
-    font-size: 22px; font-weight: 800;
-    padding: 8px 24px; border-radius: 99px;
+    font-size: 14px; font-weight: 800;
+    padding: 7px 16px; border-radius: 99px;
     display: inline-block;
-    position: relative;
-    overflow: hidden;
-  }
-  .bhgs-countdown-inner::after {
-    content: '';
-    position: absolute;
-    top: 0; left: -80%; width: 50%; height: 100%;
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
-    animation: bhgsCountdownShimmer 5s ease-in-out infinite;
-    pointer-events: none;
   }
   #score-keypad {
     position: fixed;
@@ -1907,15 +1866,15 @@ function renderLeaderboard() {
       ? `<span style="font-size:10px;font-weight:700;color:#A32D2D;background:#FCEBEB;padding:2px 5px;border-radius:99px;flex-shrink:0">&#9660;${Math.abs(p.movement)}</span>`
       : '';
 
-    const ptsColor = pos<=3 ? 'white' : 'var(--green-mid)';
+    const ptsColor = pos===1?'#B8860B':pos===2?'#666':pos===3?'#8B4513':'var(--green-mid)';
     const rankBg   = pos===1?'rgba(255,255,255,0.25)':pos===2?'rgba(255,255,255,0.25)':pos===3?'rgba(255,255,255,0.25)':'#0a1628';
     const rankColor= pos<=3 ? 'white' : 'white';
     const podiumClass = pos===1?'lb-card-gold':pos===2?'lb-card-silver':pos===3?'lb-card-bronze':'';
 
     return `<div class="lb-slide-wrap">
       <button onclick="showPlayerProfile('${p.id}')" class="lb-card ${podiumClass}" style="width:100%;text-align:left;">
-        <div class="lb-rank-pill" style="width:34px;height:34px;border-radius:50%;background:${pos<=3?'rgba(255,255,255,0.25)':'#0a1628'};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
-        <div style="flex-shrink:0;${pos<=3?`padding:2px;border-radius:50%;background:rgba(255,255,255,0.4);`:''}">
+        <div class="lb-rank-pill" style="width:34px;height:34px;border-radius:50%;background:${pos===1?'#B8860B':pos===2?'#888':pos===3?'#8B4513':'#0a1628'};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
+        <div style="flex-shrink:0;">
           ${avatarHtml(p, 34, 12)}
         </div>
         <div class="lb-card-info">
@@ -4621,12 +4580,12 @@ function renderHome() {
     const myHcp    = myPlayer ? parseFloat(myPlayer.handicap_index).toFixed(1) : '—';
     const myRounds = db.rounds.filter(r=>r.player_id===pid&&r.verified&&publishedEids.has(r.event_id)).length;
     const posLabel = myPos===1?'1st':myPos===2?'2nd':myPos===3?'3rd':myPos>0?(myPos+'th'):'—';
-    const posGrad  = myPos===1?'linear-gradient(135deg,#7a5500,#B8860B,#e8c04a,#B8860B,#7a5500)':myPos===2?'linear-gradient(135deg,#2a2a2a,#707070,#b0b0b0,#707070,#2a2a2a)':myPos===3?'linear-gradient(135deg,#4a1e00,#8B4513,#c07840,#8B4513,#4a1e00)':'';
-    const posStyle = myPos<=3 ? ('background:'+posGrad+';color:white;') : 'background:var(--surface);color:var(--text);';
-    const shimmer  = myPos<=3 ? '<div style="position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);animation:bhgsCountdownShimmer '+(myPos===1?'5s':myPos===2?'6s':'7s')+' ease-in-out infinite;pointer-events:none"></div>' : '';
+    const posBg    = myPos===1?'#0a1628':myPos===2?'#3a3a3a':myPos===3?'#4a1e00':'var(--surface)';
+    const posColor = myPos===1?'#C9A84C':myPos===2?'#c0c0c0':myPos===3?'#c07840':'var(--text)';
+    const posLabelColor = myPos<=3?'rgba(255,255,255,0.5)':'var(--text-3)';
+    const posBorder = myPos<=3?posBg:'var(--border)';
     statsBar = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:1rem">'
-      + '<div style="'+posStyle+'border-radius:var(--radius);padding:10px 6px;text-align:center;border:1px solid var(--border);position:relative;overflow:hidden">'+shimmer+'<div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;opacity:0.7;margin-bottom:3px;position:relative">Rank</div><div style="font-size:20px;font-weight:800;line-height:1;position:relative">'+posLabel+'</div></div>'
-      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Pts</div><div style="font-size:20px;font-weight:800;color:var(--text);line-height:1">'+myPts+'</div></div>'
+      + '<div style="background:'+posBg+';border:1px solid '+posBorder+';border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:'+posLabelColor+';margin-bottom:3px">Rank</div><div style="font-size:20px;font-weight:800;line-height:1;color:'+posColor+'">'+posLabel+'</div></div>'
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Hcp</div><div style="font-size:20px;font-weight:800;color:var(--text);line-height:1">'+myHcp+'</div></div>'
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Rounds</div><div style="font-size:20px;font-weight:800;color:var(--text);line-height:1">'+myRounds+'</div></div>'
       + '</div>';
@@ -4699,7 +4658,7 @@ function renderHome() {
       return '<div style="background:white;border:1px solid #e8e4de;border-radius:14px;overflow:hidden;margin-bottom:10px">'
         +'<div style="background:linear-gradient(135deg,#0a1628,#162338);padding:12px 14px;position:relative;overflow:hidden">'
         +'<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5500,#C9A84C,#e8c04a,#C9A84C,#7a5500)"></div>'
-        +'<div style="position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);animation:bhgsCountdownShimmer 4s ease-in-out infinite;pointer-events:none"></div>'
+        +''
         +'<div style="display:flex;align-items:center;gap:10px;position:relative">'
         +'<div style="width:38px;height:38px;border-radius:50%;background:rgba(201,168,76,0.15);border:1.5px solid rgba(201,168,76,0.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">'+(isResults?'🏆':'⛳')+'</div>'
         +'<div><div style="font-family:\'DM Serif Display\',serif;font-size:16px;color:white;margin-bottom:2px">'+(isResults?'Knockout results':'Knockout fixtures')+'</div>'
@@ -4736,7 +4695,7 @@ function renderHome() {
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid #f0ece5">'
         +'<div style="width:28px;height:28px;border-radius:50%;background:'+medalGrads[i]+';color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;overflow:hidden">'
         +(i+1)
-        +'<div style="position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);animation:bhgsCountdownShimmer '+(3+i)+'s ease-in-out infinite;pointer-events:none"></div>'
+        ''
         +'</div>'
         +avatarHtml(p||{name:'?'}, 30, 10)
         +'<div style="flex:1;font-size:13px;font-weight:'+(i===0?'700':'400')+';color:'+(i===0?'#0a1628':'#444441')+'">'+(p?p.name:'?')+'</div>'
@@ -4758,7 +4717,7 @@ function renderHome() {
       // Navy header with gold bar and shimmer
       +'<div style="background:linear-gradient(135deg,#0a1628,#162338);padding:14px 16px;position:relative;overflow:hidden">'
       +'<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5500,#C9A84C,#e8c04a,#C9A84C,#7a5500)"></div>'
-      +'<div style="position:absolute;top:0;left:-80%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);animation:bhgsCountdownShimmer 5s ease-in-out infinite;pointer-events:none"></div>'
+      ''
       +'<div style="display:flex;align-items:center;gap:12px;position:relative">'
       +'<img src="icon-192.png" style="width:40px;height:40px;border-radius:50%;border:1.5px solid rgba(201,168,76,0.5);flex-shrink:0;object-fit:cover" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
       +'<div style="width:40px;height:40px;border-radius:50%;background:rgba(201,168,76,0.15);border:1.5px solid rgba(201,168,76,0.4);display:none;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">⛳</div>'
