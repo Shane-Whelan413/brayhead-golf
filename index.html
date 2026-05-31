@@ -1782,16 +1782,21 @@ function renderLeaderboard() {
 
     db.rounds.filter(r => r.verified && publishedEids.has(r.event_id) && r.hole_scores).forEach(r => {
       const ev = db.events.find(e => e.id === r.event_id);
-      const parVals = (ev && ev.par_values) ? ev.par_values : [];
+      if (!ev) return;
       const scores  = Array.isArray(r.hole_scores) ? r.hole_scores : JSON.parse(r.hole_scores || '[]');
+      const parVals = (ev.par_values && ev.par_values.length) ? ev.par_values : Array.from({length:scores.length},()=>4);
       const stat    = playerStats[r.player_id];
       if (!stat) return;
+      const n = scores.length;
       scores.forEach((gross, i) => {
-        if (gross == null || gross === '' || gross === 0) { stat.scratches++; return; }
+        if (gross == null || gross === '' || gross === 0) return; // no score entered — skip entirely
         const par = parVals[i] || 4;
-        if (gross < par)  stat.birdies++;
+        // Pars and birdies based on gross score vs par
+        if (gross < par) stat.birdies++;
         else if (gross === par) stat.pars++;
-        // over par = neither, scratches already counted above
+        // Scratches = 0 stableford points on a hole where a score was entered
+        const holePts = calcHolePts(r, i);
+        if (holePts === 0) stat.scratches++;
       });
     });
 
