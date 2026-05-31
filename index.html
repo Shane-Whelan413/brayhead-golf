@@ -4659,17 +4659,30 @@ function renderHome() {
       const isP1 = myMatch.player1_id === pid;
       const opponentId = isP1 ? myMatch.player2_id : myMatch.player1_id;
       const opponent = opponentId ? db.players.find(p=>p.id===opponentId) : null;
-      const fresh = isAvailabilityFresh(myMatch);
-      const myAvail  = fresh && (isP1 ? myMatch.p1_available : myMatch.p2_available);
-      const oppAvail = fresh && (isP1 ? myMatch.p2_available : myMatch.p1_available);
-      const bothAvail = myAvail && oppAvail;
-      knockoutCard = '<div style="background:#1a2e1a;border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:1rem;border:1px solid rgba(22,163,74,0.3)">'
-        + '<div style="font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Knockout · Your match</div>'
-        + '<div style="font-size:14px;font-weight:600;color:white;margin-bottom:10px">vs '+(opponent?opponent.name:'TBD')+'</div>'
-        + (bothAvail ? '<div style="background:rgba(22,163,74,0.2);border-radius:8px;padding:8px;text-align:center;font-size:13px;font-weight:600;color:#4ade80">Match on this week! ⛳</div>'
-          : '<button onclick="toggleMatchAvailability(\''+myMatch.id+'\')" style="width:100%;padding:10px;border-radius:8px;border:none;background:'+(myAvail?'rgba(22,163,74,0.2)':'#C9A84C')+';color:'+(myAvail?'#4ade80':'#0a1628')+';font-size:13px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer">'+(myAvail?'✓ You\'re available — tap to undo':'I\'m available this week')+'</button>')
-        + '<button onclick="showTab(\'knockout\')" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.6);font-size:12px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer">View full bracket →</button>'
-        + '</div>';
+      const roundNames = {1:'Final',2:'Semi-final',4:'Quarter-final',8:'Last 16'};
+      const matchesInRound = db.knockout_matches.filter(m => m.round === myMatch.round);
+      const roundName = roundNames[matchesInRound.length] || 'Round of '+matchesInRound.length;
+      if (!opponent) {
+        // Opponent not yet known — show pending card
+        knockoutCard = '<div style="background:#1a2e1a;border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:1rem;border:1px solid rgba(22,163,74,0.3)">'
+          + '<div style="font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Knockout · '+roundName+'</div>'
+          + '<div style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.5);margin-bottom:6px">'+roundName+' — Pending</div>'
+          + '<div style="font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:10px">Waiting on the previous round to complete before your opponent is confirmed.</div>'
+          + '<button onclick="showTab(\'knockout\')" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.6);font-size:12px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer">View full bracket →</button>'
+          + '</div>';
+      } else {
+        const fresh = isAvailabilityFresh(myMatch);
+        const myAvail  = fresh && (isP1 ? myMatch.p1_available : myMatch.p2_available);
+        const oppAvail = fresh && (isP1 ? myMatch.p2_available : myMatch.p1_available);
+        const bothAvail = myAvail && oppAvail;
+        knockoutCard = '<div style="background:#1a2e1a;border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:1rem;border:1px solid rgba(22,163,74,0.3)">'
+          + '<div style="font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Knockout · '+roundName+'</div>'
+          + '<div style="font-size:14px;font-weight:600;color:white;margin-bottom:10px">vs '+opponent.name+'</div>'
+          + (bothAvail ? '<div style="background:rgba(22,163,74,0.2);border-radius:8px;padding:8px;text-align:center;font-size:13px;font-weight:600;color:#4ade80">Match on this week! ⛳</div>'
+            : '<button onclick="toggleMatchAvailability(\''+myMatch.id+'\')" style="width:100%;padding:10px;border-radius:8px;border:none;background:'+(myAvail?'rgba(22,163,74,0.2)':'#C9A84C')+';color:'+(myAvail?'#4ade80':'#0a1628')+';font-size:13px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer">'+(myAvail?'✓ You\'re available — tap to undo':'I\'m available this week')+'</button>')
+          + '<button onclick="showTab(\'knockout\')" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.6);font-size:12px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer">View full bracket →</button>'
+          + '</div>';
+      }
     }
   }
 
@@ -4750,6 +4763,9 @@ function renderHome() {
         + extras.map(e => '<div style="font-size:11px;color:#444441;background:white;border:0.5px solid #e8e4de;border-radius:99px;padding:3px 10px">'+e+'</div>').join('')
         + '</div>'
       : '';
+    const customMsg = n.custom_text
+      ? '<div style="padding:10px 16px;border-top:0.5px solid #e8e4de;font-size:13px;color:#444441;line-height:1.5;font-style:italic">"'+n.custom_text+'"</div>'
+      : '';
 
     const uid2 = 'f'+Math.random().toString(36).slice(2);
     return '<div style="background:white;border:1px solid #e8e4de;border-radius:14px;overflow:hidden;margin-bottom:10px">'
@@ -4767,6 +4783,8 @@ function renderHome() {
       + '<div style="padding:4px 16px 0">'+top3+'</div>'
       // Extras
       + extrasStrip
+      // Custom message
+      + customMsg
       // Footer
       + '<div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid #e8e4de">'
       + '<span style="font-size:11px;color:#b4b2a9">'+eventRounds.length+' round'+(eventRounds.length!==1?'s':'')+' submitted</span>'
