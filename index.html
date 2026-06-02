@@ -3330,10 +3330,16 @@ async function verifyAllRounds(eid) {
       if (isProvisional && !isOuting) {
         await checkAndFinaliseProvisional(pl, r);
       } else {
-        await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp, next_outing_penalty: 0 });
+        await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp });
       }
     }
     if (isOuting) {
+      // Reset all players' penalties first
+      const allPlayerIds = [...new Set(freshRounds.map(r => r.player_id))];
+      for (const pid of allPlayerIds) {
+        await patch(`players?id=eq.${pid}`, { next_outing_penalty: 0 });
+      }
+      // Then set top 3
       const penaltyMap = { 0: 4, 1: 3, 2: 2 };
       for (let i = 0; i <= 2; i++) {
         if (ranked[i]) {
@@ -3730,7 +3736,12 @@ function toggleAdminTools() {
     <div style="display:flex;flex-direction:column;gap:10px">
 
       <div style="background:var(--bg);border-radius:var(--radius);padding:12px">
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">Handicap</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Outing penalties</div>
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">Recalculate shot penalties based on the last published outing result.</div>
+        <button class="btn sm" style="width:100%;background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="closeModal();recalcOutingPenalties()">⚠️ Recalculate penalties</button>
+      </div>
+
+      <div style="background:var(--bg);border-radius:var(--radius);padding:12px">
         <button class="btn sm" style="width:100%;margin-bottom:6px" onclick="closeModal();buildHandicapTimeline()">📊 Build handicap timeline</button>
         <button class="btn sm" style="width:100%" onclick="closeModal();recalcAllHandicaps()">🔄 Recalc all handicaps</button>
       </div>
@@ -3744,6 +3755,7 @@ function toggleAdminTools() {
         <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">App updates</div>
         <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">Force the latest version of the app.</div>
         <button class="btn sm" style="width:100%" onclick="closeModal();checkForUpdates()">🔄 Check for updates</button>
+        <button class="btn sm" style="width:100%;margin-top:6px;background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){r.unregister();});}).finally(function(){window.location.reload(true);})">⚡ Force reload (clear cache)</button>
       </div>
 
       <div style="background:var(--bg);border-radius:var(--radius);padding:12px">
@@ -4139,6 +4151,38 @@ async function runFullHandicapRecalc() {
   }
 }
 
+async function recalcOutingPenalties() {
+  // Find the last published outing
+  const outings = db.events
+    .filter(e => e.event_type === 'outing_18' && e.published)
+    .sort((a,b) => b.event_date.localeCompare(a.event_date));
+  if (!outings.length) { toast('No published outings found', 'error'); return; }
+  const lastOuting = outings[0];
+
+  const rounds = db.rounds.filter(r => r.event_id === lastOuting.id && r.verified);
+  if (!rounds.length) { toast('No verified rounds for last outing', 'error'); return; }
+
+  const ranked = assignLeaguePts(rounds.map(r => ({...r})));
+  const top3 = ranked.slice(0, 3);
+  const penaltyMap = { 0: 4, 1: 3, 2: 2 };
+  const allPlayerIds = [...new Set(rounds.map(r => r.player_id))];
+
+  if (!confirm(`Recalculate penalties based on ${lastOuting.course_name} (${fmtDate(lastOuting.event_date)})?\n\nTop 3:\n1st: ${db.players.find(p=>p.id===ranked[0]?.player_id)?.name||'?'} → −4 shots\n2nd: ${db.players.find(p=>p.id===ranked[1]?.player_id)?.name||'?'} → −3 shots\n3rd: ${db.players.find(p=>p.id===ranked[2]?.player_id)?.name||'?'} → −2 shots\n\nAll others will have penalties cleared.`)) return;
+
+  try {
+    // Reset all players to 0
+    for (const pid of allPlayerIds) {
+      await patch(`players?id=eq.${pid}`, { next_outing_penalty: 0 });
+    }
+    // Set top 3
+    for (let i = 0; i <= 2; i++) {
+      if (ranked[i]) await patch(`players?id=eq.${ranked[i].player_id}`, { next_outing_penalty: penaltyMap[i] });
+    }
+    await loadAll(); renderAll();
+    toast(`Penalties updated from ${lastOuting.course_name}`, 'success');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
 async function recalcHandicaps(eid) {
   if (!confirm('Recalculate and update all player handicaps for this event? This will overwrite current handicap values.')) return;
   const ev = db.events.find(e=>e.id===eid);
@@ -4185,9 +4229,15 @@ async function verifyAndPublish(eid) {
           ? calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points, pos)
           : calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos);
         await patch(`rounds?id=eq.${r.id}`, { verified: true, handicap_after: newHcp });
-        await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp, next_outing_penalty: 0 });
+        await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp });
       }
       if (isOuting) {
+        // First reset all players' penalties to 0
+        const allPlayerIds = [...new Set(allRounds.map(r => r.player_id))];
+        for (const pid of allPlayerIds) {
+          await patch(`players?id=eq.${pid}`, { next_outing_penalty: 0 });
+        }
+        // Then set the top 3 penalties
         const penaltyMap = { 0: 4, 1: 3, 2: 2 };
         for (let i = 0; i <= 2; i++) {
           if (ranked[i]) await patch(`players?id=eq.${ranked[i].player_id}`, { next_outing_penalty: penaltyMap[i] });
