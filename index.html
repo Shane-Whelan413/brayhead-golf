@@ -3334,13 +3334,17 @@ async function verifyAllRounds(eid) {
       }
     }
     if (isOuting) {
-      // Reset all players' penalties first
-      const allPlayerIds = [...new Set(freshRounds.map(r => r.player_id))];
-      for (const pid of allPlayerIds) {
-        await patch(`players?id=eq.${pid}`, { next_outing_penalty: 0 });
-      }
-      // Then set top 3
+      // Only clear penalty for players who actually played this outing
+      // Players who didn't play keep their penalty (it carries over)
+      const playedIds = new Set(freshRounds.map(r => r.player_id));
       const penaltyMap = { 0: 4, 1: 3, 2: 2 };
+      const top3Ids = new Set(ranked.slice(0,3).map(r => r.player_id));
+      for (const pid of playedIds) {
+        if (!top3Ids.has(pid)) {
+          await patch(`players?id=eq.${pid}`, { next_outing_penalty: 0 });
+        }
+      }
+      // Set top 3 penalties
       for (let i = 0; i <= 2; i++) {
         if (ranked[i]) {
           await patch(`players?id=eq.${ranked[i].player_id}`, { next_outing_penalty: penaltyMap[i] });
@@ -4170,9 +4174,12 @@ async function recalcOutingPenalties() {
   if (!confirm(`Recalculate penalties based on ${lastOuting.course_name} (${fmtDate(lastOuting.event_date)})?\n\nTop 3:\n1st: ${db.players.find(p=>p.id===ranked[0]?.player_id)?.name||'?'} → −4 shots\n2nd: ${db.players.find(p=>p.id===ranked[1]?.player_id)?.name||'?'} → −3 shots\n3rd: ${db.players.find(p=>p.id===ranked[2]?.player_id)?.name||'?'} → −2 shots\n\nAll others will have penalties cleared.`)) return;
 
   try {
-    // Reset all players to 0
+    // Only clear penalty for players who played this outing — absent players carry theirs
+    const top3Ids = new Set(ranked.slice(0,3).map(r => r.player_id));
     for (const pid of allPlayerIds) {
-      await patch(`players?id=eq.${pid}`, { next_outing_penalty: 0 });
+      if (!top3Ids.has(pid)) {
+        await patch(`players?id=eq.${pid}`, { next_outing_penalty: 0 });
+      }
     }
     // Set top 3
     for (let i = 0; i <= 2; i++) {
@@ -4232,13 +4239,16 @@ async function verifyAndPublish(eid) {
         await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp });
       }
       if (isOuting) {
-        // First reset all players' penalties to 0
-        const allPlayerIds = [...new Set(allRounds.map(r => r.player_id))];
-        for (const pid of allPlayerIds) {
-          await patch(`players?id=eq.${pid}`, { next_outing_penalty: 0 });
-        }
-        // Then set the top 3 penalties
+        // Only clear penalty for players who actually played — absent players carry their penalty
+        const playedIds = new Set(allRounds.map(r => r.player_id));
         const penaltyMap = { 0: 4, 1: 3, 2: 2 };
+        const top3Ids = new Set(ranked.slice(0,3).map(r => r.player_id));
+        for (const pid of playedIds) {
+          if (!top3Ids.has(pid)) {
+            await patch(`players?id=eq.${pid}`, { next_outing_penalty: 0 });
+          }
+        }
+        // Set top 3 penalties
         for (let i = 0; i <= 2; i++) {
           if (ranked[i]) await patch(`players?id=eq.${ranked[i].player_id}`, { next_outing_penalty: penaltyMap[i] });
         }
