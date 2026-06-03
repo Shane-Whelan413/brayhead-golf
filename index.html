@@ -826,9 +826,9 @@
     flex-shrink: 0;
   }
   #ko-fs { display:none; position:fixed; inset:0; background:#0a1628; z-index:9999; }
-  #ko-fs.on { display:flex; flex-direction:column; align-items:center; justify-content:center; }
-  #ko-fs canvas { max-width:100%; max-height:100%; }
-  #ko-fs-exit { margin-top:12px; padding:10px 32px; border-radius:99px; background:#C9A84C; border:none; color:#0a1628; font-size:16px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
+  #ko-fs.on { display:flex; flex-direction:column; align-items:center; padding-top:env(safe-area-inset-top,20px); box-sizing:border-box; }
+  #ko-fs canvas { display:block; flex-shrink:0; }
+  #ko-fs-exit { flex-shrink:0; margin:10px auto; padding:12px 40px; border-radius:99px; background:#C9A84C; border:none; color:#0a1628; font-size:16px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
 </style>
 
 <!-- LOGIN SCREEN -->
@@ -9487,8 +9487,8 @@ function koFsOpen() {
   var availW = W - PAD*2;
   var COL_W = Math.floor((availW - (numCols-1)*CONN) / numCols);
 
-  var TITLE_H = 38;
-  var FOOT_H  = 54;
+  var TITLE_H = 52;
+  var FOOT_H  = 52;
   var halfH   = Math.floor((H - TITLE_H - FOOT_H) / 2);
   var HDR_H   = 18;
   var CARD_GAP = 6;
@@ -9532,8 +9532,8 @@ function koFsOpen() {
     return tops;
   }
 
-  var topStart = TITLE_H + HDR_H + 4;
-  var botStart = H - FOOT_H - CH - 4;
+  var topStart = TITLE_H + HDR_H + 12;
+  var botStart = H - FOOT_H - CH - 12;
 
   var leftByRound  = sideRounds.map(topHalf);
   var rightByRound = sideRounds.map(bottomHalf);
