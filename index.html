@@ -8082,6 +8082,9 @@ function renderKnockout() {
     function sortedRound(r) {
       return allMatches.filter(m=>m.round===r).sort((a,b)=>a.match_number-b.match_number);
     }
+    function visibleRound(r) {
+      return sortedRound(r).filter(m=>!m.is_bye);
+    }
 
     // Compute top position of each match card
     // Round 0: evenly spaced by (CARD_H + GAP)
