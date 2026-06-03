@@ -9431,18 +9431,24 @@ function koFsOpen() {
   var inner = document.getElementById('ko-fs-inner');
   var overlay = document.getElementById('ko-fs');
   if (!src || !inner) return;
-  inner.innerHTML = src.innerHTML;
+  // Copy only the scroll container (bracket itself), not admin buttons
+  var bracketScroll = src.querySelector('[style*="overflow"]');
+  if (!bracketScroll) return;
+  inner.innerHTML = bracketScroll.innerHTML;
   overlay.classList.add('on');
   document.getElementById('ko-fs-exit').classList.add('on');
   setTimeout(function() {
-    var bw = inner.scrollWidth;
-    var bh = inner.scrollHeight;
-    // ko-fs-wrap is 100vh wide and 100vw tall (rotated)
+    var wrap = inner.firstElementChild;
+    if (!wrap) return;
+    var bw = wrap.offsetWidth;
+    var bh = wrap.offsetHeight;
     var availW = window.innerHeight;
     var availH = window.innerWidth;
-    var scale = Math.min(availW / bw, availH / bh, 1);
+    var scale = Math.min(availW / bw, availH / bh);
     inner.style.transform = 'scale(' + scale + ')';
-    inner.style.transformOrigin = 'center center';
+    inner.style.transformOrigin = 'top left';
+    inner.style.width = bw + 'px';
+    inner.style.height = bh + 'px';
   }, 100);
 }
 function koFsExit() {
