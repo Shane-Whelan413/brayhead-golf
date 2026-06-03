@@ -9425,8 +9425,9 @@ function openApiKeyModal() {
 init();
 
 function koFsOpen() {
+  try {
   var overlay = document.getElementById('ko-fs');
-  if (!overlay) return;
+  if (!overlay) { alert('overlay missing'); return; }
 
   var allMatches = db.knockout_matches;
   var existingRounds = [...new Set(allMatches.map(function(m){return m.round;}))].sort(function(a,b){return a-b;});
@@ -9567,6 +9568,7 @@ function koFsOpen() {
 
   overlay.innerHTML = html;
   overlay.classList.add('on');
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 function koFsExit() {
