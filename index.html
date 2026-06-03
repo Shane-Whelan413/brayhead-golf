@@ -8071,12 +8071,12 @@ function renderKnockout() {
       if (allMatches.filter(m=>m.round===r&&!m.is_bye&&m.status!=="complete").length>0){liveRound=r;break;}
     }
 
-    const CARD_H = 64;
-    const ROW_H  = 32;
-    const GAP    = 12;
-    const COL_W  = 170;
+    const CARD_H = 78;
+    const ROW_H  = 38;
+    const GAP    = 14;
+    const COL_W  = 200;
     const CONN_W = 44;
-    const HDR_H  = 44;
+    const HDR_H  = 48;
 
     // Sort matches per round by match_number for correct bracket order
     function sortedRound(r) {
@@ -8118,9 +8118,9 @@ function renderKnockout() {
       const badge = won?'<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(22,163,74,0.2);color:#4ade80;flex-shrink:0">Won &#10003;</span>'
         :lost?'<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.28);flex-shrink:0">Lost</span>'
         :!done&&player&&avail?'<span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:99px;background:rgba(22,163,74,0.18);color:#4ade80;flex-shrink:0">&#10003;</span>':"";
-      return `<div style="display:flex;align-items:center;gap:6px;padding:0 10px;height:${ROW_H}px;box-sizing:border-box;${rowBg}">
-        <div style="width:20px;height:20px;border-radius:50%;${avBg};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0${ring}">${isTbd?"&#8212;":initials(name)}</div>
-        <div style="flex:1;font-size:12px;${nameSt};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isTbd?'<i style="opacity:.35">TBD</i>':name}</div>
+      return `<div style="display:flex;align-items:center;gap:8px;padding:0 12px;height:${ROW_H}px;box-sizing:border-box;${rowBg}">
+        <div style="width:26px;height:26px;border-radius:50%;${avBg};font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0${ring}">${isTbd?"&#8212;":initials(name)}</div>
+        <div style="flex:1;font-size:13px;${nameSt};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isTbd?'<i style="opacity:.35">TBD</i>':name}</div>
         ${badge}
       </div>`;
     }
@@ -8138,15 +8138,16 @@ function renderKnockout() {
       const p2won = done&&m.winner_id===m.player2_id;
       const isTbd = !m.player1_id&&!m.player2_id;
       const border = bothAvail?"1.5px solid rgba(22,163,74,0.55)":isMyMatch?"1.5px solid #C9A84C":done?"0.5px solid rgba(255,255,255,0.07)":"0.5px solid rgba(255,255,255,0.12)";
+      const cardRadius = "10px";
       const myCallout = isMyMatch?'<div style="padding:2px 8px;background:rgba(201,168,76,0.15);border-bottom:0.5px solid rgba(201,168,76,0.2);font-size:8px;font-weight:700;color:#C9A84C;letter-spacing:.08em;text-align:center">YOUR MATCH</div>':"";
       const banner = bothAvail?'<div style="padding:2px 8px;background:rgba(22,163,74,0.1);border-bottom:0.5px solid rgba(22,163,74,0.18);font-size:8px;font-weight:600;color:#4ade80;text-align:center">Both available!</div>':"";
-      const availStrip = isMyMatch?`<div onclick="toggleMatchAvailability('${m.id}')" style="padding:5px 8px;background:${myAvail?"rgba(22,163,74,0.1)":"rgba(201,168,76,0.07)"};border-top:0.5px solid rgba(255,255,255,0.06);font-size:10px;font-weight:600;color:${myAvail?"#4ade80":"#C9A84C"};cursor:pointer;text-align:center">${myAvail?"&#10003; Available":"Confirm availability"}</div>`:"";
-      const adminSettle = isAdmin&&!done?`<div onclick="showMatchEntry('${m.id}')" style="padding:4px 8px;background:rgba(201,168,76,0.07);border-top:0.5px solid rgba(255,255,255,0.05);font-size:10px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center">&#9881; Settle</div>`:"";
-      return `<div style="background:${isTbd?"rgba(255,255,255,0.02)":"#1a3050"};border:${border};border-radius:8px;overflow:hidden">
+      const availStrip = isMyMatch?`<div onclick="toggleMatchAvailability('${m.id}')" style="padding:7px 8px;background:${myAvail?"rgba(22,163,74,0.1)":"rgba(201,168,76,0.07)"};border-top:0.5px solid rgba(255,255,255,0.06);font-size:11px;font-weight:600;color:${myAvail?"#4ade80":"#C9A84C"};cursor:pointer;text-align:center">${myAvail?"&#10003; Available":"Confirm availability"}</div>`:"";
+      const adminSettle = isAdmin&&!done?`<div onclick="showMatchEntry('${m.id}')" style="padding:5px 8px;background:rgba(201,168,76,0.07);border-top:0.5px solid rgba(255,255,255,0.05);font-size:11px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center">&#9881; Settle</div>`:"";
+      return `<div style="background:${isTbd?"rgba(255,255,255,0.02)":"#1a3050"};border:${border};border-radius:10px;overflow:hidden">
         ${myCallout}${banner}
         <div style="height:${CARD_H}px">
           ${pRow(p1,p1won,done&&!p1won,pid===m.player1_id,p1avail,done)}
-          <div style="height:1px;background:rgba(255,255,255,0.07);margin:0 8px"></div>
+          <div style="height:1px;background:rgba(255,255,255,0.07);margin:0 10px"></div>
           ${pRow(p2,p2won,done&&!p2won,pid===m.player2_id,p2avail,done)}
         </div>
         ${availStrip}${adminSettle}
@@ -8181,7 +8182,7 @@ function renderKnockout() {
       colsHtml += `<div style="position:absolute;left:${x}px;top:0;width:${COL_W}px;height:${HDR_H}px;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:6px">
         <div style="height:0.5px;background:${headerLineColor}"></div>
         <div style="text-align:center;padding:0 4px">
-          <div style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.05em;${pillStyle}">${pillLabel}${isFinal?"&nbsp;&#127942;":""}</div>
+          <div style="display:inline-block;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.05em;${pillStyle}">${pillLabel}${isFinal?"&nbsp;&#127942;":""}</div>
         </div>
         <div style="height:0.5px;background:${headerLineColor}"></div>
       </div>`;
@@ -8196,9 +8197,9 @@ function renderKnockout() {
         const winner = db.players.find(p=>p.id===m.winner_id);
         const top = HDR_H + matchTops[m.id];
         colsHtml += `<div style="position:absolute;left:${x}px;top:${top}px;width:${COL_W}px">
-          <div style="background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.1);border-radius:8px;height:${CARD_H}px;display:flex;align-items:center;gap:8px;padding:0 10px;opacity:0.7">
-            <div style="width:20px;height:20px;border-radius:50%;background:#0f2240;color:#C9A84C;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${winner?initials(winner.name):"?"}</div>
-            <div style="flex:1;font-size:12px;color:rgba(255,255,255,0.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${winner?winner.name:"TBD"}</div>
+          <div style="background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.1);border-radius:10px;height:${CARD_H}px;display:flex;align-items:center;gap:8px;padding:0 12px;opacity:0.7">
+            <div style="width:26px;height:26px;border-radius:50%;background:#0f2240;color:#C9A84C;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${winner?initials(winner.name):"?"}</div>
+            <div style="flex:1;font-size:13px;color:rgba(255,255,255,0.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${winner?winner.name:"TBD"}</div>
             <span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.4);flex-shrink:0">BYE</span>
           </div>
         </div>`;
