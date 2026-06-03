@@ -8298,7 +8298,7 @@ function renderKnockout() {
           ${colsHtml}
         </div>
       </div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.2);text-align:center;margin-top:4px">&#8592; Swipe to navigate &#8594;</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.2);text-align:center;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:12px"><span>&#8592; Swipe &#8594;</span><button onclick="koFsOpen()" style="padding:5px 16px;border-radius:99px;border:1px solid #C9A84C;background:rgba(201,168,76,0.1);color:#C9A84C;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">&#x26F3; Full view</button></div>
     </div>`;
 
   } catch(e){ console.error('renderKnockout:',e.message,e.stack); }
@@ -9420,6 +9420,44 @@ function openApiKeyModal() {
 })();
 
 init();
+function koFsOpen() {
+  var overlay = document.getElementById('ko-fs');
+  var canvas  = document.getElementById('ko-fs-canvas');
+  var exitBtn = document.getElementById('ko-fs-exit');
+  // The bracket is the position:relative div inside knockout-content
+  var src = document.querySelector('#knockout-content [style*="position:relative"]');
+  if (!src) { alert('Bracket not found'); return; }
+  // Clone it
+  canvas.innerHTML = '';
+  var clone = src.cloneNode(true);
+  canvas.appendChild(clone);
+  overlay.classList.add('on');
+  exitBtn.classList.add('on');
+  // Rotate and scale to fit phone in landscape
+  var bw = src.offsetWidth;
+  var bh = src.offsetHeight;
+  var sw = window.innerWidth;
+  var sh = window.innerHeight;
+  // After 90deg rotation: bracket width maps to screen height, bracket height to screen width
+  var scale = Math.min((sh - 60) / bw, (sw - 60) / bh);
+  // Position: centre of screen
+  var cx = sw / 2;
+  var cy = sh / 2;
+  canvas.style.width  = bw + 'px';
+  canvas.style.height = bh + 'px';
+  canvas.style.left   = Math.round(cx - bh * scale / 2) + 'px';
+  canvas.style.top    = Math.round(cy - bw * scale / 2) + 'px';
+  canvas.style.transformOrigin = 'top left';
+  canvas.style.transform = 'rotate(90deg) scale(' + scale + ')';
+}
+function koFsExit() {
+  document.getElementById('ko-fs').classList.remove('on');
+  document.getElementById('ko-fs-exit').classList.remove('on');
+  document.getElementById('ko-fs-canvas').innerHTML = '';
+}
+
 </script>
+  <div id="ko-fs"><div id="ko-fs-canvas"></div></div>
+  <button id="ko-fs-exit" onclick="koFsExit()">✕ Exit full view</button>
 </body>
 </html>
