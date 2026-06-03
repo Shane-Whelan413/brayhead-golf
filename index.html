@@ -825,8 +825,8 @@
     animation: spin 0.7s linear infinite;
     flex-shrink: 0;
   }
-  #ko-fs { display:none; position:fixed; inset:0; background:#0a1628; z-index:9999; overflow:auto; -webkit-overflow-scrolling:touch; }
-  #ko-fs.on { display:block; }
+  #ko-fs { display:none; position:fixed; inset:0; background:#0a1628; z-index:9999; overflow:hidden; align-items:center; justify-content:center; }
+  #ko-fs.on { display:flex; }
   #ko-fs-exit { display:none; position:fixed; top:14px; right:14px; z-index:10000; width:44px; height:44px; border-radius:50%; background:rgba(201,168,76,0.2); border:1.5px solid #C9A84C; color:#C9A84C; font-size:20px; cursor:pointer; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; }
   #ko-fs-exit.on { display:flex; }
 </style>
@@ -9437,33 +9437,44 @@ function koFsOpen() {
   document.getElementById('ko-fs-exit').classList.add('on');
   try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(function(){}); } catch(e) {}
   try { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); } catch(e) {}
-  // Scale bracket to fit screen
+  // Rotate and scale to fill screen in landscape
   setTimeout(function() {
+    const overlay = document.getElementById('ko-fs');
     const wrap = inner.querySelector('[style*="position:relative"]');
     if (!wrap) return;
-    const bracketW = wrap.offsetWidth;
-    const bracketH = wrap.offsetHeight;
-    const screenW = window.innerWidth;
-    const screenH = window.innerHeight - 80; // leave room for exit btn
-    const scaleX = screenW / bracketW;
-    const scaleY = screenH / bracketH;
-    const scale = Math.min(scaleX, scaleY, 1); // never upscale
-    wrap.style.transform = 'scale(' + scale + ')';
-    wrap.style.transformOrigin = 'top left';
-    inner.style.width = Math.round(bracketW * scale) + 'px';
-    inner.style.height = Math.round(bracketH * scale) + 'px';
-    inner.style.overflow = 'hidden';
+    // Screen dimensions — use portrait dimensions since phone may still be portrait
+    const sw = Math.max(window.innerWidth, window.innerHeight);  // landscape width
+    const sh = Math.min(window.innerWidth, window.innerHeight);  // landscape height
+    const bw = wrap.offsetWidth;
+    const bh = wrap.offsetHeight;
+    const scale = Math.min((sw - 60) / bw, (sh - 60) / bh, 1);
+    // Apply rotation + scale to the overlay content
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    inner.style.transform = 'rotate(90deg) scale(' + scale + ')';
+    inner.style.transformOrigin = 'center center';
+    inner.style.width = bw + 'px';
+    inner.style.height = bh + 'px';
+    inner.style.overflow = 'visible';
+    inner.style.padding = '0';
   }, 100);
 }
 function koFsExit() {
-  document.getElementById('ko-fs').classList.remove('on');
+  const overlay = document.getElementById('ko-fs');
+  const inner = document.getElementById('ko-fs-inner');
+  overlay.classList.remove('on');
+  overlay.style.display = '';
   document.getElementById('ko-fs-exit').classList.remove('on');
-  document.getElementById('ko-fs-inner').innerHTML = '';
+  inner.innerHTML = '';
+  inner.style.transform = '';
+  inner.style.width = '';
+  inner.style.height = '';
   try { screen.orientation && screen.orientation.unlock && screen.orientation.unlock(); } catch(e) {}
   try { document.exitFullscreen && document.exitFullscreen(); } catch(e) {}
 }
 </script>
-  <div id="ko-fs"><div id="ko-fs-inner" style="padding:60px 16px 24px"></div></div>
+  <div id="ko-fs"><div id="ko-fs-inner"></div></div>
   <button id="ko-fs-exit" onclick="koFsExit()">&#x2715;</button>
 </body>
 </html>
