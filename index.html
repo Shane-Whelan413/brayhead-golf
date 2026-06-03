@@ -9450,29 +9450,37 @@ function koFsOpen() {
 
   var finalRound = allRounds[allRounds.length-1];
 
-  // Find live round
   var live = allRounds[allRounds.length-1];
   for(var i=0;i<allRounds.length;i++){
     var r=allRounds[i];
     if(allMatches.filter(function(m){return m.round===r&&!m.is_bye&&m.status!=='complete';}).length>0){live=r;break;}
   }
 
-  // Smart round selection: show live round + any incomplete rounds before it
-  // Skip R1 always. Show only rounds from the live round backwards (max 3 side rounds)
-  var allSideRounds = allRounds.slice(1,-1); // exclude R1 and Final
-  var liveIdx = allSideRounds.indexOf(live);
-  if (liveIdx < 0) liveIdx = allSideRounds.length - 1;
-  // Show from liveIdx back, max 2 side rounds (so total = 2 + Final = 3 cols)
-  var startIdx = Math.max(0, liveIdx - 1);
-  var sideRounds = allSideRounds.slice(startIdx, liveIdx + 1);
+  // Show all side rounds that have any matches created (complete or not)
+  // Never hide a round that still has games to play
+  var allSideRounds = allRounds.slice(1,-1);
+  var sideRounds = allSideRounds.filter(function(r){
+    return allMatches.some(function(m){return m.round===r&&!m.is_bye;});
+  });
 
   function topHalf(r){var a=fullRounds[r];return a.slice(0,a.length/2);}
   function bottomHalf(r){var a=fullRounds[r];return a.slice(a.length/2);}
   function fn(n){return n?n.split(' ')[0]:'TBD';}
-
   var ROUND_NAMES={1:'R1',2:'R16',3:'QF',4:'SF',5:'Final'};
 
-  function cardHtml(m, fixedH) {
+  // Card height: based on the first (largest) side round's top half card count
+  var firstTopHalf = topHalf(sideRounds[0]);
+  var maxCards = firstTopHalf.length;
+  var CARD_GAP = 8;
+  // Available height for each half group
+  // Total: title(44) + topGroup + finalSection(100) + botGroup + closeBtn(70) + safeArea(32)
+  var availH = window.innerHeight - 44 - 100 - 70 - 32;
+  var halfAvail = Math.floor(availH / 2);
+  var HDR = 22;
+  var cardH = Math.min(62, Math.floor((halfAvail - HDR - (maxCards-1)*CARD_GAP) / maxCards));
+  var groupH = HDR + maxCards*cardH + (maxCards-1)*CARD_GAP;
+
+  function cardHtml(m) {
     var p1=db.players.find(function(p){return p.id===m.player1_id;});
     var p2=db.players.find(function(p){return p.id===m.player2_id;});
     var done=m.status==='complete';
@@ -9481,117 +9489,78 @@ function koFsOpen() {
     var isTbd=!m.player1_id&&!m.player2_id&&!m.is_bye;
     var border=isLive?'1.5px solid #C9A84C':isTbd?'1px dashed rgba(255,255,255,0.1)':'0.5px solid rgba(255,255,255,0.12)';
     var bg=isTbd?'rgba(255,255,255,0.02)':'#1a3050';
-    var heightStyle = fixedH ? 'height:'+fixedH+'px;' : 'height:100%;';
     function rowHtml(player,won,lost){
       var nm=player?fn(player.name):(m.is_bye&&m.winner_id?fn((db.players.find(function(p){return p.id===m.winner_id;})||{name:'?'}).name)+' ·bye':'TBD');
       var rowBg=won?'background:rgba(22,163,74,0.12)':'';
       var col=won?'#4ade80':lost?'rgba(255,255,255,0.25)':(!player?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.9)');
-      var fw=won?'700':'400';
-      return '<div style="height:50%;display:flex;align-items:center;padding:0 8px;gap:4px;'+rowBg+'">'+
-        '<span style="flex:1;font-size:12px;font-weight:'+fw+';color:'+col+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nm+'</span>'+
+      return '<div style="height:50%;display:flex;align-items:center;padding:0 8px;'+rowBg+'">'+
+        '<span style="flex:1;font-size:12px;font-weight:'+(won?'700':'400')+';color:'+col+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nm+'</span>'+
         (won?'<span style="font-size:10px;color:#4ade80;flex-shrink:0">✓</span>':'')+
         '</div>';
     }
     var accent=isLive?'<div style="position:absolute;left:0;top:0;width:3px;height:100%;background:#C9A84C;border-radius:4px 0 0 4px"></div>':'';
-    return '<div style="position:relative;background:'+bg+';border:'+border+';border-radius:6px;overflow:hidden;'+heightStyle+'box-sizing:border-box">'+
-      accent+
-      rowHtml(p1,p1won,done&&!p1won)+
-      '<div style="height:0.5px;background:rgba(255,255,255,0.07);margin:0 6px"></div>'+
-      rowHtml(p2,p2won,done&&!p2won)+
+    return '<div style="position:relative;background:'+bg+';border:'+border+';border-radius:6px;overflow:hidden;height:'+cardH+'px;box-sizing:border-box">'+
+      accent+rowHtml(p1,p1won,done&&!p1won)+'<div style="height:0.5px;background:rgba(255,255,255,0.07);margin:0 6px"></div>'+rowHtml(p2,p2won,done&&!p2won)+
       '</div>';
   }
 
   function hdrHtml(r) {
-    var nm=ROUND_NAMES[r]||('R'+r);
-    var isLive=r===live, isDone=r<live;
+    var nm=ROUND_NAMES[r]||('R'+r), isLive=r===live, isDone=r<live;
     var bg=isLive?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.05)';
-    var border=isLive?'1px solid #C9A84C':'0.5px solid rgba(255,255,255,0.1)';
+    var bdr=isLive?'1px solid #C9A84C':'0.5px solid rgba(255,255,255,0.1)';
     var col=isLive?'#C9A84C':isDone?'rgba(255,255,255,0.4)':'rgba(255,255,255,0.35)';
     return '<div style="display:flex;justify-content:center;margin-bottom:5px">'+
-      '<div style="padding:2px 10px;border-radius:99px;background:'+bg+';border:'+border+';font-size:9px;font-weight:700;color:'+col+'">'+
-      (isLive?'● ':'')+nm+(isDone?' ✓':'')+
-      '</div></div>';
+      '<div style="padding:2px 10px;border-radius:99px;background:'+bg+';border:'+bdr+';font-size:9px;font-weight:700;color:'+col+'">'+(isLive?'● ':'')+nm+(isDone?' ✓':'')+'</div></div>';
   }
 
-  // Build a column of cards — all same fixed height
-  // cardH is passed in so top and bottom halves use identical heights
-  function colCards(half, cardH) {
-    return half.map(function(m){
-      return '<div style="height:'+cardH+'px;flex-shrink:0">'+cardHtml(m, cardH)+'</div>';
-    }).join('<div style="height:6px;flex-shrink:0"></div>');
-  }
-
-  var leftByRound  = sideRounds.map(topHalf);
-  var rightByRound = sideRounds.map(bottomHalf);
-
-  // Calculate card height so groups fit nicely
-  // Available height: screen - title(44) - divider(20) - final(80) - close btn(60) - safe areas(32)
-  var screenH = window.innerHeight;
-  var usedH = 44 + 20 + 80 + 60 + 32;
-  var groupH = Math.floor((screenH - usedH) / 2);
-  // Each group has: hdr(20) + cards + gaps
-  var maxCards = Math.max(
-    leftByRound[0] ? leftByRound[0].length : 0,
-    rightByRound[0] ? rightByRound[0].length : 0
-  );
-  var cardH = Math.min(58, Math.floor((groupH - 20 - (maxCards-1)*6) / maxCards));
-  var groupActualH = 20 + maxCards*cardH + (maxCards-1)*6;
-
-  // Final card same height as a regular card
-  var finalCardH = cardH;
-
-  // Build side columns HTML - all cards same height
-  function buildSideCol(byRound, isTop) {
+  // Build one side (top or bottom) as a row of columns
+  // Each column has its cards stacked, CENTRED vertically within groupH
+  function buildHalf(byRound, isTop) {
     var cols = byRound.map(function(half, ri) {
       var r = sideRounds[ri];
-      var cards = colCards(half, cardH);
-      if (isTop) {
-        return '<div style="display:flex;flex-direction:column;flex:1;min-width:0">'+
+      // Cards stacked, centred in the groupH space
+      var cardsH = half.length*cardH + (half.length-1)*CARD_GAP;
+      var topPad = Math.floor((groupH - HDR - cardsH) / 2);
+      var cards = half.map(function(m){
+        return '<div style="flex-shrink:0">'+cardHtml(m)+'</div>';
+      }).join('<div style="height:'+CARD_GAP+'px;flex-shrink:0"></div>');
+
+      if(isTop){
+        return '<div style="flex:1;min-width:0;display:flex;flex-direction:column">'+
           hdrHtml(r)+
-          '<div style="display:flex;flex-direction:column">'+cards+'</div>'+
+          '<div style="display:flex;flex-direction:column;justify-content:center;flex:1">'+cards+'</div>'+
           '</div>';
       } else {
-        return '<div style="display:flex;flex-direction:column;flex:1;min-width:0">'+
-          '<div style="display:flex;flex-direction:column">'+cards+'</div>'+
+        return '<div style="flex:1;min-width:0;display:flex;flex-direction:column">'+
+          '<div style="display:flex;flex-direction:column;justify-content:center;flex:1">'+cards+'</div>'+
           hdrHtml(r)+
           '</div>';
       }
     }).join('<div style="width:8px;flex-shrink:0"></div>');
-    return cols;
+    return '<div style="height:'+groupH+'px;display:flex;align-items:stretch">'+cols+'</div>';
   }
 
-  // Final card
   var finalM=(fullRounds[finalRound]&&fullRounds[finalRound][0])||{id:'final',status:'pending',player1_id:null,player2_id:null,is_bye:false,winner_id:null,round:finalRound,match_number:1};
+  var leftByRound  = sideRounds.map(topHalf);
+  var rightByRound = sideRounds.map(bottomHalf);
 
   var html =
     '<div style="background:#0a1628;position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;padding:env(safe-area-inset-top,16px) 12px 0;box-sizing:border-box">'+
-
-    // Title
     '<div style="text-align:center;padding:8px 0 10px;font-size:14px;font-weight:700;color:#C9A84C;flex-shrink:0">2026 Knockout Bracket</div>'+
-
-    // Top half
-    '<div style="display:flex;align-items:flex-start;gap:0;flex-shrink:0;height:'+groupActualH+'px">'+
-      buildSideCol(leftByRound, true)+
-    '</div>'+
-
-    // Final in the middle
-    '<div style="flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 0">'+
+    buildHalf(leftByRound, true)+
+    // Final centred between halves
+    '<div style="flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:8px 0">'+
       '<div style="flex:1;height:0.5px;background:rgba(255,255,255,0.08)"></div>'+
-      '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:120px">'+
-        '<div style="font-size:18px">🏆</div>'+
+      '<div style="padding:0 16px;display:flex;flex-direction:column;align-items:center;gap:4px">'+
+        '<div style="font-size:16px">🏆</div>'+
         hdrHtml(finalRound)+
-        '<div style="width:100%;height:'+finalCardH+'px">'+cardHtml(finalM, finalCardH)+'</div>'+
+        '<div style="width:160px">'+cardHtml(finalM)+'</div>'+
       '</div>'+
       '<div style="flex:1;height:0.5px;background:rgba(255,255,255,0.08)"></div>'+
     '</div>'+
-
-    // Bottom half
-    '<div style="display:flex;align-items:flex-start;gap:0;flex-shrink:0;height:'+groupActualH+'px">'+
-      buildSideCol(rightByRound, false)+
-    '</div>'+
-
-    // Close button
-    '<div style="flex:1;display:flex;align-items:flex-end;padding-bottom:max(env(safe-area-inset-bottom,12px),12px)">'+
+    buildHalf(rightByRound, false)+
+    '<div style="flex:1"></div>'+
+    '<div style="padding:12px 0 max(env(safe-area-inset-bottom,12px),12px);flex-shrink:0">'+
       '<button onclick="koFsExit()" style="width:100%;padding:14px;border-radius:99px;border:none;background:#C9A84C;color:#0a1628;font-size:16px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif">✕  Close</button>'+
     '</div>'+
     '</div>';
@@ -9605,6 +9574,7 @@ function koFsExit() {
   overlay.classList.remove('on');
   overlay.innerHTML = '';
 }
+
 
 
 
