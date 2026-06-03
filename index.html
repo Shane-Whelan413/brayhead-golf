@@ -9471,13 +9471,13 @@ function koFsOpen() {
   // Card height: based on the first (largest) side round's top half card count
   var firstTopHalf = topHalf(sideRounds[0]);
   var maxCards = firstTopHalf.length;
-  var CARD_GAP = 8;
+  var colW = Math.floor((window.innerWidth - 24 - (sideRounds.length-1)*8) / (sideRounds.length * 2));
   // Available height for each half group
   // Total: title(44) + topGroup + finalSection(100) + botGroup + closeBtn(70) + safeArea(32)
   var availH = window.innerHeight - 44 - 100 - 70 - 32;
   var halfAvail = Math.floor(availH / 2);
   var HDR = 22;
-  var cardH = Math.min(32, Math.floor((halfAvail - HDR - (maxCards-1)*CARD_GAP) / maxCards));
+  var cardH = Math.min(62, Math.floor((halfAvail - HDR - (maxCards-1)*CARD_GAP) / maxCards));
   var groupH = HDR + maxCards*cardH + (maxCards-1)*CARD_GAP;
 
   function cardHtml(m) {
@@ -9526,12 +9526,12 @@ function koFsOpen() {
       }).join('<div style="height:'+CARD_GAP+'px;flex-shrink:0"></div>');
 
       if(isTop){
-        return '<div style="flex:1;min-width:0;display:flex;flex-direction:column">'+
+        return '<div style="flex:0 0 '+colW+'px;min-width:0;display:flex;flex-direction:column">'+
           hdrHtml(r)+
           '<div style="display:flex;flex-direction:column;justify-content:center;flex:1">'+cards+'</div>'+
           '</div>';
       } else {
-        return '<div style="flex:1;min-width:0;display:flex;flex-direction:column">'+
+        return '<div style="flex:0 0 '+colW+'px;min-width:0;display:flex;flex-direction:column">'+
           '<div style="display:flex;flex-direction:column;justify-content:center;flex:1">'+cards+'</div>'+
           hdrHtml(r)+
           '</div>';
