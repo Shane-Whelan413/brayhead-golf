@@ -8051,181 +8051,171 @@ function renderKnockout() {
     const pid = currentUser?.playerId;
 
     const adminBtns = isAdmin ? `
-      <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;position:relative">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;position:relative">
         <button onclick="toggleKoAdminMenu()" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.12);color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">
-          &#9881; Admin <span style="font-size:10px;opacity:0.6">▾</span>
+          &#9881; Admin <span style="font-size:10px;opacity:0.6">&#9660;</span>
         </button>
         <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#1a3050;border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:50;min-width:180px;overflow:hidden">
-          ${matches.length===0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Set up draw</button>`:""}
-          ${matches.length>0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">&#9999;&#65039; Edit draw</button>`:""}
-          ${matches.length>0?`<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">&#128203; Post fixtures</button>`:""}
-          ${matches.length>0?`<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8)">&#128202; Post results</button>`:""}
+          ${matches.length===0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Set up draw</button>':""}
+          ${matches.length>0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Edit draw</button>':""}
+          ${matches.length>0?'<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Post fixtures</button>':""}
+          ${matches.length>0?'<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8)">Post results</button>':""}
         </div>
       </div>` : "";
 
     if (!matches.length) {
-      el.innerHTML = adminBtns + '<div style="padding:3rem;text-align:center;color:rgba(255,255,255,0.4)">No knockout draw yet</div>';
+      el.innerHTML = '<div style="background:#0a1628;border-radius:12px;padding:3rem;text-align:center;color:rgba(255,255,255,0.4)">No knockout draw yet</div>';
       return;
     }
 
     let liveRound = rounds[rounds.length - 1];
     for (const r of rounds) {
-      if (matches.filter(m => m.round===r && !m.is_bye && m.status!=="complete").length > 0) { liveRound = r; break; }
+      if (matches.filter(m=>m.round===r&&!m.is_bye&&m.status!=="complete").length>0){liveRound=r;break;}
+    }
+
+    // Fixed heights so CSS connector lines align exactly
+    const ROW_H   = 30;  // each player row
+    const CARD_H  = ROW_H * 2 + 1; // two rows + divider
+    const CARD_MB = 12;
+    const HDR_H   = 44;
+
+    function pRow(player, won, lost, isMe, avail, done) {
+      const name = player ? player.name : "TBD";
+      const isTbd = !player;
+      const rowBg = won ? "background:#071220" : lost ? "background:rgba(0,0,0,0.2)" : "";
+      const nameSt = won ? "font-weight:700;color:white" : lost ? "color:rgba(255,255,255,0.28)" : isTbd ? "color:rgba(255,255,255,0.22)" : "color:rgba(255,255,255,0.9)";
+      const avBg = won ? "background:#C9A84C;color:#0a1628" : isTbd ? "background:transparent;border:1px dashed rgba(255,255,255,0.18);color:rgba(255,255,255,0.22)" : "background:#0f2240;color:#C9A84C";
+      const ring = isMe&&!won&&!lost ? ";box-shadow:0 0 0 2px #C9A84C" : "";
+      const badge = won ? '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(201,168,76,0.18);color:#C9A84C;flex-shrink:0">Won</span>'
+        : lost ? '<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.28);flex-shrink:0">Lost</span>'
+        : !done&&player&&avail ? '<span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:99px;background:rgba(22,163,74,0.18);color:#4ade80;flex-shrink:0">&#10003;</span>'
+        : "";
+      return `<div style="display:flex;align-items:center;gap:6px;padding:0 10px;height:${ROW_H}px;box-sizing:border-box;${rowBg}">
+        <div style="width:20px;height:20px;border-radius:50%;${avBg};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0${ring}">${isTbd?"&#8212;":initials(name)}</div>
+        <div style="flex:1;font-size:12px;${nameSt};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isTbd?'<i style="font-style:italic;opacity:.45">TBD</i>':name}</div>
+        ${badge}
+      </div>`;
     }
 
     function matchCard(m) {
-      const p1 = db.players.find(p => p.id === m.player1_id);
-      const p2 = db.players.find(p => p.id === m.player2_id);
-      const done = m.status === "complete";
-      const isMyMatch = m.round===liveRound && pid && !done && (m.player1_id===pid||m.player2_id===pid);
+      const p1 = db.players.find(p=>p.id===m.player1_id);
+      const p2 = db.players.find(p=>p.id===m.player2_id);
+      const done = m.status==="complete";
+      const isMyMatch = m.round===liveRound&&pid&&!done&&(m.player1_id===pid||m.player2_id===pid);
       const fresh = isAvailabilityFresh(m);
-      const p1avail = fresh && m.p1_available;
-      const p2avail = fresh && m.p2_available;
-      const bothAvail = p1avail && p2avail;
-      const myAvail = fresh && (m.player1_id===pid ? m.p1_available : m.p2_available);
-      const p1won = done && m.winner_id===m.player1_id;
-      const p2won = done && m.winner_id===m.player2_id;
-      const isTbd = !m.player1_id && !m.player2_id;
+      const p1avail = fresh&&m.p1_available;
+      const p2avail = fresh&&m.p2_available;
+      const bothAvail = p1avail&&p2avail;
+      const myAvail = fresh&&(m.player1_id===pid?m.p1_available:m.p2_available);
+      const p1won = done&&m.winner_id===m.player1_id;
+      const p2won = done&&m.winner_id===m.player2_id;
+      const isTbd = !m.player1_id&&!m.player2_id;
 
-      function pRow(player, won, lost, isMe, avail) {
-        const name = player ? player.name : "TBD";
-        const isTbdP = !player;
-        const rowBg = won ? "background:#0a1628" : lost ? "background:rgba(0,0,0,0.15)" : "";
-        const nameSt = won ? "font-weight:700;color:white" : lost ? "color:rgba(255,255,255,0.25)" : isTbdP ? "color:rgba(255,255,255,0.25)" : "color:rgba(255,255,255,0.85)";
-        const avBg = won ? "background:#C9A84C;color:#0a1628" : isTbdP ? "background:transparent;border:1px dashed rgba(255,255,255,0.15);color:rgba(255,255,255,0.25)" : "background:#1e3a5f;color:#C9A84C";
-        const ring = isMe && !won && !lost ? ";box-shadow:0 0 0 2px #C9A84C" : "";
-        const badge = won ? '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(201,168,76,0.2);color:#C9A84C;flex-shrink:0">Won</span>'
-          : lost ? '<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.3);flex-shrink:0">Lost</span>'
-          : !done && player && avail ? '<span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:99px;background:rgba(22,163,74,0.2);color:#4ade80;flex-shrink:0">&#10003;</span>'
-          : "";
-        return `<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;${rowBg}">
-          <div style="width:22px;height:22px;border-radius:50%;${avBg};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0${ring}">${isTbdP?"—":initials(name)}</div>
-          <div style="flex:1;font-size:12px;${nameSt};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isTbdP?'<span style="font-style:italic">TBD</span>':name}</div>
-          ${badge}
-        </div>`;
-      }
+      const border = bothAvail?"1.5px solid rgba(22,163,74,0.55)":isMyMatch?"1.5px solid #C9A84C":done?"0.5px solid rgba(255,255,255,0.07)":"0.5px solid rgba(255,255,255,0.12)";
+      const bg = isTbd?"rgba(255,255,255,0.02)":"#1a3050";
 
-      const border = bothAvail ? "border:1.5px solid rgba(22,163,74,0.5)"
-        : isMyMatch ? "border:1.5px solid #C9A84C"
-        : isTbd ? "border:1px dashed rgba(255,255,255,0.12)"
-        : done ? "border:0.5px solid rgba(255,255,255,0.08)"
-        : "border:0.5px solid rgba(255,255,255,0.12)";
-      const bg = isTbd ? "background:rgba(255,255,255,0.03);border-style:dashed" : "background:#1a3050";
+      const myCallout = isMyMatch?'<div style="padding:2px 8px;background:rgba(201,168,76,0.15);border-bottom:0.5px solid rgba(201,168,76,0.2);font-size:8px;font-weight:700;color:#C9A84C;letter-spacing:.08em;text-align:center">YOUR MATCH</div>':"";
+      const banner = bothAvail?'<div style="padding:2px 8px;background:rgba(22,163,74,0.1);border-bottom:0.5px solid rgba(22,163,74,0.18);font-size:8px;font-weight:600;color:#4ade80;text-align:center">Both available!</div>':"";
+      const availStrip = isMyMatch?`<div onclick="toggleMatchAvailability('${m.id}')" style="padding:5px 8px;background:${myAvail?"rgba(22,163,74,0.1)":"rgba(201,168,76,0.07)"};border-top:0.5px solid ${myAvail?"rgba(22,163,74,0.18)":"rgba(201,168,76,0.15)"};font-size:10px;font-weight:600;color:${myAvail?"#4ade80":"#C9A84C"};cursor:pointer;text-align:center">${myAvail?"&#10003; Available &#8212; undo":"Tap to confirm availability"}</div>`:"";
+      const adminSettle = isAdmin&&!done?`<div onclick="showMatchEntry('${m.id}')" style="padding:4px 8px;background:rgba(201,168,76,0.07);border-top:0.5px solid rgba(201,168,76,0.12);font-size:10px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center">&#9881; Settle match</div>`:"";
 
-      const myCallout = isMyMatch ? '<div style="padding:3px 8px;background:rgba(201,168,76,0.15);border-bottom:0.5px solid rgba(201,168,76,0.25);font-size:9px;font-weight:700;color:#C9A84C;letter-spacing:.06em">YOUR MATCH</div>' : "";
-      const banner = bothAvail ? '<div style="padding:3px 8px;background:rgba(22,163,74,0.12);border-bottom:0.5px solid rgba(22,163,74,0.2);font-size:9px;font-weight:600;color:#4ade80;text-align:center">&#9971; Both available!</div>' : "";
-      const availStrip = isMyMatch ? `<div onclick="toggleMatchAvailability('${m.id}')" style="padding:6px 8px;background:${myAvail?"rgba(22,163,74,0.1)":"rgba(201,168,76,0.07)"};border-top:0.5px solid ${myAvail?"rgba(22,163,74,0.2)":"rgba(201,168,76,0.15)"};font-size:10px;font-weight:600;color:${myAvail?"#4ade80":"#C9A84C"};cursor:pointer;text-align:center">${myAvail?"&#10003; Available — tap to undo":"Tap to confirm availability"}</div>` : "";
-      const adminSettle = isAdmin && !done ? `<div onclick="showMatchEntry('${m.id}')" style="padding:4px 8px;background:rgba(201,168,76,0.08);border-top:0.5px solid rgba(201,168,76,0.15);font-size:10px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center">&#9881; Settle match</div>` : "";
-
-      return `<div id="ko-card-${m.id}" style="${bg};${border};border-radius:8px;overflow:hidden;margin-bottom:10px">
+      return `<div style="background:${bg};border:${border};border-radius:8px;overflow:hidden">
         ${myCallout}${banner}
-        ${pRow(p1,p1won,done&&!p1won,pid===m.player1_id,p1avail)}
-        <div style="height:0.5px;background:rgba(255,255,255,0.08);margin:0 8px"></div>
-        ${pRow(p2,p2won,done&&!p2won,pid===m.player2_id,p2avail)}
+        ${pRow(p1,p1won,done&&!p1won,pid===m.player1_id,p1avail,done)}
+        <div style="height:1px;background:rgba(255,255,255,0.07);margin:0 8px"></div>
+        ${pRow(p2,p2won,done&&!p2won,pid===m.player2_id,p2avail,done)}
         ${availStrip}${adminSettle}
       </div>`;
     }
 
-    const CARD_W = 168;
-    const GAP_W = 48;
-
-    const colsHtml = rounds.map((r, ri) => {
-      const rMatches = matches.filter(m => m.round===r && !m.is_bye);
-      const isLive = r === liveRound;
+    // CSS connector column between rounds
+    // Each pair of cards in round N feeds one card in round N+1
+    // Top half of pair: border-right + border-bottom
+    // Bottom half of pair: border-right + border-top
+    function connectorCol(r, ri) {
+      const rMatches = matches.filter(m=>m.round===r&&!m.is_bye);
+      const nextRound = rounds[ri+1];
+      if (!nextRound) return "";
+      const nextMatches = matches.filter(m=>m.round===nextRound&&!m.is_bye);
       const isDone = r < liveRound;
-      const isFinal = ri === rounds.length - 1;
-      const roundName = ROUND_NAMES[r] || ("Round " + r);
+      const lc = isDone ? "#C9A84C" : "rgba(255,255,255,0.18)";
+      const lw = isDone ? "1.5px" : "1px";
+
+      let cells = `<div style="height:${HDR_H}px"></div>`;
+      for (let mi = 0; mi < nextMatches.length; mi++) {
+        // Each pair = CARD_H + CARD_MB + CARD_H
+        const halfH = (CARD_H + CARD_MB + CARD_H) / 2;
+        cells += `<div style="height:${halfH}px;border-right:${lw} solid ${lc};border-bottom:${lw} solid ${lc};box-sizing:border-box;margin-right:4px"></div>`;
+        cells += `<div style="height:${halfH}px;border-right:${lw} solid ${lc};border-top:${lw} solid ${lc};box-sizing:border-box;margin-right:4px"></div>`;
+        if (mi < nextMatches.length - 1) {
+          cells += `<div style="height:${CARD_MB}px"></div>`;
+        }
+      }
+      return `<div style="width:28px;flex-shrink:0;display:flex;flex-direction:column">${cells}</div>`;
+    }
+
+    // Horizontal connector from right side of connector to left side of next card
+    // This is just the horizontal gap — handled by the right-border of connector col
+    // We add a small dot/nub on the right to make it feel connected
+    function gapCol(r, ri) {
+      const rMatches = matches.filter(m=>m.round===r&&!m.is_bye);
+      const nextRound = rounds[ri+1];
+      if (!nextRound) return "";
+      const nextMatches = matches.filter(m=>m.round===nextRound&&!m.is_bye);
+      const isDone = r < liveRound;
+      const lc = isDone ? "#C9A84C" : "rgba(255,255,255,0.18)";
+      const lw = isDone ? "1.5px" : "1px";
+
+      let cells = `<div style="height:${HDR_H}px"></div>`;
+      for (let mi = 0; mi < nextMatches.length; mi++) {
+        const fullH = CARD_H + CARD_MB + CARD_H + (mi < nextMatches.length - 1 ? CARD_MB : 0);
+        const midY = (CARD_H + CARD_MB + CARD_H) / 2;
+        cells += `<div style="height:${midY}px;border-bottom:${lw} solid ${lc};box-sizing:border-box"></div>`;
+        cells += `<div style="height:${fullH - midY}px"></div>`;
+      }
+      return `<div style="width:10px;flex-shrink:0;display:flex;flex-direction:column">${cells}</div>`;
+    }
+
+    let bracketHtml = '<div style="display:flex;align-items:flex-start">';
+    rounds.forEach((r, ri) => {
+      const rMatches = matches.filter(m=>m.round===r&&!m.is_bye);
+      const isLive = r===liveRound;
+      const isDone = r<liveRound;
+      const isFinal = ri===rounds.length-1;
+      const roundName = ROUND_NAMES[r]||("Round "+r);
       const pillStyle = isLive
         ? "background:#1e3a5f;border:1px solid #C9A84C;color:#C9A84C"
         : isDone
         ? "background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.35)"
         : "background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5)";
-      const pillLabel = isLive ? "&#9679;&nbsp;" + roundName : isDone ? roundName + "&nbsp;&#10003;" : roundName;
-      const trophy = isFinal ? "&nbsp;&#127942;" : "";
-      return `<div id="ko-col-${r}" style="flex-shrink:0;width:${CARD_W}px;scroll-snap-align:start">
-        <div style="text-align:center;margin-bottom:12px">
-          <div style="display:inline-block;padding:4px 12px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.05em;${pillStyle}">${pillLabel}${trophy}</div>
+      const pillLabel = isLive?"&#9679;&nbsp;"+roundName:isDone?roundName+"&nbsp;&#10003;":roundName;
+      const trophy = isFinal?"&nbsp;&#127942;":"";
+
+      bracketHtml += `<div style="flex-shrink:0;width:168px">
+        <div style="height:${HDR_H}px;display:flex;align-items:center;justify-content:center">
+          <div style="display:inline-block;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.05em;${pillStyle}">${pillLabel}${trophy}</div>
         </div>
-        ${rMatches.map(m => matchCard(m)).join("")}
+        ${rMatches.map(m=>`<div style="margin-bottom:${CARD_MB}px">${matchCard(m)}</div>`).join("")}
       </div>`;
-    }).join("");
 
-    const totalW = rounds.length * CARD_W + (rounds.length - 1) * GAP_W;
+      if (ri < rounds.length - 1) {
+        bracketHtml += connectorCol(r, ri);
+        bracketHtml += gapCol(r, ri);
+      }
+    });
+    bracketHtml += '</div>';
 
-    el.innerHTML = `<div style="background:#0a1628;border-radius:12px;padding:16px">
+    el.innerHTML = `<div style="background:#0a1628;border-radius:12px;padding:16px 14px">
       ${adminBtns}
-      <div id="ko-bracket-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px;scroll-snap-type:x mandatory">
-        <div id="ko-bracket-inner" style="position:relative;min-width:${totalW}px;display:flex;gap:${GAP_W}px;align-items:flex-start;padding:2px">
-          <svg id="ko-svg" style="position:absolute;top:0;left:0;pointer-events:none;overflow:visible;z-index:0" width="${totalW}" height="1000"></svg>
-          ${colsHtml}
-        </div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px">
+        ${bracketHtml}
       </div>
-      ${rounds.length > 2 ? '<div style="font-size:11px;color:rgba(255,255,255,0.25);text-align:center;margin-top:8px">&#8592; Scroll to see all rounds &#8594;</div>' : ""}
+      <div style="font-size:11px;color:rgba(255,255,255,0.2);text-align:center;margin-top:10px">&#8592; Swipe to see all rounds &#8594;</div>
     </div>`;
 
-    // Draw connector lines using actual DOM positions
-    requestAnimationFrame(() => {
-      const inner = document.getElementById('ko-bracket-inner');
-      const svg = document.getElementById('ko-svg');
-      if (!inner || !svg) return;
-      let paths = "";
-      const svgH = inner.scrollHeight + 20;
-      svg.setAttribute('height', svgH);
-
-      // Use offset positions — scroll-independent and parent-relative
-      function getOffsetPos(el) {
-        let top = 0, left = 0;
-        let e = el;
-        while (e && e !== inner) {
-          top  += e.offsetTop;
-          left += e.offsetLeft;
-          e = e.offsetParent;
-        }
-        return { top, left, w: el.offsetWidth, h: el.offsetHeight };
-      }
-
-      for (let ri = 0; ri < rounds.length - 1; ri++) {
-        const r = rounds[ri];
-        const rNext = rounds[ri + 1];
-        const rMatches = matches.filter(m => m.round===r && !m.is_bye);
-        const rNextMatches = matches.filter(m => m.round===rNext && !m.is_bye);
-        const isDone = r < liveRound;
-        const stroke = isDone ? "#C9A84C" : "rgba(255,255,255,0.18)";
-        const sw = isDone ? "1.5" : "1";
-
-        for (let mi = 0; mi < rNextMatches.length; mi++) {
-          const topMatch = rMatches[mi * 2];
-          const botMatch = rMatches[mi * 2 + 1];
-          const destMatch = rNextMatches[mi];
-          if (!destMatch) continue;
-
-          const topEl = topMatch ? document.getElementById('ko-card-' + topMatch.id) : null;
-          const botEl = botMatch ? document.getElementById('ko-card-' + botMatch.id) : null;
-          const destEl = document.getElementById('ko-card-' + destMatch.id);
-          if ((!topEl && !botEl) || !destEl) continue;
-
-          const getY = (el) => { const p = getOffsetPos(el); return p.top + p.h / 2; };
-          const getRight = (el) => { const p = getOffsetPos(el); return p.left + p.w; };
-          const getLeft  = (el) => { const p = getOffsetPos(el); return p.left; };
-
-          const yTop  = topEl ? getY(topEl) : (botEl ? getY(botEl) : 0);
-          const yBot  = botEl ? getY(botEl) : yTop;
-          const yMid  = (yTop + yBot) / 2;
-          const yDest = getY(destEl);
-          const xLeft = topEl ? getRight(topEl) : (botEl ? getRight(botEl) : 0);
-          const xRight = getLeft(destEl);
-          const xMid  = xLeft + (xRight - xLeft) / 2;
-
-          paths += `<path d="M${xLeft},${yTop} H${xMid} V${yBot}" stroke="${stroke}" stroke-width="${sw}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
-          paths += `<path d="M${xMid},${yMid} H${xRight}" stroke="${stroke}" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
-          paths += `<circle cx="${xRight}" cy="${yDest}" r="2.5" fill="${stroke}"/>`;
-        }
-      }
-      svg.innerHTML = paths;
-    });
-
-  } catch(e) { console.error("renderKnockout error:", e.message); }
+  } catch(e) { console.error("renderKnockout error:",e.message); }
 }
+
 
 function toggleKoRound(r) {
   if (!window._koCollapsed) window._koCollapsed = {};
