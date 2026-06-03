@@ -8052,19 +8052,19 @@ function renderKnockout() {
 
     const adminBtns = isAdmin ? `
       <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;position:relative">
-        <button onclick="toggleKoAdminMenu()" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:#fef8e6;color:#633806;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">
+        <button onclick="toggleKoAdminMenu()" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.12);color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">
           &#9881; Admin <span style="font-size:10px;opacity:0.6">▾</span>
         </button>
-        <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:white;border:1px solid #e8e4de;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:50;min-width:180px;overflow:hidden">
-          ${matches.length===0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">Set up draw</button>`:""}
-          ${matches.length>0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">&#9999;&#65039; Edit draw</button>`:""}
-          ${matches.length>0?`<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">&#128203; Post fixtures</button>`:""}
-          ${matches.length>0?`<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510">&#128202; Post results</button>`:""}
+        <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#111f35;border:1px solid rgba(255,255,255,0.12);border-radius:10px;z-index:50;min-width:180px;overflow:hidden">
+          ${matches.length===0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Set up draw</button>`:""}
+          ${matches.length>0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">&#9999;&#65039; Edit draw</button>`:""}
+          ${matches.length>0?`<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">&#128203; Post fixtures</button>`:""}
+          ${matches.length>0?`<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8)">&#128202; Post results</button>`:""}
         </div>
       </div>` : "";
 
     if (!matches.length) {
-      el.innerHTML = adminBtns + '<div class="empty" style="padding:3rem;text-align:center;color:var(--text-2)">No knockout draw yet</div>';
+      el.innerHTML = adminBtns + '<div style="padding:3rem;text-align:center;color:rgba(255,255,255,0.4)">No knockout draw yet</div>';
       return;
     }
 
@@ -8073,17 +8073,11 @@ function renderKnockout() {
       if (matches.filter(m => m.round===r && !m.is_bye && m.status!=="complete").length > 0) { liveRound = r; break; }
     }
 
-    // Card dimensions
-    const CARD_W = 168;
-    const GAP_W = 48;  // gap between columns (where connector lines live)
-    const CARD_H = 74; // approx height of a match card (2 rows + divider)
-    const CARD_MB = 10; // margin-bottom between cards
-    const HDR_H = 46;  // header height (pill + spacing)
-
-    function matchCard(m, isMyMatch) {
+    function matchCard(m) {
       const p1 = db.players.find(p => p.id === m.player1_id);
       const p2 = db.players.find(p => p.id === m.player2_id);
       const done = m.status === "complete";
+      const isMyMatch = m.round===liveRound && pid && !done && (m.player1_id===pid||m.player2_id===pid);
       const fresh = isAvailabilityFresh(m);
       const p1avail = fresh && m.p1_available;
       const p2avail = fresh && m.p2_available;
@@ -8091,134 +8085,136 @@ function renderKnockout() {
       const myAvail = fresh && (m.player1_id===pid ? m.p1_available : m.p2_available);
       const p1won = done && m.winner_id===m.player1_id;
       const p2won = done && m.winner_id===m.player2_id;
+      const isTbd = !m.player1_id && !m.player2_id;
 
       function pRow(player, won, lost, isMe, avail) {
         const name = player ? player.name : "TBD";
-        const isTbd = !player;
-        const rowBg = won ? "background:#0a1628" : lost ? "background:rgba(0,0,0,0.02)" : "";
-        const nameSt = won ? "font-weight:700;color:white" : lost ? "color:var(--text-3)" : isTbd ? "color:var(--text-3)" : "color:var(--text)";
-        const avBg = won ? "background:#C9A84C;color:#0a1628" : isTbd ? "background:var(--bg);color:var(--text-3);border:1px dashed var(--border)" : "background:#0a1628;color:#C9A84C";
+        const isTbdP = !player;
+        const rowBg = won ? "background:#0a1628" : lost ? "background:rgba(0,0,0,0.15)" : "";
+        const nameSt = won ? "font-weight:700;color:white" : lost ? "color:rgba(255,255,255,0.25)" : isTbdP ? "color:rgba(255,255,255,0.25)" : "color:rgba(255,255,255,0.85)";
+        const avBg = won ? "background:#C9A84C;color:#0a1628" : isTbdP ? "background:transparent;border:1px dashed rgba(255,255,255,0.15);color:rgba(255,255,255,0.25)" : "background:#1e3a5f;color:#C9A84C";
         const ring = isMe && !won && !lost ? ";box-shadow:0 0 0 2px #C9A84C" : "";
         const badge = won ? '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(201,168,76,0.2);color:#C9A84C;flex-shrink:0">Won</span>'
-          : lost ? '<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(0,0,0,0.05);color:var(--text-3);flex-shrink:0">Lost</span>'
-          : !done && player && avail ? '<span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:99px;background:rgba(22,163,74,0.12);color:#16a34a;flex-shrink:0">&#10003;</span>'
+          : lost ? '<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.3);flex-shrink:0">Lost</span>'
+          : !done && player && avail ? '<span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:99px;background:rgba(22,163,74,0.2);color:#4ade80;flex-shrink:0">&#10003;</span>'
           : "";
-        return `<div style="display:flex;align-items:center;gap:6px;padding:7px 10px;${rowBg}">
-          <div style="width:22px;height:22px;border-radius:50%;${avBg};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0${ring}">${isTbd?"—":initials(name)}</div>
-          <div style="flex:1;font-size:12px;${nameSt};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isTbd?'<span style="font-style:italic;color:var(--text-3)">TBD</span>':name}</div>
+        return `<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;${rowBg}">
+          <div style="width:22px;height:22px;border-radius:50%;${avBg};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0${ring}">${isTbdP?"—":initials(name)}</div>
+          <div style="flex:1;font-size:12px;${nameSt};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isTbdP?'<span style="font-style:italic">TBD</span>':name}</div>
           ${badge}
         </div>`;
       }
 
-      const isTbdMatch = !m.player1_id && !m.player2_id;
       const border = bothAvail ? "border:1.5px solid rgba(22,163,74,0.5)"
         : isMyMatch ? "border:1.5px solid #C9A84C"
-        : isTbdMatch ? "border:1px dashed var(--border)"
-        : "border:0.5px solid var(--border)";
-      const bg = isTbdMatch ? "background:var(--bg)" : "background:var(--surface)";
+        : isTbd ? "border:1px dashed rgba(255,255,255,0.12)"
+        : done ? "border:0.5px solid rgba(255,255,255,0.08)"
+        : "border:0.5px solid rgba(255,255,255,0.12)";
+      const bg = isTbd ? "background:rgba(255,255,255,0.02)" : "background:#111f35";
 
-      const myCallout = isMyMatch ? '<div style="padding:3px 8px;background:#0a1628;border-bottom:0.5px solid rgba(201,168,76,0.3);font-size:9px;font-weight:700;color:#C9A84C;letter-spacing:.05em;text-transform:uppercase">Your match</div>' : "";
-      const banner = bothAvail ? '<div style="padding:3px 8px;background:rgba(22,163,74,0.1);border-bottom:0.5px solid rgba(22,163,74,0.2);font-size:9px;font-weight:600;color:#16a34a;text-align:center">&#9971; Both available!</div>' : "";
-      const availStrip = isMyMatch ? `<div onclick="toggleMatchAvailability('${m.id}')" style="padding:5px 8px;background:${myAvail?"rgba(22,163,74,0.1)":"rgba(201,168,76,0.08)"};border-top:0.5px solid ${myAvail?"rgba(22,163,74,0.2)":"rgba(201,168,76,0.2)"};font-size:10px;font-weight:600;color:${myAvail?"#16a34a":"#B8860B"};cursor:pointer;text-align:center">${myAvail?"&#10003; Available — undo":"Tap to confirm availability"}</div>` : "";
-      const adminSettle = isAdmin && !done ? `<div onclick="showMatchEntry('${m.id}')" style="padding:4px 8px;background:#0a1628;border-top:0.5px solid rgba(255,255,255,0.08);font-size:10px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center">&#9881; Settle</div>` : "";
+      const myCallout = isMyMatch ? '<div style="padding:3px 8px;background:rgba(201,168,76,0.15);border-bottom:0.5px solid rgba(201,168,76,0.25);font-size:9px;font-weight:700;color:#C9A84C;letter-spacing:.06em">YOUR MATCH</div>' : "";
+      const banner = bothAvail ? '<div style="padding:3px 8px;background:rgba(22,163,74,0.12);border-bottom:0.5px solid rgba(22,163,74,0.2);font-size:9px;font-weight:600;color:#4ade80;text-align:center">&#9971; Both available!</div>' : "";
+      const availStrip = isMyMatch ? `<div onclick="toggleMatchAvailability('${m.id}')" style="padding:6px 8px;background:${myAvail?"rgba(22,163,74,0.1)":"rgba(201,168,76,0.07)"};border-top:0.5px solid ${myAvail?"rgba(22,163,74,0.2)":"rgba(201,168,76,0.15)"};font-size:10px;font-weight:600;color:${myAvail?"#4ade80":"#C9A84C"};cursor:pointer;text-align:center">${myAvail?"&#10003; Available — tap to undo":"Tap to confirm availability"}</div>` : "";
+      const adminSettle = isAdmin && !done ? `<div onclick="showMatchEntry('${m.id}')" style="padding:4px 8px;background:rgba(201,168,76,0.08);border-top:0.5px solid rgba(201,168,76,0.15);font-size:10px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center">&#9881; Settle match</div>` : "";
 
-      return `<div style="${bg};${border};border-radius:8px;overflow:hidden">
+      return `<div id="ko-card-${m.id}" style="${bg};${border};border-radius:8px;overflow:hidden;margin-bottom:10px">
         ${myCallout}${banner}
         ${pRow(p1,p1won,done&&!p1won,pid===m.player1_id,p1avail)}
-        <div style="height:0.5px;background:var(--border);margin:0 8px"></div>
+        <div style="height:0.5px;background:rgba(255,255,255,0.08);margin:0 8px"></div>
         ${pRow(p2,p2won,done&&!p2won,pid===m.player2_id,p2avail)}
         ${availStrip}${adminSettle}
       </div>`;
     }
 
-    // Build columns HTML + track card positions for SVG lines
+    const CARD_W = 168;
+    const GAP_W = 48;
+
     const colsHtml = rounds.map((r, ri) => {
       const rMatches = matches.filter(m => m.round===r && !m.is_bye);
       const isLive = r === liveRound;
       const isDone = r < liveRound;
-      const roundName = ROUND_NAMES[r] || ("Round " + r);
       const isFinal = ri === rounds.length - 1;
-
-      // Round header pill
-      const pillBg = isLive ? "background:#0a1628;border:1px solid #C9A84C" : isDone ? "background:var(--bg);border:0.5px solid var(--border)" : "background:var(--bg);border:0.5px solid var(--border)";
-      const pillColor = isLive ? "color:#C9A84C" : isDone ? "color:var(--text-3)" : "color:var(--text-2)";
-      const pillLabel = isLive ? "&#9679; " + roundName : isDone ? roundName + " &#10003;" : roundName;
-      const trophy = isFinal ? ' &#127942;' : "";
-      const header = `<div style="text-align:center;margin-bottom:12px">
-        <div style="display:inline-block;padding:4px 12px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.05em;${pillBg};${pillColor}">${pillLabel}${trophy}</div>
+      const roundName = ROUND_NAMES[r] || ("Round " + r);
+      const pillStyle = isLive
+        ? "background:#1e3a5f;border:1px solid #C9A84C;color:#C9A84C"
+        : isDone
+        ? "background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.35)"
+        : "background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5)";
+      const pillLabel = isLive ? "&#9679;&nbsp;" + roundName : isDone ? roundName + "&nbsp;&#10003;" : roundName;
+      const trophy = isFinal ? "&nbsp;&#127942;" : "";
+      return `<div id="ko-col-${r}" style="flex-shrink:0;width:${CARD_W}px">
+        <div style="text-align:center;margin-bottom:12px">
+          <div style="display:inline-block;padding:4px 12px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.05em;${pillStyle}">${pillLabel}${trophy}</div>
+        </div>
+        ${rMatches.map(m => matchCard(m)).join("")}
       </div>`;
-
-      const isMyRound = r === liveRound;
-      const cards = rMatches.map(m => {
-        const isMyMatch = isMyRound && pid && m.status!=="complete" && (m.player1_id===pid||m.player2_id===pid);
-        return `<div style="margin-bottom:${CARD_MB}px">${matchCard(m, isMyMatch)}</div>`;
-      }).join("");
-
-      return `<div style="flex-shrink:0;width:${CARD_W}px">${header}${cards}</div>`;
     }).join("");
 
-    // SVG connecting lines — draw between each pair of rounds
-    // Each match in round[i] connects to one match in round[i+1]
-    // We need to estimate card midpoints based on their position in the column
-    function buildSvgLines() {
-      const numRounds = rounds.length;
-      if (numRounds < 2) return "";
-      const totalW = numRounds * CARD_W + (numRounds - 1) * GAP_W;
+    const totalW = rounds.length * CARD_W + (rounds.length - 1) * GAP_W;
 
+    el.innerHTML = `<div style="background:#0a1628;border-radius:12px;padding:16px">
+      ${adminBtns}
+      <div id="ko-bracket-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px">
+        <div id="ko-bracket-inner" style="position:relative;min-width:${totalW}px;display:flex;gap:${GAP_W}px;align-items:flex-start;padding:2px">
+          <svg id="ko-svg" style="position:absolute;top:0;left:0;pointer-events:none;overflow:visible;z-index:0" width="${totalW}" height="1000"></svg>
+          ${colsHtml}
+        </div>
+      </div>
+      ${rounds.length > 2 ? '<div style="font-size:11px;color:rgba(255,255,255,0.25);text-align:center;margin-top:8px">&#8592; Scroll to see all rounds &#8594;</div>' : ""}
+    </div>`;
+
+    // Draw connector lines using actual DOM positions
+    requestAnimationFrame(() => {
+      const inner = document.getElementById('ko-bracket-inner');
+      const svg = document.getElementById('ko-svg');
+      if (!inner || !svg) return;
+      const innerRect = inner.getBoundingClientRect();
       let paths = "";
+      const svgH = inner.scrollHeight + 20;
+      svg.setAttribute('height', svgH);
+
       for (let ri = 0; ri < rounds.length - 1; ri++) {
         const r = rounds[ri];
         const rNext = rounds[ri + 1];
         const rMatches = matches.filter(m => m.round===r && !m.is_bye);
         const rNextMatches = matches.filter(m => m.round===rNext && !m.is_bye);
+        const isDone = r < liveRound;
+        const stroke = isDone ? "#C9A84C" : "rgba(255,255,255,0.15)";
+        const sw = isDone ? "1.5" : "1";
 
-        // X positions: right edge of current col, left edge of next col
-        const xLeft = (ri + 1) * CARD_W + ri * GAP_W;   // right of col ri
-        const xRight = xLeft + GAP_W;                    // left of col ri+1
-
-        // Each pair of matches in current round feeds one match in next round
         for (let mi = 0; mi < rNextMatches.length; mi++) {
-          const top = rMatches[mi * 2];
-          const bot = rMatches[mi * 2 + 1];
-          const dest = rNextMatches[mi];
-          if (!dest) continue;
+          const topMatch = rMatches[mi * 2];
+          const botMatch = rMatches[mi * 2 + 1];
+          const destMatch = rNextMatches[mi];
+          if (!destMatch) continue;
 
-          // Y midpoint of each card = HDR_H + (cardIndex * (CARD_H + CARD_MB)) + CARD_H/2
-          const yTop  = HDR_H + (mi * 2)     * (CARD_H + CARD_MB) + CARD_H / 2;
-          const yBot  = HDR_H + (mi * 2 + 1) * (CARD_H + CARD_MB) + CARD_H / 2;
+          const topEl = topMatch ? document.getElementById('ko-card-' + topMatch.id) : null;
+          const botEl = botMatch ? document.getElementById('ko-card-' + botMatch.id) : null;
+          const destEl = document.getElementById('ko-card-' + destMatch.id);
+          if (!topEl && !botEl || !destEl) continue;
+
+          const getY = (el) => {
+            const r2 = el.getBoundingClientRect();
+            return (r2.top + r2.bottom) / 2 - innerRect.top;
+          };
+          const getRight = (el) => el.getBoundingClientRect().right - innerRect.left;
+          const getLeft  = (el) => el.getBoundingClientRect().left  - innerRect.left;
+
+          const yTop  = topEl ? getY(topEl) : (botEl ? getY(botEl) : 0);
+          const yBot  = botEl ? getY(botEl) : yTop;
           const yMid  = (yTop + yBot) / 2;
-          const yDest = HDR_H + mi * (CARD_H + CARD_MB) + CARD_H / 2;
+          const yDest = getY(destEl);
+          const xLeft = topEl ? getRight(topEl) : (botEl ? getRight(botEl) : 0);
+          const xRight = getLeft(destEl);
+          const xMid  = xLeft + (xRight - xLeft) / 2;
 
-          const isDone = rounds[ri] < liveRound;
-          const stroke = isDone ? "#C9A84C" : "var(--border-strong, #d0cdc6)";
-          const sw = isDone ? "1.5" : "1";
-
-          // Lines: right-exit from top → midX → down/up to bot midX → right-enter to dest
-          const midX = xLeft + GAP_W / 2;
-          paths += `<path d="M${xLeft},${yTop} H${midX} V${yBot} M${midX},${yMid} H${xRight}" stroke="${stroke}" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
-          // Dot at destination entry
+          paths += `<path d="M${xLeft},${yTop} H${xMid} V${yBot}" stroke="${stroke}" stroke-width="${sw}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+          paths += `<path d="M${xMid},${yMid} H${xRight}" stroke="${stroke}" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
           paths += `<circle cx="${xRight}" cy="${yDest}" r="2.5" fill="${stroke}"/>`;
         }
       }
-
-      // Calculate total height needed
-      const maxCards = Math.max(...rounds.map(r => matches.filter(m => m.round===r && !m.is_bye).length));
-      const svgH = HDR_H + maxCards * (CARD_H + CARD_MB) + 20;
-
-      return `<svg style="position:absolute;top:0;left:0;pointer-events:none;overflow:visible" width="${totalW}" height="${svgH}" viewBox="0 0 ${totalW} ${svgH}">${paths}</svg>`;
-    }
-
-    const totalW = rounds.length * CARD_W + (rounds.length - 1) * GAP_W;
-    const maxCards = Math.max(...rounds.map(r => matches.filter(m => m.round===r && !m.is_bye).length));
-    const containerH = HDR_H + maxCards * (CARD_H + CARD_MB) + 40;
-
-    el.innerHTML = adminBtns + `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px">
-      <div style="position:relative;min-width:${totalW}px;height:${containerH}px">
-        ${buildSvgLines()}
-        <div style="display:flex;gap:${GAP_W}px;align-items:flex-start;position:relative;z-index:1;padding:2px">${colsHtml}</div>
-      </div>
-      ${rounds.length > 2 ? '<div style="font-size:11px;color:var(--text-3);text-align:center;margin-top:4px">&#8592; Scroll to see all rounds &#8594;</div>' : ""}
-    </div>`;
+      svg.innerHTML = paths;
+    });
 
   } catch(e) { console.error("renderKnockout error:", e.message); }
 }
