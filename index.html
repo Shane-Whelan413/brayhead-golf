@@ -825,11 +825,11 @@
     animation: spin 0.7s linear infinite;
     flex-shrink: 0;
   }
-  #ko-fs { display:none; position:fixed; inset:0; background:#0a1628; z-index:9999; overflow:hidden; }
-  #ko-fs.on { display:flex; }
-  #ko-fs-exit { display:none; position:fixed; top:16px; right:16px; z-index:10000; width:48px; height:48px; border-radius:50%; background:#C9A84C; border:none; color:#0a1628; font-size:22px; font-weight:700; cursor:pointer; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; line-height:1; }
+  #ko-fs { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#0a1628; z-index:9999; }
+  #ko-fs.on { display:block; }
+  #ko-fs-exit { position:fixed; top:12px; right:12px; z-index:10001; width:44px; height:44px; border-radius:50%; background:#C9A84C; border:none; color:#0a1628; font-size:24px; font-weight:900; cursor:pointer; display:none; align-items:center; justify-content:center; }
   #ko-fs-exit.on { display:flex; }
-</style>
+  #ko-fs-inner { position:absolute; top:50%; left:50%; transform-origin:center center; }
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 </head>
 <body>
@@ -9429,40 +9429,36 @@ function openApiKeyModal() {
 
 init();
 function koFsOpen() {
-  const src = document.getElementById('knockout-content');
-  const inner = document.getElementById('ko-fs-inner');
+  var src = document.getElementById('knockout-content');
+  var inner = document.getElementById('ko-fs-inner');
+  var overlay = document.getElementById('ko-fs');
+  var exitBtn = document.getElementById('ko-fs-exit');
   if (!src || !inner) return;
   inner.innerHTML = src.innerHTML;
-  document.getElementById('ko-fs').classList.add('on');
-  document.getElementById('ko-fs-exit').classList.add('on');
+  overlay.classList.add('on');
+  exitBtn.classList.add('on');
   setTimeout(function() {
-    const wrap = inner.querySelector('[style*="position:relative"]');
+    var wrap = inner.firstElementChild;
     if (!wrap) return;
-    const bw = wrap.offsetWidth;
-    const bh = wrap.offsetHeight;
-    // Landscape = phone width becomes height, height becomes width
-    const sw = window.screen.width;
-    const sh = window.screen.height;
-    const lw = Math.max(sw, sh); // landscape width
-    const lh = Math.min(sw, sh); // landscape height
-    const scale = Math.min(lw / bw, lh / bh);
-    inner.style.position = 'fixed';
-    inner.style.top = '50%';
-    inner.style.left = '50%';
+    var bw = wrap.offsetWidth || 1800;
+    var bh = wrap.offsetHeight || 600;
+    // Available screen: portrait phone so use innerHeight as landscape width
+    var lw = window.innerHeight;
+    var lh = window.innerWidth;
+    var scale = Math.min((lw - 20) / bw, (lh - 20) / bh);
     inner.style.width = bw + 'px';
     inner.style.height = bh + 'px';
-    inner.style.transform = 'translate(-50%,-50%) rotate(90deg) scale(' + scale + ')';
-    inner.style.transformOrigin = 'center center';
-    inner.style.padding = '0';
-    inner.style.overflow = 'hidden';
-  }, 50);
+    inner.style.transform = 'translate(-50%, -50%) rotate(90deg) scale(' + scale + ')';
+  }, 100);
 }
 function koFsExit() {
-  const inner = document.getElementById('ko-fs-inner');
   document.getElementById('ko-fs').classList.remove('on');
   document.getElementById('ko-fs-exit').classList.remove('on');
+  var inner = document.getElementById('ko-fs-inner');
   inner.innerHTML = '';
-  inner.removeAttribute('style');
+  inner.style.transform = '';
+  inner.style.width = '';
+  inner.style.height = '';
 }
 </script>
   <div id="ko-fs"><div id="ko-fs-inner"></div></div>
