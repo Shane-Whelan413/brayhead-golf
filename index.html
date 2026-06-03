@@ -9427,29 +9427,15 @@ function openApiKeyModal() {
 
 init();
 function koFsOpen() {
-  var src = document.getElementById('knockout-content');
-  var inner = document.getElementById('ko-fs-inner');
   var overlay = document.getElementById('ko-fs');
-  if (!src || !inner) return;
-  // Copy only the scroll container (bracket itself), not admin buttons
-  var bracketScroll = src.querySelector('[style*="overflow"]');
-  if (!bracketScroll) return;
-  inner.innerHTML = bracketScroll.innerHTML;
+  var inner = document.getElementById('ko-fs-inner');
+  var exitBtn = document.getElementById('ko-fs-exit');
+  if (!overlay) { alert('overlay missing'); return; }
+  if (!inner) { alert('inner missing'); return; }
+  if (!exitBtn) { alert('exit missing'); return; }
+  inner.innerHTML = '<div style="color:white;font-size:40px;padding:40px">FULL VIEW WORKS</div>';
   overlay.classList.add('on');
-  document.getElementById('ko-fs-exit').classList.add('on');
-  setTimeout(function() {
-    var wrap = inner.firstElementChild;
-    if (!wrap) return;
-    var bw = wrap.offsetWidth;
-    var bh = wrap.offsetHeight;
-    var availW = window.innerHeight;
-    var availH = window.innerWidth;
-    var scale = Math.min(availW / bw, availH / bh);
-    inner.style.transform = 'scale(' + scale + ')';
-    inner.style.transformOrigin = 'top left';
-    inner.style.width = bw + 'px';
-    inner.style.height = bh + 'px';
-  }, 100);
+  exitBtn.classList.add('on');
 }
 function koFsExit() {
   document.getElementById('ko-fs').classList.remove('on');
