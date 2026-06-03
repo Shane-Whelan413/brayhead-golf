@@ -9435,6 +9435,23 @@ function koFsOpen() {
   document.getElementById('ko-fs-exit').classList.add('on');
   try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(function(){}); } catch(e) {}
   try { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); } catch(e) {}
+  // Scale bracket to fit screen
+  setTimeout(function() {
+    const wrap = inner.querySelector('[style*="position:relative"]');
+    if (!wrap) return;
+    const bracketW = wrap.offsetWidth;
+    const bracketH = wrap.offsetHeight;
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight - 80; // leave room for exit btn
+    const scaleX = screenW / bracketW;
+    const scaleY = screenH / bracketH;
+    const scale = Math.min(scaleX, scaleY, 1); // never upscale
+    wrap.style.transform = 'scale(' + scale + ')';
+    wrap.style.transformOrigin = 'top left';
+    inner.style.width = Math.round(bracketW * scale) + 'px';
+    inner.style.height = Math.round(bracketH * scale) + 'px';
+    inner.style.overflow = 'hidden';
+  }, 100);
 }
 function koFsExit() {
   document.getElementById('ko-fs').classList.remove('on');
