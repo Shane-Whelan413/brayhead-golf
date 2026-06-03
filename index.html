@@ -8058,10 +8058,17 @@ function renderKnockout() {
     const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
     const pid = currentUser?.playerId;
 
-    // Find all rounds and the max match_number in round 1 to determine bracket size
-    const rounds = [...new Set(allMatches.map(m=>m.round))].sort((a,b)=>a-b);
-    const r1Matches = allMatches.filter(m=>m.round===rounds[0]);
+    // Find existing rounds and determine full bracket size from R1
+    const existingRounds = [...new Set(allMatches.map(m=>m.round))].sort((a,b)=>a-b);
+    const r1Matches = allMatches.filter(m=>m.round===existingRounds[0]);
     const totalR1 = r1Matches.length; // 16 for BHGS
+
+    // Calculate how many rounds needed: log2(totalR1) + 1
+    const numRounds = Math.ceil(Math.log2(totalR1)) + 1;
+    const firstRound = existingRounds[0];
+    // Build full rounds array including rounds not yet in DB
+    const rounds = [];
+    for (let i = 0; i < numRounds; i++) rounds.push(firstRound + i);
 
     // Build a complete virtual bracket based on known round 1 size
     // Each round halves: R1=16, R2=8, QF=4, SF=2, Final=1
