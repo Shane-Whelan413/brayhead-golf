@@ -8056,146 +8056,95 @@ function renderKnockout() {
           &#9881; Admin <span style="font-size:10px;opacity:0.6">▾</span>
         </button>
         <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:white;border:1px solid #e8e4de;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:50;min-width:180px;overflow:hidden">
-          ${matches.length===0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">Set up draw</button>`:''}
-          ${matches.length>0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">✏️ Edit draw</button>`:''}
-          ${matches.length>0?`<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">📋 Post fixtures</button>`:''}
-          ${matches.length>0?`<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510">📊 Post results</button>`:''}
+          ${matches.length===0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">Set up draw</button>`:""}
+          ${matches.length>0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">✏️ Edit draw</button>`:""}
+          ${matches.length>0?`<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510;border-bottom:0.5px solid #e8e4de">📋 Post fixtures</button>`:""}
+          ${matches.length>0?`<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#1a1510">📊 Post results</button>`:""}
         </div>
-      </div>` : '';
+      </div>` : "";
 
     if (!matches.length) {
       el.innerHTML = adminBtns + '<div class="empty" style="padding:3rem;text-align:center;color:var(--text-2)">No knockout draw yet</div>';
       return;
     }
 
-    // Determine live round
     let liveRound = rounds[rounds.length - 1];
     for (const r of rounds) {
-      const incomplete = matches.filter(m => m.round===r && !m.is_bye && m.status!=='complete').length;
-      if (incomplete > 0) { liveRound = r; break; }
+      if (matches.filter(m => m.round===r && !m.is_bye && m.status!=="complete").length > 0) { liveRound = r; break; }
     }
 
-    // Collapsed state — default all collapsed except live
-    if (!window._koCollapsed) {
-      window._koCollapsed = {};
-      rounds.forEach(r => { window._koCollapsed[r] = r !== liveRound; });
+    function matchCard(m) {
+      const p1 = db.players.find(p => p.id === m.player1_id);
+      const p2 = db.players.find(p => p.id === m.player2_id);
+      const done = m.status === "complete";
+      const isMyMatch = m.round===liveRound && pid && !done && (m.player1_id===pid||m.player2_id===pid);
+      const fresh = isAvailabilityFresh(m);
+      const p1avail = fresh && m.p1_available;
+      const p2avail = fresh && m.p2_available;
+      const bothAvail = p1avail && p2avail;
+      const myAvail = fresh && (m.player1_id===pid ? m.p1_available : m.p2_available);
+      const p1won = done && m.winner_id===m.player1_id;
+      const p2won = done && m.winner_id===m.player2_id;
+
+      function pRow(player, won, lost, isMe, avail) {
+        const name = player ? player.name : "TBD";
+        const isTbd = !player;
+        const rowBg = won ? "background:#0a1628" : lost ? "background:rgba(0,0,0,0.02)" : "";
+        const nameSt = won ? "font-weight:700;color:white" : lost ? "color:var(--text-3)" : isTbd ? "color:var(--text-3);font-style:italic" : "color:var(--text)";
+        const avBg = won ? "background:#C9A84C;color:#0a1628" : isTbd ? "background:var(--bg);color:var(--text-3)" : "background:#0a1628;color:#C9A84C";
+        const ring = isMe && !won && !lost ? ";box-shadow:0 0 0 2px #C9A84C" : "";
+        const badge = won ? '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(201,168,76,0.2);color:#C9A84C;flex-shrink:0">✓</span>'
+          : lost ? '<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(0,0,0,0.05);color:var(--text-3);flex-shrink:0">✗</span>'
+          : !done && player && avail ? '<span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:99px;background:rgba(22,163,74,0.12);color:#16a34a;flex-shrink:0">✓</span>'
+          : "";
+        return `<div style="display:flex;align-items:center;gap:6px;padding:7px 10px;${rowBg}">
+          <div style="width:22px;height:22px;border-radius:50%;${avBg};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0${ring}">${isTbd?"?":initials(name)}</div>
+          <div style="flex:1;font-size:12px;${nameSt};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+          ${badge}
+        </div>`;
+      }
+
+      const border = bothAvail ? "border:1.5px solid rgba(22,163,74,0.5)"
+        : isMyMatch ? "border:1.5px solid #C9A84C"
+        : "border:0.5px solid var(--border)";
+
+      const banner = bothAvail ? '<div style="padding:4px 8px;background:rgba(22,163,74,0.1);border-bottom:0.5px solid rgba(22,163,74,0.2);font-size:10px;font-weight:600;color:#16a34a;text-align:center">⛳ Match on!</div>' : "";
+
+      const availStrip = isMyMatch ? `<div onclick="toggleMatchAvailability('${m.id}')" style="padding:6px 8px;background:${myAvail?"rgba(22,163,74,0.1)":"rgba(201,168,76,0.08)"};border-top:0.5px solid ${myAvail?"rgba(22,163,74,0.2)":"rgba(201,168,76,0.2)"};font-size:10px;font-weight:600;color:${myAvail?"#16a34a":"#B8860B"};cursor:pointer;text-align:center">${myAvail?"✓ Available":"Tap — available?"}</div>` : "";
+
+      const adminSettle = isAdmin && !done ? `<div onclick="showMatchEntry('${m.id}')" style="padding:5px 8px;background:#0a1628;border-top:0.5px solid rgba(255,255,255,0.08);font-size:10px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center">⚙ Settle</div>` : "";
+
+      return `<div style="background:var(--surface);${border};border-radius:8px;overflow:hidden">
+        ${banner}
+        ${pRow(p1,p1won,done&&!p1won,pid===m.player1_id,p1avail)}
+        <div style="height:0.5px;background:var(--border);margin:0 8px"></div>
+        ${pRow(p2,p2won,done&&!p2won,pid===m.player2_id,p2avail)}
+        ${availStrip}${adminSettle}
+      </div>`;
     }
 
-    const roundsHtml = rounds.map(r => {
+    const colsHtml = rounds.map(r => {
       const rMatches = matches.filter(m => m.round===r && !m.is_bye);
       const isLive = r === liveRound;
       const isDone = r < liveRound;
-      const roundName = ROUND_NAMES[r] || ('Round ' + r);
-      const isCollapsed = window._koCollapsed[r];
-
-      // Header styling
-      const headerBg = isLive ? 'background:#0a1628' : 'background:var(--surface)';
-      const titleColor = isLive ? 'color:white' : 'color:var(--text)';
-      const chevColor = isLive ? 'color:rgba(255,255,255,0.5)' : 'color:var(--text-3)';
-      const chev = isCollapsed ? '▼' : '▲';
-      const pill = isLive
-        ? `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;background:rgba(201,168,76,0.2);color:#C9A84C">Live</span>`
-        : isDone
-        ? `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--bg);color:var(--text-3)">Completed</span>`
-        : `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--bg);color:var(--text-3)">${rMatches.length} matches</span>`;
-
-      // Match count summary for collapsed state
-      const done = rMatches.filter(m => m.status==='complete').length;
-      const summary = isDone
-        ? `<span style="font-size:11px;color:${isLive?'rgba(255,255,255,0.45)':'var(--text-3)'};">${done}/${rMatches.length} complete</span>`
-        : isLive
-        ? `<span style="font-size:11px;color:rgba(255,255,255,0.45)">${done}/${rMatches.length} complete</span>`
-        : `<span style="font-size:11px;color:var(--text-3)">${rMatches.length} matches</span>`;
-
-      const matchCards = isCollapsed ? '' : rMatches.map(m => {
-        const p1 = db.players.find(p => p.id === m.player1_id);
-        const p2 = db.players.find(p => p.id === m.player2_id);
-        const done = m.status === 'complete';
-        const isMyMatch = isLive && pid && !done && (m.player1_id===pid || m.player2_id===pid);
-        const fresh = isAvailabilityFresh(m);
-        const p1avail = fresh && m.p1_available;
-        const p2avail = fresh && m.p2_available;
-        const bothAvail = p1avail && p2avail;
-        const myAvail = fresh && (m.player1_id===pid ? m.p1_available : m.p2_available);
-        const p1won = done && m.winner_id===m.player1_id;
-        const p2won = done && m.winner_id===m.player2_id;
-
-        function playerRow(player, won, lost, isMe, avail) {
-          const name = player ? player.name : 'TBD';
-          const isTbd = !player;
-          const rowBg = won ? 'background:#0a1628' : lost ? 'background:rgba(0,0,0,0.03)' : '';
-          const nameSt = won ? 'font-weight:700;color:white' : lost ? 'color:var(--text-3)' : isTbd ? 'color:var(--text-3)' : 'color:var(--text)';
-          const avBg = won ? 'background:#C9A84C;color:#0a1628' : isTbd ? 'background:var(--bg);color:var(--text-3)' : 'background:#0a1628;color:#C9A84C';
-          const ring = isMe && !won && !lost ? ';box-shadow:0 0 0 2px #C9A84C' : '';
-          const badge = won
-            ? '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(201,168,76,0.2);color:#C9A84C;flex-shrink:0">Won ✓</span>'
-            : lost
-            ? '<span style="font-size:10px;padding:2px 8px;border-radius:99px;background:rgba(0,0,0,0.05);color:var(--text-3);flex-shrink:0">Lost</span>'
-            : !done && player
-            ? `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;flex-shrink:0;${avail?'background:rgba(22,163,74,0.12);color:#16a34a':'background:rgba(0,0,0,0.05);color:var(--text-3)'}">${avail?'✓ Available':'Pending'}</span>`
-            : '';
-          return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;${rowBg}">
-            <div style="width:28px;height:28px;border-radius:50%;${avBg};font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0${ring}">${isTbd?'?':initials(player.name)}</div>
-            <div style="flex:1;font-size:13px;${nameSt}">${name}</div>
-            ${badge}
-          </div>`;
-        }
-
-        // VS divider in the middle
-        const vsDivider = `<div style="position:relative;height:12px;display:flex;align-items:center;margin:0 12px">
-          <div style="flex:1;height:0.5px;background:var(--border)"></div>
-          <div style="font-size:9px;font-weight:700;color:var(--text-3);padding:0 8px;background:var(--surface)">VS</div>
-          <div style="flex:1;height:0.5px;background:var(--border)"></div>
-        </div>`;
-
-        const cardBorder = bothAvail
-          ? 'border:1.5px solid rgba(22,163,74,0.5)'
-          : isMyMatch
-          ? 'border:1.5px solid rgba(201,168,76,0.6)'
-          : 'border:1px solid var(--border)';
-
-        const bothAvailBanner = bothAvail
-          ? `<div style="padding:7px 12px;background:rgba(22,163,74,0.1);border-bottom:0.5px solid rgba(22,163,74,0.2);font-size:11px;font-weight:600;color:#16a34a;text-align:center">⛳ Both available this week — match on!</div>`
-          : '';
-
-        const adminSettle = isAdmin && !done
-          ? `<div onclick="showMatchEntry('${m.id}')" style="padding:9px 12px;background:#0a1628;border-top:0.5px solid rgba(255,255,255,0.08);font-size:12px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px">
-              <span style="font-size:14px">⚙</span> Settle match from round card
-            </div>` : '';
-
-        const availStrip = isMyMatch ? `
-          <div onclick="toggleMatchAvailability('${m.id}')" style="padding:9px 12px;background:${myAvail?'rgba(22,163,74,0.12)':'rgba(201,168,76,0.1)'};border-top:0.5px solid ${myAvail?'rgba(22,163,74,0.3)':'rgba(201,168,76,0.25)'};font-size:12px;font-weight:600;color:${myAvail?'#16a34a':'#B8860B'};cursor:pointer;text-align:center">
-            ${myAvail?'✓ You\'re available — tap to undo':'Tap to confirm availability this week'}
-          </div>` : '';
-
-        return `<div style="background:#f8f5ee;${cardBorder};border-radius:12px;overflow:hidden;margin-bottom:10px">
-          ${bothAvailBanner}
-          ${playerRow(p1,p1won,done&&!p1won,pid===m.player1_id,p1avail)}
-          ${vsDivider}
-          ${playerRow(p2,p2won,done&&!p2won,pid===m.player2_id,p2avail)}
-          ${availStrip}
-          ${adminSettle}
-        </div>`;
-      }).join('');
-
-      return `<div style="margin-bottom:8px;border-radius:12px;overflow:hidden;border:0.5px solid var(--border)">
-        <div onclick="toggleKoRound(${r})" style="padding:11px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;${headerBg}">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="font-size:13px;font-weight:600;${titleColor}">${roundName}</div>
-            ${pill}
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            ${summary}
-            <div style="font-size:11px;${chevColor}">${chev}</div>
-          </div>
-        </div>
-        ${isCollapsed ? '' : `<div style="padding:10px;background:transparent">${matchCards}</div>`}
+      const roundName = ROUND_NAMES[r] || ("Round " + r);
+      const hdrColor = isLive ? "color:#C9A84C;font-weight:700" : isDone ? "color:var(--text-3)" : "color:var(--text-2)";
+      const cards = rMatches.map(m => `<div style="margin-bottom:8px">${matchCard(m)}</div>`).join("");
+      return `<div style="flex-shrink:0;width:160px">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;${hdrColor};margin-bottom:10px;text-align:center">${roundName}${isLive?" ·":""}</div>
+        ${cards}
       </div>`;
-    }).join('');
+    }).join("");
 
-    el.innerHTML = adminBtns + roundsHtml;
-  } catch(e) { console.error('renderKnockout error:', e.message); }
+    const totalW = rounds.length * 160 + (rounds.length - 1) * 40;
+    el.innerHTML = adminBtns + `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px">
+      <div style="display:flex;gap:40px;align-items:flex-start;min-width:${totalW}px;padding:2px">${colsHtml}</div>
+      ${rounds.length > 2 ? '<div style="font-size:11px;color:var(--text-3);text-align:center;margin-top:10px">Scroll to see all rounds →</div>' : ""}
+    </div>`;
+
+  } catch(e) { console.error("renderKnockout error:", e.message); }
 }
+
 
 function toggleKoRound(r) {
   if (!window._koCollapsed) window._koCollapsed = {};
