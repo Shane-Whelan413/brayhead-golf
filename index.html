@@ -8085,6 +8085,30 @@ function renderKnockout() {
       return side === 'top' ? all.slice(0, mid) : all.slice(mid);
     }
 
+    // Generate virtual TBD placeholders for bracket slots that should exist
+    // but haven't been created yet (winner hasn't advanced yet)
+    function fillSlots(half, prevHalf) {
+      if (!prevHalf || !prevHalf.length) return half;
+      // How many slots should this half have?
+      const expectedCount = Math.ceil(prevHalf.length / 2);
+      if (half.length >= expectedCount) return half;
+      // Find which match_numbers are missing
+      const existing = new Set(half.map(m => m.match_number||0));
+      const prevNums = prevHalf.map(m => m.match_number||0).sort((a,b)=>a-b);
+      const result = [...half];
+      // Determine expected match_numbers from prev round feeders
+      for (let i = 0; i < prevHalf.length; i += 2) {
+        const p1 = prevHalf[i]; const p2 = prevHalf[i+1];
+        const expectedNum = Math.ceil((p1 ? p1.match_number||1 : 1) / 2);
+        if (!existing.has(expectedNum)) {
+          // Create virtual placeholder
+          result.push({ id: 'tbd_'+expectedNum+'_'+Math.random().toString(36).slice(2,6), match_number: expectedNum, round: half.length ? half[0].round : 0, player1_id: null, player2_id: null, status: 'pending', is_bye: false, _virtual: true });
+          existing.add(expectedNum);
+        }
+      }
+      return result.sort((a,b)=>(a.match_number||0)-(b.match_number||0));
+    }
+
     // Compute vertical tops for one set of half-rounds
     function computeTops(halfByRound) {
       const tops = {};
@@ -8109,9 +8133,15 @@ function renderKnockout() {
     const finalRound = rounds[rounds.length - 1];
     const sideRounds = rounds.slice(0, -1);
 
-    // Build half-round arrays
-    const leftByRound  = sideRounds.map(r => halfRound(r, 'top'));
-    const rightByRound = sideRounds.map(r => halfRound(r, 'bottom'));
+    // Build half-round arrays, filling in virtual TBD slots where needed
+    const leftByRound = [];
+    const rightByRound = [];
+    sideRounds.forEach((r, ri) => {
+      const lh = halfRound(r, 'top');
+      const rh = halfRound(r, 'bottom');
+      leftByRound.push(ri === 0 ? lh : fillSlots(lh, leftByRound[ri-1]));
+      rightByRound.push(ri === 0 ? rh : fillSlots(rh, rightByRound[ri-1]));
+    });
     const leftTops  = computeTops(leftByRound);
     const rightTops = computeTops(rightByRound);
 
@@ -8146,6 +8176,7 @@ function renderKnockout() {
     }
 
     function matchCard(m) {
+      if (m._virtual) return byeCard({winner_id:null}); // virtual TBD slot
       const p1 = db.players.find(p=>p.id===m.player1_id);
       const p2 = db.players.find(p=>p.id===m.player2_id);
       const done = m.status==="complete";
@@ -8175,6 +8206,10 @@ function renderKnockout() {
 
     function byeCard(m) {
       const winner = db.players.find(p=>p.id===m.winner_id);
+      const isVirtualTbd = !m.winner_id && !m.is_bye;
+      if (isVirtualTbd) return `<div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.08);border-radius:10px;height:${CARD_H}px;display:flex;align-items:center;justify-content:center">
+        <div style="font-size:12px;color:rgba(255,255,255,0.2);font-style:italic">Awaiting result</div>
+      </div>`;
       return `<div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);border-radius:10px;height:${CARD_H}px;display:flex;align-items:center;gap:8px;padding:0 12px;opacity:0.65">
         <div style="width:26px;height:26px;border-radius:50%;background:#0f2240;color:#C9A84C;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${winner?initials(winner.name):"?"}</div>
         <div style="flex:1;font-size:13px;color:rgba(255,255,255,0.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${winner?winner.name:"TBD"}</div>
