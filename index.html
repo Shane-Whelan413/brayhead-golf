@@ -825,10 +825,8 @@
     animation: spin 0.7s linear infinite;
     flex-shrink: 0;
   }
-  #ko-fs { display:none; position:fixed; inset:0; background:#0a1628; z-index:9999; }
-  #ko-fs.on { display:flex; flex-direction:column; align-items:center; padding-top:env(safe-area-inset-top,20px); box-sizing:border-box; }
-  #ko-fs canvas { display:block; flex-shrink:0; }
-  #ko-fs-exit { display:none !important; }
+  #ko-fs { display:none; }
+  #ko-fs.on { display:block; }
 </style>
 
 <!-- LOGIN SCREEN -->
@@ -9428,21 +9426,7 @@ init();
 
 function koFsOpen() {
   var overlay = document.getElementById('ko-fs');
-  var canvas  = document.getElementById('ko-fs-canvas');
-  if (!overlay || !canvas) return;
-
-  var W = window.innerWidth;
-  var H = window.innerHeight;
-  var dpr = window.devicePixelRatio || 1;
-  canvas.width  = W * dpr;
-  canvas.height = H * dpr;
-  canvas.style.width  = W + 'px';
-  canvas.style.height = H + 'px';
-  var ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-
-  ctx.fillStyle = '#0a1628';
-  ctx.fillRect(0, 0, W, H);
+  if (!overlay) return;
 
   var allMatches = db.knockout_matches;
   var existingRounds = [...new Set(allMatches.map(function(m){return m.round;}))].sort(function(a,b){return a-b;});
@@ -9464,7 +9448,7 @@ function koFsOpen() {
     for(var n=1;n<=size;n++)fullRounds[r].push(getM(r,n));
   });
 
-  var showRounds = allRounds.slice(1); // skip R1
+  var showRounds = allRounds.slice(1);
   var finalRound = allRounds[allRounds.length-1];
   var sideRounds = showRounds.slice(0,-1);
 
@@ -9476,228 +9460,110 @@ function koFsOpen() {
 
   function topHalf(r){var a=fullRounds[r];return a.slice(0,a.length/2);}
   function bottomHalf(r){var a=fullRounds[r];return a.slice(a.length/2);}
-  function firstName(n){return n?n.split(' ')[0]:'TBD';}
+  function fn(n){return n?n.split(' ')[0]:'TBD';}
 
   var ROUND_NAMES={1:'R1',2:'R16',3:'QF',4:'SF',5:'Final'};
-  var PAD=16, CONN=10, HDR_H=18, CARD_GAP=8, TITLE_H=44, BTN_H=64;
 
-  // Available height for bracket content
-  var availH = H - TITLE_H - BTN_H;
-  var numCols = sideRounds.length + 1;
-  var availW = W - PAD*2;
-  var COL_W = Math.floor((availW - (numCols-1)*CONN) / numCols);
-
-  // Cards per column = top/bottom half of first side round
-  var topCards = topHalf(sideRounds[0]);
-  var maxCards = topCards.length; // cards in each half column
-  // Total height needed for one half:
-  // HDR_H + maxCards*CH + (maxCards-1)*CARD_GAP
-  // Two halves + Final card + gaps between halves = availH
-  // 2*(HDR_H + maxCards*CH + (maxCards-1)*CARD_GAP) + CH + 2*CARD_GAP*2 = availH
-  var CH = Math.floor((availH - 2*HDR_H - 2*(maxCards-1)*CARD_GAP - 4*CARD_GAP) / (2*maxCards + 1));
-  CH = Math.min(CH, 58);
-  var ROW_H = Math.floor(CH/2);
-  var FS = Math.max(9, Math.min(12, Math.floor(ROW_H*0.5)));
-
-  // Calculate actual total height used
-  var halfH = HDR_H + maxCards*CH + (maxCards-1)*CARD_GAP;
-  var totalH = halfH + CARD_GAP*3 + CH + CARD_GAP*3 + halfH;
-  // Centre this block vertically
-  var blockTop = TITLE_H + Math.round((availH - totalH) / 2);
-
-  // Top half starts at blockTop + HDR_H
-  var topStart = blockTop + HDR_H;
-  // Final card is in the middle
-  var finalCardY = blockTop + halfH + CARD_GAP*3;
-  // Bottom half starts after Final
-  var botStart = finalCardY + CH + CARD_GAP*3;
-
-  // Compute positions for top half (downward from topStart)
-  function computeTopTops(halves) {
-    var tops = {};
-    halves.forEach(function(matches, ri) {
-      if (ri === 0) {
-        matches.forEach(function(m, mi) { tops[m.id] = topStart + mi*(CH+CARD_GAP); });
-      } else {
-        var prev = halves[ri-1];
-        matches.forEach(function(m, mi) {
-          var f1=prev[mi*2], f2=prev[mi*2+1];
-          var t1=f1?(tops[f1.id]||topStart):topStart;
-          var t2=f2?(tops[f2.id]||topStart+CH+CARD_GAP):t1+CH+CARD_GAP;
-          tops[m.id] = (t1+t2)/2;
-        });
-      }
-    });
-    return tops;
-  }
-
-  // Compute positions for bottom half (upward from botStart+botCards*CH)
-  function computeBotTops(halves) {
-    var tops = {};
-    var botCards = halves[0]?halves[0].length:0;
-    var botEnd = botStart + (botCards-1)*(CH+CARD_GAP);
-    halves.forEach(function(matches, ri) {
-      if (ri === 0) {
-        matches.forEach(function(m, mi) { tops[m.id] = botStart + mi*(CH+CARD_GAP); });
-      } else {
-        var prev = halves[ri-1];
-        matches.forEach(function(m, mi) {
-          var f1=prev[mi*2], f2=prev[mi*2+1];
-          var t1=f1?(tops[f1.id]||botStart):botStart;
-          var t2=f2?(tops[f2.id]||botStart+CH+CARD_GAP):t1+CH+CARD_GAP;
-          tops[m.id] = (t1+t2)/2;
-        });
-      }
-    });
-    return tops;
-  }
-
-  var leftByRound  = sideRounds.map(topHalf);
-  var rightByRound = sideRounds.map(bottomHalf);
-  var leftTops  = computeTopTops(leftByRound);
-  var rightTops = computeBotTops(rightByRound);
-
-  // Centre bracket horizontally
-  var totalW = numCols*COL_W + (numCols-1)*CONN;
-  var bracketX = Math.round((W - totalW) / 2);
-  var finalX = bracketX + sideRounds.length*(COL_W+CONN);
-
-  function rrect(x,y,w,h,r){
-    ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
-    ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);
-    ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
-    ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);
-    ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
-  }
-
-  function drawCard(m, x, y) {
+  function cardHtml(m) {
     var p1=db.players.find(function(p){return p.id===m.player1_id;});
     var p2=db.players.find(function(p){return p.id===m.player2_id;});
     var done=m.status==='complete';
     var p1won=done&&m.winner_id===m.player1_id, p2won=done&&m.winner_id===m.player2_id;
     var isLive=m.round===live&&!done&&(m.player1_id||m.player2_id);
     var isTbd=!m.player1_id&&!m.player2_id&&!m.is_bye;
-    ctx.fillStyle=isTbd?'rgba(255,255,255,0.03)':'#1a3050';
-    rrect(x,y,COL_W,CH,4);ctx.fill();
-    ctx.strokeStyle=isLive?'#C9A84C':isTbd?'rgba(255,255,255,0.07)':done?'rgba(255,255,255,0.1)':'rgba(255,255,255,0.14)';
-    ctx.lineWidth=isLive?2:1;
-    rrect(x,y,COL_W,CH,4);ctx.stroke();
-    if(isLive){ctx.fillStyle='#C9A84C';ctx.fillRect(x,y,3,CH);}
-    ctx.strokeStyle='rgba(255,255,255,0.07)';ctx.lineWidth=0.5;
-    ctx.beginPath();ctx.moveTo(x+5,y+ROW_H);ctx.lineTo(x+COL_W-5,y+ROW_H);ctx.stroke();
-    ctx.textBaseline='middle';ctx.textAlign='left';
-    function row(player,won,lost,ry){
-      var nm=player?firstName(player.name):(m.is_bye&&m.winner_id?firstName((db.players.find(function(p){return p.id===m.winner_id;})||{name:'?'}).name)+' ·bye':'TBD');
-      if(won){ctx.fillStyle='rgba(22,163,74,0.12)';ctx.fillRect(x+(isLive?3:0),y+(ry-ROW_H/2),COL_W-(isLive?3:0),ROW_H);}
-      ctx.font=(won?'bold ':'')+FS+'px DM Sans,sans-serif';
-      ctx.fillStyle=won?'#4ade80':lost?'rgba(255,255,255,0.22)':(!player?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.88)');
-      ctx.fillText(nm,x+(isLive?7:5),y+ry);
-      if(won){ctx.fillStyle='#4ade80';ctx.font='bold '+(FS-1)+'px DM Sans';ctx.fillText('✓',x+COL_W-(FS+2),y+ry);}
+    var border=isLive?'1.5px solid #C9A84C':isTbd?'1px dashed rgba(255,255,255,0.1)':'0.5px solid rgba(255,255,255,0.12)';
+    var bg=isTbd?'rgba(255,255,255,0.02)':'#1a3050';
+    function rowHtml(player,won,lost){
+      var nm=player?fn(player.name):(m.is_bye&&m.winner_id?fn((db.players.find(function(p){return p.id===m.winner_id;})||{name:'?'}).name)+' ·bye':'TBD');
+      var rowBg=won?'background:rgba(22,163,74,0.12)':'';
+      var col=won?'#4ade80':lost?'rgba(255,255,255,0.25)':(!player?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.9)');
+      var fw=won?'700':'400';
+      return '<div style="height:50%;display:flex;align-items:center;padding:0 8px;gap:4px;'+rowBg+'">'+
+        '<span style="flex:1;font-size:12px;font-weight:'+fw+';color:'+col+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nm+'</span>'+
+        (won?'<span style="font-size:10px;color:#4ade80">✓</span>':'')+
+        '</div>';
     }
-    row(p1,p1won,done&&!p1won,ROW_H/2);
-    row(p2,p2won,done&&!p2won,ROW_H+ROW_H/2);
+    var accent=isLive?'<div style="position:absolute;left:0;top:0;width:3px;height:100%;background:#C9A84C;border-radius:4px 0 0 4px"></div>':''
+    return '<div style="position:relative;background:'+bg+';border:'+border+';border-radius:6px;overflow:hidden;height:100%;box-sizing:border-box">'+
+      accent+
+      rowHtml(p1,p1won,done&&!p1won)+
+      '<div style="height:0.5px;background:rgba(255,255,255,0.07);margin:0 6px"></div>'+
+      rowHtml(p2,p2won,done&&!p2won)+
+      '</div>';
   }
 
-  function drawHdr(label,cx,y,isLive,isDone){
-    ctx.font='bold 8px DM Sans,sans-serif';
-    var tw=ctx.measureText((isLive?'● ':'')+label).width+14, ph=14;
-    var px=cx-tw/2;
-    ctx.fillStyle=isLive?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.05)';
-    rrect(px,y,tw,ph,6);ctx.fill();
-    ctx.strokeStyle=isLive?'#C9A84C':'rgba(255,255,255,0.1)';ctx.lineWidth=isLive?1.5:1;
-    rrect(px,y,tw,ph,6);ctx.stroke();
-    ctx.fillStyle=isLive?'#C9A84C':isDone?'rgba(255,255,255,0.4)':'rgba(255,255,255,0.35)';
-    ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText((isLive?'● ':'')+label,cx,y+ph/2);
-    ctx.textAlign='left';
+  function hdrHtml(r) {
+    var nm=ROUND_NAMES[r]||('R'+r);
+    var isLive=r===live, isDone=r<live;
+    var bg=isLive?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.05)';
+    var border=isLive?'1px solid #C9A84C':'0.5px solid rgba(255,255,255,0.1)';
+    var col=isLive?'#C9A84C':isDone?'rgba(255,255,255,0.4)':'rgba(255,255,255,0.35)';
+    return '<div style="display:flex;justify-content:center;margin-bottom:6px">'+
+      '<div style="padding:2px 10px;border-radius:99px;background:'+bg+';border:'+border+';font-size:9px;font-weight:700;color:'+col+'">'+
+      (isLive?'● ':'')+nm+(isDone?' ✓':'')+
+      '</div></div>';
   }
 
-  function hline(x1,y,x2,col,lw){ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x2,y);ctx.stroke();}
-  function vline(x,y1,y2,col,lw){ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(x,y1);ctx.lineTo(x,y2);ctx.stroke();}
-
-  // Title
-  ctx.font='bold 14px DM Sans,sans-serif';ctx.fillStyle='#C9A84C';
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('2026 Knockout Bracket',W/2,TITLE_H/2);
-  ctx.textAlign='left';
-
-  function drawSide(byRound, tops, isTop) {
-    byRound.forEach(function(half, ri) {
-      var r=sideRounds[ri], isDone=r<live, isLive=r===live;
-      var x=bracketX+ri*(COL_W+CONN);
-      var cx=x+COL_W/2;
-      var nm=ROUND_NAMES[r]||('R'+r);
-      // Header
-      if(half[0] && tops[half[0].id]!==undefined){
-        if(isTop) drawHdr(nm,cx,tops[half[0].id]-HDR_H,isLive,isDone);
-        else {
-          var last=half[half.length-1];
-          if(last) drawHdr(nm,cx,tops[last.id]+CH+4,isLive,isDone);
-        }
+  // Build columns HTML
+  function colHtml(byRound, isTop) {
+    return byRound.map(function(half, ri) {
+      var r=sideRounds[ri];
+      var cards=half.map(function(m){
+        return '<div style="flex:1;min-height:0">'+cardHtml(m)+'</div>';
+      }).join('<div style="height:6px;flex-shrink:0"></div>');
+      var hdr=hdrHtml(r);
+      if(isTop) {
+        return '<div style="display:flex;flex-direction:column;flex:1;min-width:0">'+hdr+
+          '<div style="display:flex;flex-direction:column;flex:1;min-height:0">'+cards+'</div></div>';
+      } else {
+        return '<div style="display:flex;flex-direction:column;flex:1;min-width:0">'+
+          '<div style="display:flex;flex-direction:column;flex:1;min-height:0">'+cards+'</div>'+hdr+'</div>';
       }
-      half.forEach(function(m){ if(tops[m.id]!==undefined) drawCard(m,x,tops[m.id]); });
-      // Connectors to next column
-      if(ri<byRound.length-1){
-        var nxt=byRound[ri+1], lc=isDone?'#C9A84C':'rgba(255,255,255,0.18)', lw=isDone?1.5:1;
-        var xR=x+COL_W, xMid=xR+CONN/2;
-        nxt.forEach(function(dest,di){
-          if(tops[dest.id]===undefined)return;
-          var s1=half[di*2], s2=half[di*2+1], dMid=tops[dest.id]+CH/2;
-          if(s1&&tops[s1.id]!==undefined){var sM=tops[s1.id]+CH/2;hline(xR,sM,xMid,lc,lw);vline(xMid,sM,dMid,lc,lw);}
-          if(s2&&tops[s2.id]!==undefined){var sM=tops[s2.id]+CH/2;hline(xR,sM,xMid,lc,lw);vline(xMid,sM,dMid,lc,lw);}
-          hline(xMid,dMid,xMid+CONN/2,lc,lw);
-        });
-      }
-      // Connector to Final
-      if(ri===byRound.length-1){
-        var sf=half[0]; if(!sf||tops[sf.id]===undefined)return;
-        var lc=isDone?'#C9A84C':'rgba(255,255,255,0.15)', lw=isDone?1.5:1;
-        var sMid=tops[sf.id]+CH/2, dMid=finalCardY+CH/2;
-        var xR=x+COL_W, xMid=(xR+finalX)/2;
-        hline(xR,sMid,xMid,lc,lw);
-        vline(xMid,sMid,dMid,'rgba(255,255,255,0.12)',1);
-        hline(xMid,dMid,finalX,'rgba(255,255,255,0.12)',1);
-      }
-    });
+    }).join('<div style="width:10px;flex-shrink:0"></div>');
   }
 
-  drawSide(leftByRound, leftTops, true);
-  drawSide(rightByRound, rightTops, false);
+  var leftByRound  = sideRounds.map(topHalf);
+  var rightByRound = sideRounds.map(bottomHalf);
 
   // Final card
   var finalM=(fullRounds[finalRound]&&fullRounds[finalRound][0])||{id:'final',status:'pending',player1_id:null,player2_id:null,is_bye:false,winner_id:null,round:finalRound,match_number:1};
-  ctx.font='16px serif';ctx.textAlign='center';ctx.fillText('🏆',finalX+COL_W/2,finalCardY-20);
-  drawHdr('Final',finalX+COL_W/2,finalCardY-HDR_H,finalRound===live,finalRound<live);
-  drawCard(finalM,finalX,finalCardY);
+  var finalCol='<div style="display:flex;flex-direction:column;flex:1;min-width:0;align-items:center;justify-content:center">'+
+    '<div style="font-size:18px;margin-bottom:2px">🏆</div>'+
+    hdrHtml(finalRound)+
+    '<div style="width:100%;flex:0 0 auto;height:60px">'+cardHtml(finalM)+'</div>'+
+    '</div>';
 
-  // Draw close button at bottom of canvas
-  var btnW=140, btnH=40, btnX=Math.round((W-btnW)/2), btnY=H-BTN_H+Math.round((BTN_H-btnH)/2);
-  ctx.fillStyle='#C9A84C';
-  rrect(btnX,btnY,btnW,btnH,20);ctx.fill();
-  ctx.font='bold 15px DM Sans,sans-serif';
-  ctx.fillStyle='#0a1628';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('✕  Close',btnX+btnW/2,btnY+btnH/2);
-  ctx.textAlign='left';
+  var html = '<div style="background:#0a1628;position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;padding:env(safe-area-inset-top,16px) 12px 0">'+
+    // Title
+    '<div style="text-align:center;padding:8px 0 10px;font-size:14px;font-weight:700;color:#C9A84C;flex-shrink:0">2026 Knockout Bracket</div>'+
+    // Top half
+    '<div style="display:flex;flex:1;min-height:0;gap:0;margin-bottom:10px">'+
+      colHtml(leftByRound, true)+
+      '<div style="width:10px;flex-shrink:0"></div>'+
+      finalCol+
+    '</div>'+
+    // Divider
+    '<div style="height:0.5px;background:rgba(255,255,255,0.08);margin:0 0 10px;flex-shrink:0"></div>'+
+    // Bottom half
+    '<div style="display:flex;flex:1;min-height:0;gap:0;margin-bottom:10px">'+
+      colHtml(rightByRound, false)+
+    '</div>'+
+    // Close button
+    '<div style="flex-shrink:0;padding:8px 0 max(env(safe-area-inset-bottom,8px),8px)">'+
+      '<button onclick="koFsExit()" style="width:100%;padding:14px;border-radius:99px;border:none;background:#C9A84C;color:#0a1628;font-size:16px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif">✕  Close</button>'+
+    '</div>'+
+    '</div>';
 
-  // Make canvas tappable to close (tap bottom area)
-  canvas.ontouchend = function(e) {
-    var touch = e.changedTouches[0];
-    var rect = canvas.getBoundingClientRect();
-    var ty = touch.clientY - rect.top;
-    if (ty > H - BTN_H - 10) koFsExit();
-  };
-  canvas.onclick = function(e) {
-    var rect = canvas.getBoundingClientRect();
-    var cy = e.clientY - rect.top;
-    if (cy > H - BTN_H - 10) koFsExit();
-  };
-
+  overlay.innerHTML = html;
   overlay.classList.add('on');
 }
 
 function koFsExit() {
-  document.getElementById('ko-fs').classList.remove('on');
+  var overlay = document.getElementById('ko-fs');
+  overlay.classList.remove('on');
+  overlay.innerHTML = '';
 }
+
 
 
 
