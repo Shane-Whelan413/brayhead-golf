@@ -825,37 +825,10 @@
     animation: spin 0.7s linear infinite;
     flex-shrink: 0;
   }
-  #ko-fullscreen {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: #0a1628;
-    z-index: 9999;
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  #ko-fullscreen.active { display: block; }
-  #ko-exit-btn {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    z-index: 10000;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: rgba(201,168,76,0.2);
-    border: 1.5px solid #C9A84C;
-    color: #C9A84C;
-    font-size: 20px;
-    font-weight: 700;
-    cursor: pointer;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    font-family: 'DM Sans', sans-serif;
-    line-height: 1;
-  }
-  #ko-exit-btn.active { display: flex; }
+  #ko-fs { display:none; position:fixed; inset:0; background:#0a1628; z-index:9999; overflow:auto; -webkit-overflow-scrolling:touch; }
+  #ko-fs.on { display:block; }
+  #ko-fs-exit { display:none; position:fixed; top:14px; right:14px; z-index:10000; width:44px; height:44px; border-radius:50%; background:rgba(201,168,76,0.2); border:1.5px solid #C9A84C; color:#C9A84C; font-size:20px; cursor:pointer; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; }
+  #ko-fs-exit.on { display:flex; }
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 </head>
@@ -8089,17 +8062,10 @@ function renderKnockout() {
     const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
     const pid = currentUser?.playerId;
 
-    // Find existing rounds and determine full bracket size from R1
-    const existingRounds = [...new Set(allMatches.map(m=>m.round))].sort((a,b)=>a-b);
-    const r1Matches = allMatches.filter(m=>m.round===existingRounds[0]);
+    // Find all rounds and the max match_number in round 1 to determine bracket size
+    const rounds = [...new Set(allMatches.map(m=>m.round))].sort((a,b)=>a-b);
+    const r1Matches = allMatches.filter(m=>m.round===rounds[0]);
     const totalR1 = r1Matches.length; // 16 for BHGS
-
-    // Calculate how many rounds needed: log2(totalR1) + 1
-    const numRounds = Math.ceil(Math.log2(totalR1)) + 1;
-    const firstRound = existingRounds[0];
-    // Build full rounds array including rounds not yet in DB
-    const rounds = [];
-    for (let i = 0; i < numRounds; i++) rounds.push(firstRound + i);
 
     // Build a complete virtual bracket based on known round 1 size
     // Each round halves: R1=16, R2=8, QF=4, SF=2, Final=1
@@ -8333,39 +8299,13 @@ function renderKnockout() {
     el.innerHTML=`<div style="background:#0a1628;border-radius:12px;padding:16px 14px 20px">
       ${adminBtns}
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px">
-        <div id="ko-zoom-wrap" style="transform-origin:top left;transition:transform 0.1s">
-          <div style="position:relative;width:${totalW}px;height:${totalH}px">
-            <svg style="position:absolute;top:0;left:0;pointer-events:none" width="${totalW}" height="${totalH}">${svgLines}</svg>
-            ${colsHtml}
-          </div>
+        <div style="position:relative;width:${totalW}px;height:${totalH}px">
+          <svg style="position:absolute;top:0;left:0;pointer-events:none" width="${totalW}" height="${totalH}">${svgLines}</svg>
+          ${colsHtml}
         </div>
       </div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.2);text-align:center;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:12px">
-      <div style="font-size:11px;color:rgba(255,255,255,0.2);text-align:center;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:10px">
-        <span>&#8592; Swipe &#8594;</span>
-        <button onclick="document.getElementById('ko-zoom-wrap').style.transform='scale(1)';_koScale=1" style="padding:4px 10px;border-radius:99px;border:0.5px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.3);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">Reset zoom</button>
-        <button onclick="openKoFullscreen()" style="padding:4px 14px;border-radius:99px;border:1px solid #C9A84C;background:rgba(201,168,76,0.1);color:#C9A84C;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">&#x26F3; Full view</button>
-
-    // Pinch to zoom on bracket
-    let _koScale = 1, _koLastDist = 0;
-    const zw = el.querySelector('#ko-zoom-wrap');
-    const wrap = el.querySelector('[style*="overflow-x:auto"]');
-    if (zw && wrap) {
-      wrap.addEventListener('touchstart', e => {
-        if (e.touches.length === 2) {
-          _koLastDist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-        }
-      }, { passive: true });
-      wrap.addEventListener('touchmove', e => {
-        if (e.touches.length === 2) {
-          const dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-          _koScale = Math.min(2, Math.max(0.4, _koScale * (dist / _koLastDist)));
-          _koLastDist = dist;
-          zw.style.transform = 'scale(' + _koScale + ')';
-          zw.style.transition = 'none';
-        }
-      }, { passive: true });
-    }
+      <div style="font-size:11px;color:rgba(255,255,255,0.2);text-align:center;margin-top:4px">&#8592; Swipe to navigate &#8594;</div>
+    </div>`;
 
   } catch(e){ console.error('renderKnockout:',e.message,e.stack); }
 }
@@ -8704,43 +8644,6 @@ function showTab(name) {
 
 function closeModal() { haptic(); document.getElementById('modal-overlay').classList.remove('open'); }
 function maybeCloseModal(e) { if (e.target===document.getElementById('modal-overlay')) closeModal(); }
-
-function openKoFullscreen() {
-  const inner = document.getElementById('ko-fullscreen-inner');
-  const src = document.getElementById('knockout-content');
-  if (!inner || !src) return;
-  inner.innerHTML = src.innerHTML;
-  document.getElementById('ko-fullscreen').classList.add('active');
-  document.getElementById('ko-exit-btn').classList.add('active');
-  // Pinch zoom on fullscreen clone
-  const zw = inner.querySelector('#ko-zoom-wrap');
-  const overlay = document.getElementById('ko-fullscreen');
-  if (zw && overlay) {
-    let scale = 1, lastDist = 0;
-    overlay.addEventListener('touchstart', e => {
-      if (e.touches.length === 2) lastDist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-    }, { passive: true });
-    overlay.addEventListener('touchmove', e => {
-      if (e.touches.length === 2) {
-        const dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-        scale = Math.min(3, Math.max(0.3, scale * (dist / lastDist)));
-        lastDist = dist;
-        zw.style.transform = 'scale(' + scale + ')';
-        zw.style.transition = 'none';
-      }
-    }, { passive: true });
-  }
-  try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(()=>{}); } catch(e) {}
-  try { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); } catch(e) {}
-}
-
-function exitKoFullscreen() {
-  document.getElementById('ko-fullscreen').classList.remove('active');
-  document.getElementById('ko-exit-btn').classList.remove('active');
-  document.getElementById('ko-fullscreen-inner').innerHTML = '';
-  try { screen.orientation && screen.orientation.unlock && screen.orientation.unlock(); } catch(e) {}
-  try { document.exitFullscreen && document.exitFullscreen(); } catch(e) {}
-}
 
 function toast(msg, type='') {
   const wrap = document.getElementById('toasts');
@@ -9523,10 +9426,25 @@ function openApiKeyModal() {
 })();
 
 init();
+function koFsOpen() {
+  const src = document.getElementById('knockout-content');
+  const inner = document.getElementById('ko-fs-inner');
+  if (!src || !inner) return;
+  inner.innerHTML = src.innerHTML;
+  document.getElementById('ko-fs').classList.add('on');
+  document.getElementById('ko-fs-exit').classList.add('on');
+  try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(function(){}); } catch(e) {}
+  try { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); } catch(e) {}
+}
+function koFsExit() {
+  document.getElementById('ko-fs').classList.remove('on');
+  document.getElementById('ko-fs-exit').classList.remove('on');
+  document.getElementById('ko-fs-inner').innerHTML = '';
+  try { screen.orientation && screen.orientation.unlock && screen.orientation.unlock(); } catch(e) {}
+  try { document.exitFullscreen && document.exitFullscreen(); } catch(e) {}
+}
 </script>
-  <div id="ko-fullscreen">
-    <div id="ko-fullscreen-inner" style="padding:60px 16px 24px;min-height:100%;box-sizing:border-box"></div>
-  </div>
-  <button id="ko-exit-btn" onclick="exitKoFullscreen()">&#x2715;</button>
+  <div id="ko-fs"><div id="ko-fs-inner" style="padding:60px 16px 24px"></div></div>
+  <button id="ko-fs-exit" onclick="koFsExit()">&#x2715;</button>
 </body>
 </html>
