@@ -9482,13 +9482,19 @@ function koFsOpen() {
   var ROUND_NAMES={1:'R1',2:'R16',3:'QF',4:'SF',5:'Final'};
 
   // Layout dimensions
-  var numCols = sideRounds.length + 1; // side rounds + final
-  var CONN = 14;
+  // Columns: Final is centred, side rounds spread left from centre
+  var numCols = sideRounds.length + 1;
+  var CONN = 10;
   var availW = W - PAD*2;
   var COL_W = Math.floor((availW - (numCols-1)*CONN) / numCols);
+  // Final is always in the last column position (rightmost)
+  // But we want: col0=leftmost, col1, col2... colN=Final centred
+  // Reorder: Final is at centre-right, side rounds go left from Final
+  // x position for side round ri: PAD + ri*(COL_W+CONN)
+  // x position for Final: PAD + sideRounds.length*(COL_W+CONN)
 
-  var TITLE_H = 52;
-  var FOOT_H  = 52;
+  var TITLE_H = 48;
+  var FOOT_H  = 48;
   var halfH   = Math.floor((H - TITLE_H - FOOT_H) / 2);
   var HDR_H   = 18;
   var CARD_GAP = 6;
@@ -9532,8 +9538,8 @@ function koFsOpen() {
     return tops;
   }
 
-  var topStart = TITLE_H + HDR_H + 12;
-  var botStart = H - FOOT_H - CH - 12;
+  var topStart = TITLE_H + HDR_H + 6;
+  var botStart = H - FOOT_H - CH - 6;
 
   var leftByRound  = sideRounds.map(topHalf);
   var rightByRound = sideRounds.map(bottomHalf);
@@ -9541,7 +9547,10 @@ function koFsOpen() {
   var rightTops = computeTops(rightByRound, botStart, false);
 
   var finalCardY = Math.round((H - CH) / 2);
-  var finalX = PAD + sideRounds.length*(COL_W+CONN);
+  // Centre the Final card on screen, fan side rounds out to the left
+  var totalBracketW = (sideRounds.length+1)*COL_W + sideRounds.length*CONN;
+  var bracketStartX = Math.round((W - totalBracketW) / 2);
+  var finalX = bracketStartX + sideRounds.length*(COL_W+CONN);
 
   function rrect(x,y,w,h,r){
     ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
@@ -9610,7 +9619,7 @@ function koFsOpen() {
   // Title
   ctx.font='bold 13px DM Sans,sans-serif';ctx.fillStyle='#C9A84C';
   ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('2026 Knockout Bracket',W/2,TITLE_H/2);
+  ctx.fillText('2026 Knockout Bracket',W/2,28);
   ctx.textAlign='left';
 
   // Subtle centre divider line
@@ -9622,7 +9631,7 @@ function koFsOpen() {
   function drawSide(byRound, tops, isTop) {
     byRound.forEach(function(half, ri) {
       var r=sideRounds[ri], isDone=r<live, isLive=r===live;
-      var x=PAD+ri*(COL_W+CONN);
+      var x=bracketStartX+ri*(COL_W+CONN);
       var nm=ROUND_NAMES[r]||('R'+r);
       var colCX=x+COL_W/2;
 
