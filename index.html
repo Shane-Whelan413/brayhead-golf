@@ -8045,7 +8045,7 @@ function renderKnockout() {
   const el = document.getElementById('knockout-content');
   if (!el) return;
   try {
-    const allMatches = db.knockout_matches.filter(m=>!m.is_bye);
+    const allMatches = db.knockout_matches;
     const rounds = [...new Set(allMatches.map(m=>m.round))].sort((a,b)=>a-b);
     const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
     const pid = currentUser?.playerId;
@@ -8061,14 +8061,14 @@ function renderKnockout() {
         </div>
       </div>` : "";
 
-    if (!allMatches.length) {
+    if (!allMatches.filter(m=>!m.is_bye).length) {
       el.innerHTML = '<div style="background:#0a1628;border-radius:12px;padding:3rem;text-align:center;color:rgba(255,255,255,0.4)">No knockout draw yet</div>';
       return;
     }
 
     let liveRound = rounds[rounds.length - 1];
     for (const r of rounds) {
-      if (allMatches.filter(m=>m.round===r&&m.status!=="complete").length>0){liveRound=r;break;}
+      if (allMatches.filter(m=>m.round===r&&!m.is_bye&&m.status!=="complete").length>0){liveRound=r;break;}
     }
 
     const CARD_H = 64;
@@ -8160,6 +8160,7 @@ function renderKnockout() {
 
     rounds.forEach((r, ri) => {
       const rMatches = sortedRound(r);
+      const rVisible = visibleRound(r);
       const isLive = r===liveRound;
       const isDone = r<liveRound;
       const isFinal = ri===rounds.length-1;
@@ -8177,7 +8178,7 @@ function renderKnockout() {
         <div style="display:inline-block;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.05em;${pillStyle}">${pillLabel}${isFinal?"&nbsp;&#127942;":""}</div>
       </div>`;
 
-      rMatches.forEach(m => {
+      rVisible.forEach(m => {
         const top = HDR_H + matchTops[m.id];
         colsHtml += `<div style="position:absolute;left:${x}px;top:${top}px;width:${COL_W}px">${matchCard(m)}</div>`;
       });
@@ -8192,9 +8193,10 @@ function renderKnockout() {
         const xMid   = xRight + CONN_W / 2;
         const xLeft  = xRight + CONN_W;
 
-        nextMatches.forEach((dest, di) => {
-          const src1 = rMatches[di * 2];
-          const src2 = rMatches[di * 2 + 1];
+        visibleRound(nextRound).forEach((dest) => {
+          const destNum = dest.match_number || 1;
+          const src1 = rMatches.find(m=>(m.match_number||0)===destNum*2-1);
+          const src2 = rMatches.find(m=>(m.match_number||0)===destNum*2);
           const destMid = HDR_H + matchTops[dest.id] + CARD_H / 2;
 
           if (src1) {
