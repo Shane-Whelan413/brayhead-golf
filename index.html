@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="screen-orientation" content="portrait">
 <meta name="theme-color" content="#0a1628">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -9427,6 +9428,8 @@ function openApiKeyModal() {
   }, { passive: true });
 })();
 
+// Lock to portrait
+try { screen.orientation && screen.orientation.lock && screen.orientation.lock('portrait').catch(function(){}); } catch(e) {}
 init();
 function koFsOpen() {
   var src = document.getElementById('knockout-content');
