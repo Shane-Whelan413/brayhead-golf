@@ -8289,6 +8289,36 @@ async function saveKnockoutDraw() {
 
 // ── Match entry — event card based ──────────────────────────────────────
 
+async function declareWinner(mid, winnerId) {
+  const m = db.knockout_matches.find(x=>x.id===mid);
+  if (!m) return;
+  const winner = db.players.find(p=>p.id===winnerId);
+  const loser = db.players.find(p=>p.id===(winnerId===m.player1_id?m.player2_id:m.player1_id));
+  if (!confirm(`Declare ${winner?.name} the winner by forfeit/walkover?\n\nThis cannot be undone.`)) return;
+  try {
+    await patch(`knockout_matches?id=eq.${mid}`, { status:'complete', winner_id:winnerId });
+    const mi = db.knockout_matches.findIndex(x=>x.id===mid);
+    if (mi>=0) { db.knockout_matches[mi].status='complete'; db.knockout_matches[mi].winner_id=winnerId; }
+    // Advance winner to next round
+    const nextRound = m.round + 1;
+    const matchPos = Math.ceil((m.match_number||1) / 2);
+    const existing = db.knockout_matches.find(x=>x.round===nextRound&&x.match_number===matchPos);
+    if (existing) {
+      const field = (m.match_number||1)%2===1 ? 'player1_id' : 'player2_id';
+      await patch(`knockout_matches?id=eq.${existing.id}`, { [field]: winnerId });
+      const ei = db.knockout_matches.findIndex(x=>x.id===existing.id);
+      if (ei>=0) db.knockout_matches[ei][field] = winnerId;
+    } else {
+      const field = (m.match_number||1)%2===1 ? 'player1_id' : 'player2_id';
+      await post('knockout_matches', { round:nextRound, match_number:matchPos, [field]:winnerId, is_bye:false, status:'pending' });
+    }
+    closeModal();
+    await loadAll();
+    renderKnockout();
+    toast(`${winner?.name} advances (forfeit)`, 'success');
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
 function showMatchEntry(mid) {
   const m = db.knockout_matches.find(x=>x.id===mid);
   if (!m) return;
@@ -8313,6 +8343,14 @@ function showMatchEntry(mid) {
     ${isPlayoff ? `<div style="background:#EEEDFE;border-radius:var(--radius);padding:10px 12px;margin-bottom:1rem;font-size:13px;color:#3C3489;font-weight:500">
       🔄 This match went to a playoff — pick the event card to resolve it.
     </div>` : ''}
+    <div style="background:#fef8e6;border:1px solid rgba(201,168,76,0.3);border-radius:var(--radius);padding:12px;margin-bottom:1rem">
+      <div style="font-size:13px;font-weight:600;color:#8a6a1a;margin-bottom:8px">Declare winner (forfeit / walkover)</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="declareWinner('${mid}','${m.player1_id}')" style="flex:1;padding:10px;border-radius:var(--radius);border:1px solid #C9A84C;background:white;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">${p1.name}</button>
+        <button onclick="declareWinner('${mid}','${m.player2_id}')" style="flex:1;padding:10px;border-radius:var(--radius);border:1px solid #C9A84C;background:white;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">${p2.name}</button>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px">Or settle using an event card</div>
     <div class="form-group" style="margin-bottom:1rem">
       <label>Select event card to use</label>
       <select id="match-event-sel" onchange="previewMatchCards('${mid}')" style="width:100%">
