@@ -9477,7 +9477,7 @@ function koFsOpen() {
   var availH = window.innerHeight - 44 - 100 - 70 - 32;
   var halfAvail = Math.floor(availH / 2);
   var HDR = 22;
-  var cardH = Math.min(62, Math.floor((halfAvail - HDR - (maxCards-1)*CARD_GAP) / maxCards));
+  var cardH = Math.min(32, Math.floor((halfAvail - HDR - (maxCards-1)*CARD_GAP) / maxCards));
   var groupH = HDR + maxCards*cardH + (maxCards-1)*CARD_GAP;
 
   function cardHtml(m) {
