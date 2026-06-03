@@ -9463,6 +9463,8 @@ function koFsOpen() {
   var sideRounds = allSideRounds.filter(function(r){
     return allMatches.some(function(m){return m.round===r&&!m.is_bye;});
   });
+  // Debug
+  alert('sideRounds: ' + sideRounds.join(',') + ' | allRounds: ' + allRounds.join(',') + ' | live: ' + live);
 
   function topHalf(r){var a=fullRounds[r];return a.slice(0,a.length/2);}
   function bottomHalf(r){var a=fullRounds[r];return a.slice(a.length/2);}
