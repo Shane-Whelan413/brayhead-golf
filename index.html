@@ -825,12 +825,6 @@
     animation: spin 0.7s linear infinite;
     flex-shrink: 0;
   }
-  #ko-fs { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:#0a1628; z-index:9999; }
-  #ko-fs.on { display:flex; align-items:center; justify-content:center; }
-  #ko-fs-wrap { width:100vh; height:100vw; overflow:hidden; transform:rotate(90deg); display:flex; align-items:center; justify-content:center; }
-  #ko-fs-inner { transform-origin:center center; }
-  #ko-fs-exit { display:none; position:fixed; top:16px; left:16px; z-index:10000; padding:8px 20px; border-radius:99px; background:#C9A84C; border:none; color:#0a1628; font-size:15px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
-  #ko-fs-exit.on { display:block; }
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen" class="login-screen" style="display:none">
@@ -8133,7 +8127,7 @@ function renderKnockout() {
     }
 
     const adminBtns = isAdmin ? `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;position:relative"><button onclick="koFsOpen()" style="padding:7px 14px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.1);color:#C9A84C;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">&#x26F3; Full view</button>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;position:relative">
         <button onclick="toggleKoAdminMenu()" style="padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.12);color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">&#9881; Admin &#9660;</button>
         <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#1a3050;border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:50;min-width:180px;overflow:hidden">
           ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Edit draw</button>':""}
@@ -9426,26 +9420,6 @@ function openApiKeyModal() {
 })();
 
 init();
-function koFsOpen() {
-  var overlay = document.getElementById('ko-fs');
-  var inner = document.getElementById('ko-fs-inner');
-  var exitBtn = document.getElementById('ko-fs-exit');
-  if (!overlay) { alert('overlay missing'); return; }
-  if (!inner) { alert('inner missing'); return; }
-  if (!exitBtn) { alert('exit missing'); return; }
-  inner.innerHTML = '<div style="color:white;font-size:40px;padding:40px">FULL VIEW WORKS</div>';
-  overlay.classList.add('on');
-  exitBtn.classList.add('on');
-}
-function koFsExit() {
-  document.getElementById('ko-fs').classList.remove('on');
-  document.getElementById('ko-fs-exit').classList.remove('on');
-  var inner = document.getElementById('ko-fs-inner');
-  inner.innerHTML = '';
-  inner.style.transform = '';
-}
 </script>
-  <div id="ko-fs"><div id="ko-fs-wrap"><div id="ko-fs-inner"></div></div></div>
-  <button id="ko-fs-exit" onclick="koFsExit()">✕ Close</button>
 </body>
 </html>
