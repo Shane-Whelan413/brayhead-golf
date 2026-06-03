@@ -825,10 +825,10 @@
     animation: spin 0.7s linear infinite;
     flex-shrink: 0;
   }
-  #ko-fs { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#0a1628; z-index:9999; }
+  #ko-fs { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#0a1628; z-index:9999; overflow:scroll; -webkit-overflow-scrolling:touch; padding-top:env(safe-area-inset-top,20px); box-sizing:border-box; }
   #ko-fs.on { display:block; }
-  #ko-fs-inner { position:absolute; top:50%; left:50%; transform-origin:center center; }
-  #ko-fs-exit { display:none; position:fixed; top:16px; right:16px; z-index:10000; width:48px; height:48px; border-radius:50%; background:#C9A84C; border:none; color:#0a1628; font-size:24px; font-weight:900; cursor:pointer; align-items:center; justify-content:center; }
+  #ko-fs-inner { display:inline-block; transform-origin:top left; padding:16px; }
+  #ko-fs-exit { display:none; position:fixed; top:calc(env(safe-area-inset-top,20px) + 8px); right:16px; z-index:10000; width:48px; height:48px; border-radius:50%; background:#C9A84C; border:none; color:#0a1628; font-size:24px; font-weight:900; cursor:pointer; align-items:center; justify-content:center; }
   #ko-fs-exit.on { display:flex; }
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -9441,16 +9441,22 @@ function koFsOpen() {
   inner.innerHTML = src.innerHTML;
   overlay.classList.add('on');
   document.getElementById('ko-fs-exit').classList.add('on');
+  // Rotate 90deg so landscape bracket shows on portrait phone
+  // Scale to phone height so width fits, let it scroll vertically
   setTimeout(function() {
-    var bw = inner.scrollWidth || 1800;
-    var bh = inner.scrollHeight || 600;
-    var lw = window.innerHeight;
-    var lh = window.innerWidth;
-    var scale = Math.min((lw - 20) / bw, (lh - 20) / bh);
-    inner.style.width = bw + 'px';
-    inner.style.height = bh + 'px';
-    inner.style.transform = 'translate(-50%,-50%) rotate(90deg) scale(' + scale + ')';
-  }, 150);
+    var ph = window.innerHeight; // portrait height = landscape width available
+    var wrap = inner.firstElementChild;
+    if (!wrap) return;
+    var bw = wrap.offsetWidth;
+    var scale = (ph - 80) / bw; // fit bracket width into phone height
+    inner.style.transform = 'rotate(90deg)';
+    inner.style.transformOrigin = 'top left';
+    inner.style.marginTop = (bw * scale) + 'px';
+    inner.style.marginLeft = '0';
+    wrap.style.transform = 'scale(' + scale + ')';
+    wrap.style.transformOrigin = 'top left';
+    overlay.scrollTop = 0;
+  }, 100);
 }
 function koFsExit() {
   document.getElementById('ko-fs').classList.remove('on');
@@ -9458,8 +9464,7 @@ function koFsExit() {
   var inner = document.getElementById('ko-fs-inner');
   inner.innerHTML = '';
   inner.style.transform = '';
-  inner.style.width = '';
-  inner.style.height = '';
+  inner.style.marginTop = '';
 }
 </script>
   <div id="ko-fs"><div id="ko-fs-inner"></div></div>
