@@ -9468,6 +9468,7 @@ function koFsOpen() {
   function bottomHalf(r){var a=fullRounds[r];return a.slice(a.length/2);}
   function fn(n){return n?n.split(' ')[0]:'TBD';}
   var ROUND_NAMES={1:'R1',2:'R16',3:'QF',4:'SF',5:'Final'};
+  var CARD_GAP = 8;
 
   // Card height: based on the first (largest) side round's top half card count
   var firstTopHalf = topHalf(sideRounds[0]);
