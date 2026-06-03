@@ -8186,6 +8186,19 @@ function renderKnockout() {
         colsHtml += `<div style="position:absolute;left:${x}px;top:${top}px;width:${COL_W}px">${matchCard(m)}</div>`;
       });
 
+      // Render bye cards as dimmed placeholders showing who advanced
+      sortedRound(r).filter(m=>m.is_bye).forEach(m => {
+        const winner = db.players.find(p=>p.id===m.winner_id);
+        const top = HDR_H + matchTops[m.id];
+        colsHtml += `<div style="position:absolute;left:${x}px;top:${top}px;width:${COL_W}px">
+          <div style="background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.1);border-radius:8px;height:${CARD_H}px;display:flex;align-items:center;gap:8px;padding:0 10px;opacity:0.7">
+            <div style="width:20px;height:20px;border-radius:50%;background:#0f2240;color:#C9A84C;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${winner?initials(winner.name):"?"}</div>
+            <div style="flex:1;font-size:12px;color:rgba(255,255,255,0.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${winner?winner.name:"TBD"}</div>
+            <span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.4);flex-shrink:0">BYE</span>
+          </div>
+        </div>`;
+      });
+
       // SVG lines to next round
       if (ri < rounds.length - 1) {
         const nextRound = rounds[ri + 1];
