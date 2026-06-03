@@ -9495,6 +9495,7 @@ function koFsOpen() {
 
   var TITLE_H = 48;
   var FOOT_H  = 48;
+  var CONN_V = 10;
   var halfH   = Math.floor((H - TITLE_H - FOOT_H) / 2);
   var HDR_H   = 18;
   var CARD_GAP = 6;
@@ -9538,15 +9539,48 @@ function koFsOpen() {
     return tops;
   }
 
-  var topStart = TITLE_H + HDR_H + 6;
-  var botStart = H - FOOT_H - CH - 6;
-
   var leftByRound  = sideRounds.map(topHalf);
   var rightByRound = sideRounds.map(bottomHalf);
-  var leftTops  = computeTops(leftByRound,  topStart, true);
-  var rightTops = computeTops(rightByRound, botStart, false);
 
+  // Final card is exactly centred vertically
   var finalCardY = Math.round((H - CH) / 2);
+  var centreMid  = finalCardY + CH/2;
+
+  // For top half: the SF (last side round) card midpoint should be just above centre
+  // For bottom half: the SF card midpoint should be just below centre
+  // Work outward from centre to calculate all positions
+
+  function computeTopsFromCentre(halves, fromTop) {
+    var tops = {};
+    // Start from innermost round (SF) and work outward
+    for (var ri = halves.length-1; ri >= 0; ri--) {
+      var matches = halves[ri];
+      if (ri === halves.length-1) {
+        // SF: single card, position adjacent to Final
+        var m = matches[0];
+        if (m) tops[m.id] = fromTop
+          ? centreMid - CH - CONN_V - CH/2  // top SF: its midpoint is above centre
+          : centreMid + CONN_V + CH/2;       // bot SF: its midpoint is below centre
+      } else {
+        // Earlier rounds: position feeders centred around their destination
+        var next = halves[ri+1];
+        matches.forEach(function(m, mi) {
+          var destIdx = Math.floor(mi/2);
+          var dest = next[destIdx];
+          if (!dest || tops[dest.id] === undefined) return;
+          var destMid = tops[dest.id] + CH/2;
+          var isFirst = mi % 2 === 0;
+          tops[m.id] = fromTop
+            ? isFirst ? destMid - CONN_V/2 - CH : destMid + CONN_V/2
+            : isFirst ? destMid - CONN_V/2 - CH : destMid + CONN_V/2;
+        });
+      }
+    }
+    return tops;
+  }
+
+  var leftTops  = computeTopsFromCentre(leftByRound,  true);
+  var rightTops = computeTopsFromCentre(rightByRound, false);
   // Centre the Final card on screen, fan side rounds out to the left
   var totalBracketW = (sideRounds.length+1)*COL_W + sideRounds.length*CONN;
   var bracketStartX = Math.round((W - totalBracketW) / 2);
