@@ -8055,7 +8055,7 @@ function renderKnockout() {
         <button onclick="toggleKoAdminMenu()" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.12);color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">
           &#9881; Admin <span style="font-size:10px;opacity:0.6">▾</span>
         </button>
-        <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#111f35;border:1px solid rgba(255,255,255,0.12);border-radius:10px;z-index:50;min-width:180px;overflow:hidden">
+        <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#1a3050;border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:50;min-width:180px;overflow:hidden">
           ${matches.length===0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Set up draw</button>`:""}
           ${matches.length>0?`<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">&#9999;&#65039; Edit draw</button>`:""}
           ${matches.length>0?`<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">&#128203; Post fixtures</button>`:""}
@@ -8110,7 +8110,7 @@ function renderKnockout() {
         : isTbd ? "border:1px dashed rgba(255,255,255,0.12)"
         : done ? "border:0.5px solid rgba(255,255,255,0.08)"
         : "border:0.5px solid rgba(255,255,255,0.12)";
-      const bg = isTbd ? "background:rgba(255,255,255,0.02)" : "background:#111f35";
+      const bg = isTbd ? "background:rgba(255,255,255,0.03);border-style:dashed" : "background:#1a3050";
 
       const myCallout = isMyMatch ? '<div style="padding:3px 8px;background:rgba(201,168,76,0.15);border-bottom:0.5px solid rgba(201,168,76,0.25);font-size:9px;font-weight:700;color:#C9A84C;letter-spacing:.06em">YOUR MATCH</div>' : "";
       const banner = bothAvail ? '<div style="padding:3px 8px;background:rgba(22,163,74,0.12);border-bottom:0.5px solid rgba(22,163,74,0.2);font-size:9px;font-weight:600;color:#4ade80;text-align:center">&#9971; Both available!</div>' : "";
@@ -8142,7 +8142,7 @@ function renderKnockout() {
         : "background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5)";
       const pillLabel = isLive ? "&#9679;&nbsp;" + roundName : isDone ? roundName + "&nbsp;&#10003;" : roundName;
       const trophy = isFinal ? "&nbsp;&#127942;" : "";
-      return `<div id="ko-col-${r}" style="flex-shrink:0;width:${CARD_W}px">
+      return `<div id="ko-col-${r}" style="flex-shrink:0;width:${CARD_W}px;scroll-snap-align:start">
         <div style="text-align:center;margin-bottom:12px">
           <div style="display:inline-block;padding:4px 12px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.05em;${pillStyle}">${pillLabel}${trophy}</div>
         </div>
@@ -8154,7 +8154,7 @@ function renderKnockout() {
 
     el.innerHTML = `<div style="background:#0a1628;border-radius:12px;padding:16px">
       ${adminBtns}
-      <div id="ko-bracket-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px">
+      <div id="ko-bracket-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px;scroll-snap-type:x mandatory">
         <div id="ko-bracket-inner" style="position:relative;min-width:${totalW}px;display:flex;gap:${GAP_W}px;align-items:flex-start;padding:2px">
           <svg id="ko-svg" style="position:absolute;top:0;left:0;pointer-events:none;overflow:visible;z-index:0" width="${totalW}" height="1000"></svg>
           ${colsHtml}
@@ -8168,10 +8168,21 @@ function renderKnockout() {
       const inner = document.getElementById('ko-bracket-inner');
       const svg = document.getElementById('ko-svg');
       if (!inner || !svg) return;
-      const innerRect = inner.getBoundingClientRect();
       let paths = "";
       const svgH = inner.scrollHeight + 20;
       svg.setAttribute('height', svgH);
+
+      // Use offset positions — scroll-independent and parent-relative
+      function getOffsetPos(el) {
+        let top = 0, left = 0;
+        let e = el;
+        while (e && e !== inner) {
+          top  += e.offsetTop;
+          left += e.offsetLeft;
+          e = e.offsetParent;
+        }
+        return { top, left, w: el.offsetWidth, h: el.offsetHeight };
+      }
 
       for (let ri = 0; ri < rounds.length - 1; ri++) {
         const r = rounds[ri];
@@ -8179,7 +8190,7 @@ function renderKnockout() {
         const rMatches = matches.filter(m => m.round===r && !m.is_bye);
         const rNextMatches = matches.filter(m => m.round===rNext && !m.is_bye);
         const isDone = r < liveRound;
-        const stroke = isDone ? "#C9A84C" : "rgba(255,255,255,0.15)";
+        const stroke = isDone ? "#C9A84C" : "rgba(255,255,255,0.18)";
         const sw = isDone ? "1.5" : "1";
 
         for (let mi = 0; mi < rNextMatches.length; mi++) {
@@ -8191,14 +8202,11 @@ function renderKnockout() {
           const topEl = topMatch ? document.getElementById('ko-card-' + topMatch.id) : null;
           const botEl = botMatch ? document.getElementById('ko-card-' + botMatch.id) : null;
           const destEl = document.getElementById('ko-card-' + destMatch.id);
-          if (!topEl && !botEl || !destEl) continue;
+          if ((!topEl && !botEl) || !destEl) continue;
 
-          const getY = (el) => {
-            const r2 = el.getBoundingClientRect();
-            return (r2.top + r2.bottom) / 2 - innerRect.top;
-          };
-          const getRight = (el) => el.getBoundingClientRect().right - innerRect.left;
-          const getLeft  = (el) => el.getBoundingClientRect().left  - innerRect.left;
+          const getY = (el) => { const p = getOffsetPos(el); return p.top + p.h / 2; };
+          const getRight = (el) => { const p = getOffsetPos(el); return p.left + p.w; };
+          const getLeft  = (el) => { const p = getOffsetPos(el); return p.left; };
 
           const yTop  = topEl ? getY(topEl) : (botEl ? getY(botEl) : 0);
           const yBot  = botEl ? getY(botEl) : yTop;
