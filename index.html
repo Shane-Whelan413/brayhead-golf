@@ -828,7 +828,7 @@
   #ko-fs { display:none; position:fixed; inset:0; background:#0a1628; z-index:9999; }
   #ko-fs.on { display:flex; flex-direction:column; align-items:center; padding-top:env(safe-area-inset-top,20px); box-sizing:border-box; }
   #ko-fs canvas { display:block; flex-shrink:0; }
-  #ko-fs-exit { flex-shrink:0; margin:10px auto; padding:12px 40px; border-radius:99px; background:#C9A84C; border:none; color:#0a1628; font-size:16px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
+  #ko-fs-exit { display:none !important; }
 </style>
 
 <!-- LOGIN SCREEN -->
@@ -9669,6 +9669,28 @@ function koFsOpen() {
   ctx.font='16px serif';ctx.textAlign='center';ctx.fillText('🏆',finalX+COL_W/2,finalCardY-20);
   drawHdr('Final',finalX+COL_W/2,finalCardY-HDR_H,finalRound===live,finalRound<live);
   drawCard(finalM,finalX,finalCardY);
+
+  // Draw close button at bottom of canvas
+  var btnW=140, btnH=40, btnX=Math.round((W-btnW)/2), btnY=H-BTN_H+Math.round((BTN_H-btnH)/2);
+  ctx.fillStyle='#C9A84C';
+  rrect(btnX,btnY,btnW,btnH,20);ctx.fill();
+  ctx.font='bold 15px DM Sans,sans-serif';
+  ctx.fillStyle='#0a1628';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('✕  Close',btnX+btnW/2,btnY+btnH/2);
+  ctx.textAlign='left';
+
+  // Make canvas tappable to close (tap bottom area)
+  canvas.ontouchend = function(e) {
+    var touch = e.changedTouches[0];
+    var rect = canvas.getBoundingClientRect();
+    var ty = touch.clientY - rect.top;
+    if (ty > H - BTN_H - 10) koFsExit();
+  };
+  canvas.onclick = function(e) {
+    var rect = canvas.getBoundingClientRect();
+    var cy = e.clientY - rect.top;
+    if (cy > H - BTN_H - 10) koFsExit();
+  };
 
   overlay.classList.add('on');
 }
