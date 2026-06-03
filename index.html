@@ -9463,8 +9463,6 @@ function koFsOpen() {
   var sideRounds = allSideRounds.filter(function(r){
     return allMatches.some(function(m){return m.round===r&&!m.is_bye;});
   });
-  // Debug
-  alert('sideRounds: ' + sideRounds.join(',') + ' | allRounds: ' + allRounds.join(',') + ' | live: ' + live);
 
   function topHalf(r){var a=fullRounds[r];return a.slice(0,a.length/2);}
   function bottomHalf(r){var a=fullRounds[r];return a.slice(a.length/2);}
@@ -9481,7 +9479,7 @@ function koFsOpen() {
   var availH = window.innerHeight - 44 - 100 - 70 - 32;
   var halfAvail = Math.floor(availH / 2);
   var HDR = 22;
-  var cardH = Math.min(62, Math.floor((halfAvail - HDR - (maxCards-1)*CARD_GAP) / maxCards));
+  var cardH = Math.min(48, Math.floor((halfAvail - HDR - (maxCards-1)*CARD_GAP) / maxCards));
   var groupH = HDR + maxCards*cardH + (maxCards-1)*CARD_GAP;
 
   function cardHtml(m) {
