@@ -8049,16 +8049,8 @@ function renderKnockout() {
     const rounds = [...new Set(allMatches.map(m=>m.round))].sort((a,b)=>a-b);
     const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
 
-    // DEBUG: show raw match data
-    const debugHtml = rounds.map(r => {
-      const ms = allMatches.filter(m=>m.round===r).sort((a,b)=>(a.match_number||0)-(b.match_number||0));
-      return `<b>Round ${r} (${ROUND_NAMES[r]||''})</b><br>${ms.map(m=>`&nbsp;&nbsp;#${m.match_number||'?'} ${m.is_bye?'[BYE]':''} ${m.status==='complete'?'[DONE]':'[OPEN]'} p1:${m.player1_id?'Y':'N'} p2:${m.player2_id?'Y':'N'} winner:${m.winner_id?'Y':'N'}`).join('<br>')}<br><br>`;
-    }).join('');
-    el.innerHTML = `<div style="background:#0a1628;border-radius:12px;padding:16px;color:rgba(255,255,255,0.8);font-size:11px;font-family:monospace;line-height:1.8">
-      <div style="color:#C9A84C;font-weight:700;margin-bottom:12px">DEBUG — ${allMatches.length} matches, ${rounds.length} rounds</div>
-      ${debugHtml}
-    </div>`;
-    return;
+    // Remove debug — data confirmed: R1=16 matches, R2=8, QF=3 (4th pending)
+
     const pid = currentUser?.playerId;
 
     const adminBtns = isAdmin ? `
@@ -8096,24 +8088,26 @@ function renderKnockout() {
       return side === 'top' ? all.slice(0, mid) : all.slice(mid);
     }
 
-    // Generate virtual TBD placeholders for bracket slots that should exist
-    // but haven't been created yet (winner hasn't advanced yet)
+    // Generate virtual TBD placeholders for bracket slots not yet in DB
+    // For QF match N, feeders are R2 matches 2N-1 and 2N
+    // If QF match N doesn't exist but its feeders do, create virtual placeholder
     function fillSlots(half, prevHalf) {
       if (!prevHalf || !prevHalf.length) return half;
-      // How many slots should this half have?
-      const expectedCount = Math.ceil(prevHalf.length / 2);
-      if (half.length >= expectedCount) return half;
-      // Find which match_numbers are missing
       const existing = new Set(half.map(m => m.match_number||0));
-      const prevNums = prevHalf.map(m => m.match_number||0).sort((a,b)=>a-b);
       const result = [...half];
-      // Determine expected match_numbers from prev round feeders
+      // Walk through prevHalf in pairs — each pair feeds one next-round slot
       for (let i = 0; i < prevHalf.length; i += 2) {
-        const p1 = prevHalf[i]; const p2 = prevHalf[i+1];
-        const expectedNum = Math.ceil((p1 ? p1.match_number||1 : 1) / 2);
+        const src = prevHalf[i];
+        if (!src) continue;
+        const expectedNum = Math.ceil((src.match_number||1) / 2);
         if (!existing.has(expectedNum)) {
-          // Create virtual placeholder
-          result.push({ id: 'tbd_'+expectedNum+'_'+Math.random().toString(36).slice(2,6), match_number: expectedNum, round: half.length ? half[0].round : 0, player1_id: null, player2_id: null, status: 'pending', is_bye: false, _virtual: true });
+          result.push({
+            id: '__virt_' + expectedNum + '_' + (half[0]||{round:0}).round,
+            match_number: expectedNum,
+            round: (half[0]||{round:0}).round,
+            player1_id: null, player2_id: null,
+            status: 'pending', is_bye: false, _virtual: true
+          });
           existing.add(expectedNum);
         }
       }
@@ -8128,12 +8122,12 @@ function renderKnockout() {
           rMatches.forEach((m, mi) => { tops[m.id] = mi * (CARD_H + GAP); });
         } else {
           const prev = halfByRound[ri - 1];
-          rMatches.forEach(m => {
+          rMatches.forEach((m, mi) => {
             const dn = m.match_number || 1;
             const f1 = prev.find(p => (p.match_number||0) === dn*2-1);
             const f2 = prev.find(p => (p.match_number||0) === dn*2);
-            const t1 = f1 ? tops[f1.id] : 0;
-            const t2 = f2 ? tops[f2.id] : t1;
+            const t1 = (f1 && tops[f1.id] !== undefined) ? tops[f1.id] : mi * (CARD_H + GAP) * 2;
+            const t2 = (f2 && tops[f2.id] !== undefined) ? tops[f2.id] : t1 + CARD_H + GAP;
             tops[m.id] = ((t1 + CARD_H/2) + (t2 + CARD_H/2)) / 2 - CARD_H/2;
           });
         }
