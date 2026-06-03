@@ -8078,9 +8078,9 @@ function renderKnockout() {
     const CONN_W = 44;
     const HDR_H  = 44;
 
-    // Sort matches per round consistently
+    // Sort matches per round by match_number for correct bracket order
     function sortedRound(r) {
-      return allMatches.filter(m=>m.round===r).sort((a,b)=>a.id>b.id?1:-1);
+      return allMatches.filter(m=>m.round===r).sort((a,b)=>a.match_number-b.match_number);
     }
 
     // Compute top position of each match card
