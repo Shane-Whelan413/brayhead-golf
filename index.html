@@ -8045,54 +8045,79 @@ function renderKnockout() {
   const el = document.getElementById('knockout-content');
   if (!el) return;
   try {
-    const matches = db.knockout_matches;
-    const rounds = [...new Set(matches.map(m=>m.round))].sort((a,b)=>a-b);
+    const allMatches = db.knockout_matches.filter(m=>!m.is_bye);
+    const rounds = [...new Set(allMatches.map(m=>m.round))].sort((a,b)=>a-b);
     const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
     const pid = currentUser?.playerId;
 
     const adminBtns = isAdmin ? `
       <div style="display:flex;justify-content:flex-end;margin-bottom:12px;position:relative">
-        <button onclick="toggleKoAdminMenu()" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.12);color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">
-          &#9881; Admin <span style="font-size:10px;opacity:0.6">&#9660;</span>
-        </button>
+        <button onclick="toggleKoAdminMenu()" style="padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.12);color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">&#9881; Admin &#9660;</button>
         <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#1a3050;border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:50;min-width:180px;overflow:hidden">
-          ${matches.length===0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Set up draw</button>':""}
-          ${matches.length>0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Edit draw</button>':""}
-          ${matches.length>0?'<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Post fixtures</button>':""}
-          ${matches.length>0?'<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8)">Post results</button>':""}
+          ${allMatches.length===0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Set up draw</button>':""}
+          ${allMatches.length>0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Edit draw</button>':""}
+          ${allMatches.length>0?'<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Post fixtures</button>':""}
+          ${allMatches.length>0?'<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8)">Post results</button>':""}
         </div>
       </div>` : "";
 
-    if (!matches.length) {
+    if (!allMatches.length) {
       el.innerHTML = '<div style="background:#0a1628;border-radius:12px;padding:3rem;text-align:center;color:rgba(255,255,255,0.4)">No knockout draw yet</div>';
       return;
     }
 
     let liveRound = rounds[rounds.length - 1];
     for (const r of rounds) {
-      if (matches.filter(m=>m.round===r&&!m.is_bye&&m.status!=="complete").length>0){liveRound=r;break;}
+      if (allMatches.filter(m=>m.round===r&&m.status!=="complete").length>0){liveRound=r;break;}
     }
 
-    // Fixed heights so CSS connector lines align exactly
-    const ROW_H   = 30;  // each player row
-    const CARD_H  = ROW_H * 2 + 1; // two rows + divider
-    const CARD_MB = 12;
-    const HDR_H   = 44;
+    const CARD_H = 64;
+    const ROW_H  = 32;
+    const GAP    = 12;
+    const COL_W  = 170;
+    const CONN_W = 44;
+    const HDR_H  = 44;
+
+    // Sort matches per round consistently
+    function sortedRound(r) {
+      return allMatches.filter(m=>m.round===r).sort((a,b)=>a.id>b.id?1:-1);
+    }
+
+    // Compute top position of each match card
+    // Round 0: evenly spaced by (CARD_H + GAP)
+    // Round N: each match centred between its two feeders from round N-1
+    const matchTops = {};
+    rounds.forEach((r, ri) => {
+      const rMatches = sortedRound(r);
+      if (ri === 0) {
+        rMatches.forEach((m, mi) => { matchTops[m.id] = mi * (CARD_H + GAP); });
+      } else {
+        const prevMatches = sortedRound(rounds[ri-1]);
+        rMatches.forEach((m, mi) => {
+          const f1 = prevMatches[mi * 2];
+          const f2 = prevMatches[mi * 2 + 1];
+          const top1 = f1 ? matchTops[f1.id] : 0;
+          const top2 = f2 ? matchTops[f2.id] : top1;
+          matchTops[m.id] = (top1 + top2) / 2 + (f2 ? 0 : 0);
+          // Centre between midpoints of feeders
+          matchTops[m.id] = ((top1 + CARD_H/2) + (top2 + CARD_H/2)) / 2 - CARD_H/2;
+        });
+      }
+    });
 
     function pRow(player, won, lost, isMe, avail, done) {
       const name = player ? player.name : "TBD";
       const isTbd = !player;
-      const rowBg = won ? "background:#071220" : lost ? "background:rgba(0,0,0,0.2)" : "";
-      const nameSt = won ? "font-weight:700;color:white" : lost ? "color:rgba(255,255,255,0.28)" : isTbd ? "color:rgba(255,255,255,0.22)" : "color:rgba(255,255,255,0.9)";
-      const avBg = won ? "background:#C9A84C;color:#0a1628" : isTbd ? "background:transparent;border:1px dashed rgba(255,255,255,0.18);color:rgba(255,255,255,0.22)" : "background:#0f2240;color:#C9A84C";
-      const ring = isMe&&!won&&!lost ? ";box-shadow:0 0 0 2px #C9A84C" : "";
-      const badge = won ? '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(201,168,76,0.18);color:#C9A84C;flex-shrink:0">Won</span>'
-        : lost ? '<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.28);flex-shrink:0">Lost</span>'
-        : !done&&player&&avail ? '<span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:99px;background:rgba(22,163,74,0.18);color:#4ade80;flex-shrink:0">&#10003;</span>'
-        : "";
+      const rowBg = won?"background:#071220":lost?"background:rgba(0,0,0,0.2)":"";
+      const nameSt = won?"font-weight:700;color:white":lost?"color:rgba(255,255,255,0.28)":isTbd?"color:rgba(255,255,255,0.22)":"color:rgba(255,255,255,0.9)";
+      const avBg = won?"background:#C9A84C;color:#0a1628":isTbd?"background:transparent;border:1px dashed rgba(255,255,255,0.18);color:rgba(255,255,255,0.22)":"background:#0f2240;color:#C9A84C";
+      const ring = isMe&&!won&&!lost?";box-shadow:0 0 0 2px #C9A84C":"";
+      const badge = won?'<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(201,168,76,0.18);color:#C9A84C;flex-shrink:0">Won</span>'
+        :lost?'<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.28);flex-shrink:0">Lost</span>'
+        :!done&&player&&avail?'<span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:99px;background:rgba(22,163,74,0.18);color:#4ade80;flex-shrink:0">&#10003;</span>':"";
       return `<div style="display:flex;align-items:center;gap:6px;padding:0 10px;height:${ROW_H}px;box-sizing:border-box;${rowBg}">
         <div style="width:20px;height:20px;border-radius:50%;${avBg};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0${ring}">${isTbd?"&#8212;":initials(name)}</div>
-        <div style="flex:1;font-size:12px;${nameSt};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isTbd?'<i style="font-style:italic;opacity:.45">TBD</i>':name}</div>
+        <div style="flex:1;font-size:12px;${nameSt};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isTbd?'<i style="opacity:.35">TBD</i>':name}</div>
         ${badge}
       </div>`;
     }
@@ -8103,114 +8128,102 @@ function renderKnockout() {
       const done = m.status==="complete";
       const isMyMatch = m.round===liveRound&&pid&&!done&&(m.player1_id===pid||m.player2_id===pid);
       const fresh = isAvailabilityFresh(m);
-      const p1avail = fresh&&m.p1_available;
-      const p2avail = fresh&&m.p2_available;
+      const p1avail = fresh&&m.p1_available; const p2avail = fresh&&m.p2_available;
       const bothAvail = p1avail&&p2avail;
       const myAvail = fresh&&(m.player1_id===pid?m.p1_available:m.p2_available);
       const p1won = done&&m.winner_id===m.player1_id;
       const p2won = done&&m.winner_id===m.player2_id;
       const isTbd = !m.player1_id&&!m.player2_id;
-
       const border = bothAvail?"1.5px solid rgba(22,163,74,0.55)":isMyMatch?"1.5px solid #C9A84C":done?"0.5px solid rgba(255,255,255,0.07)":"0.5px solid rgba(255,255,255,0.12)";
-      const bg = isTbd?"rgba(255,255,255,0.02)":"#1a3050";
-
       const myCallout = isMyMatch?'<div style="padding:2px 8px;background:rgba(201,168,76,0.15);border-bottom:0.5px solid rgba(201,168,76,0.2);font-size:8px;font-weight:700;color:#C9A84C;letter-spacing:.08em;text-align:center">YOUR MATCH</div>':"";
       const banner = bothAvail?'<div style="padding:2px 8px;background:rgba(22,163,74,0.1);border-bottom:0.5px solid rgba(22,163,74,0.18);font-size:8px;font-weight:600;color:#4ade80;text-align:center">Both available!</div>':"";
-      const availStrip = isMyMatch?`<div onclick="toggleMatchAvailability('${m.id}')" style="padding:5px 8px;background:${myAvail?"rgba(22,163,74,0.1)":"rgba(201,168,76,0.07)"};border-top:0.5px solid ${myAvail?"rgba(22,163,74,0.18)":"rgba(201,168,76,0.15)"};font-size:10px;font-weight:600;color:${myAvail?"#4ade80":"#C9A84C"};cursor:pointer;text-align:center">${myAvail?"&#10003; Available &#8212; undo":"Tap to confirm availability"}</div>`:"";
-      const adminSettle = isAdmin&&!done?`<div onclick="showMatchEntry('${m.id}')" style="padding:4px 8px;background:rgba(201,168,76,0.07);border-top:0.5px solid rgba(201,168,76,0.12);font-size:10px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center">&#9881; Settle match</div>`:"";
-
-      return `<div style="background:${bg};border:${border};border-radius:8px;overflow:hidden">
+      const availStrip = isMyMatch?`<div onclick="toggleMatchAvailability('${m.id}')" style="padding:5px 8px;background:${myAvail?"rgba(22,163,74,0.1)":"rgba(201,168,76,0.07)"};border-top:0.5px solid rgba(255,255,255,0.06);font-size:10px;font-weight:600;color:${myAvail?"#4ade80":"#C9A84C"};cursor:pointer;text-align:center">${myAvail?"&#10003; Available":"Confirm availability"}</div>`:"";
+      const adminSettle = isAdmin&&!done?`<div onclick="showMatchEntry('${m.id}')" style="padding:4px 8px;background:rgba(201,168,76,0.07);border-top:0.5px solid rgba(255,255,255,0.05);font-size:10px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center">&#9881; Settle</div>`:"";
+      return `<div style="background:${isTbd?"rgba(255,255,255,0.02)":"#1a3050"};border:${border};border-radius:8px;overflow:hidden">
         ${myCallout}${banner}
-        ${pRow(p1,p1won,done&&!p1won,pid===m.player1_id,p1avail,done)}
-        <div style="height:1px;background:rgba(255,255,255,0.07);margin:0 8px"></div>
-        ${pRow(p2,p2won,done&&!p2won,pid===m.player2_id,p2avail,done)}
+        <div style="height:${CARD_H}px">
+          ${pRow(p1,p1won,done&&!p1won,pid===m.player1_id,p1avail,done)}
+          <div style="height:1px;background:rgba(255,255,255,0.07);margin:0 8px"></div>
+          ${pRow(p2,p2won,done&&!p2won,pid===m.player2_id,p2avail,done)}
+        </div>
         ${availStrip}${adminSettle}
       </div>`;
     }
 
-    // CSS connector column between rounds
-    // Each pair of cards in round N feeds one card in round N+1
-    // Top half of pair: border-right + border-bottom
-    // Bottom half of pair: border-right + border-top
-    function connectorCol(r, ri) {
-      const rMatches = matches.filter(m=>m.round===r&&!m.is_bye);
-      const nextRound = rounds[ri+1];
-      if (!nextRound) return "";
-      const nextMatches = matches.filter(m=>m.round===nextRound&&!m.is_bye);
-      const isDone = r < liveRound;
-      const lc = isDone ? "#C9A84C" : "rgba(255,255,255,0.18)";
-      const lw = isDone ? "1.5px" : "1px";
+    const totalW = rounds.length * COL_W + (rounds.length - 1) * CONN_W;
+    const firstRound = sortedRound(rounds[0]);
+    const totalH = (firstRound.length - 1) * (CARD_H + GAP) + CARD_H;
+    const svgH = HDR_H + totalH + 40;
 
-      let cells = `<div style="height:${HDR_H}px"></div>`;
-      for (let mi = 0; mi < nextMatches.length; mi++) {
-        // Each pair = CARD_H + CARD_MB + CARD_H
-        const halfH = (CARD_H + CARD_MB + CARD_H) / 2;
-        cells += `<div style="height:${halfH}px;border-right:${lw} solid ${lc};border-bottom:${lw} solid ${lc};box-sizing:border-box;margin-right:4px"></div>`;
-        cells += `<div style="height:${halfH}px;border-right:${lw} solid ${lc};border-top:${lw} solid ${lc};box-sizing:border-box;margin-right:4px"></div>`;
-        if (mi < nextMatches.length - 1) {
-          cells += `<div style="height:${CARD_MB}px"></div>`;
-        }
-      }
-      return `<div style="width:28px;flex-shrink:0;display:flex;flex-direction:column">${cells}</div>`;
-    }
+    let colsHtml = '';
+    let svgLines = '';
 
-    // Horizontal connector from right side of connector to left side of next card
-    // This is just the horizontal gap — handled by the right-border of connector col
-    // We add a small dot/nub on the right to make it feel connected
-    function gapCol(r, ri) {
-      const rMatches = matches.filter(m=>m.round===r&&!m.is_bye);
-      const nextRound = rounds[ri+1];
-      if (!nextRound) return "";
-      const nextMatches = matches.filter(m=>m.round===nextRound&&!m.is_bye);
-      const isDone = r < liveRound;
-      const lc = isDone ? "#C9A84C" : "rgba(255,255,255,0.18)";
-      const lw = isDone ? "1.5px" : "1px";
-
-      let cells = `<div style="height:${HDR_H}px"></div>`;
-      for (let mi = 0; mi < nextMatches.length; mi++) {
-        const fullH = CARD_H + CARD_MB + CARD_H + (mi < nextMatches.length - 1 ? CARD_MB : 0);
-        const midY = (CARD_H + CARD_MB + CARD_H) / 2;
-        cells += `<div style="height:${midY}px;border-bottom:${lw} solid ${lc};box-sizing:border-box"></div>`;
-        cells += `<div style="height:${fullH - midY}px"></div>`;
-      }
-      return `<div style="width:10px;flex-shrink:0;display:flex;flex-direction:column">${cells}</div>`;
-    }
-
-    let bracketHtml = '<div style="display:flex;align-items:flex-start">';
     rounds.forEach((r, ri) => {
-      const rMatches = matches.filter(m=>m.round===r&&!m.is_bye);
+      const rMatches = sortedRound(r);
       const isLive = r===liveRound;
       const isDone = r<liveRound;
       const isFinal = ri===rounds.length-1;
       const roundName = ROUND_NAMES[r]||("Round "+r);
+      const x = ri * (COL_W + CONN_W);
+
       const pillStyle = isLive
         ? "background:#1e3a5f;border:1px solid #C9A84C;color:#C9A84C"
         : isDone
         ? "background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.35)"
         : "background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5)";
       const pillLabel = isLive?"&#9679;&nbsp;"+roundName:isDone?roundName+"&nbsp;&#10003;":roundName;
-      const trophy = isFinal?"&nbsp;&#127942;":"";
 
-      bracketHtml += `<div style="flex-shrink:0;width:168px">
-        <div style="height:${HDR_H}px;display:flex;align-items:center;justify-content:center">
-          <div style="display:inline-block;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.05em;${pillStyle}">${pillLabel}${trophy}</div>
-        </div>
-        ${rMatches.map(m=>`<div style="margin-bottom:${CARD_MB}px">${matchCard(m)}</div>`).join("")}
+      colsHtml += `<div style="position:absolute;left:${x}px;top:0;width:${COL_W}px;height:${HDR_H}px;display:flex;align-items:center;justify-content:center">
+        <div style="display:inline-block;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.05em;${pillStyle}">${pillLabel}${isFinal?"&nbsp;&#127942;":""}</div>
       </div>`;
 
+      rMatches.forEach(m => {
+        const top = HDR_H + matchTops[m.id];
+        colsHtml += `<div style="position:absolute;left:${x}px;top:${top}px;width:${COL_W}px">${matchCard(m)}</div>`;
+      });
+
+      // SVG lines to next round
       if (ri < rounds.length - 1) {
-        bracketHtml += connectorCol(r, ri);
-        bracketHtml += gapCol(r, ri);
+        const nextRound = rounds[ri + 1];
+        const nextMatches = sortedRound(nextRound);
+        const lc = isDone ? "#C9A84C" : "rgba(255,255,255,0.2)";
+        const lw = isDone ? 1.5 : 1;
+        const xRight = x + COL_W;
+        const xMid   = xRight + CONN_W / 2;
+        const xLeft  = xRight + CONN_W;
+
+        nextMatches.forEach((dest, di) => {
+          const src1 = rMatches[di * 2];
+          const src2 = rMatches[di * 2 + 1];
+          const destMid = HDR_H + matchTops[dest.id] + CARD_H / 2;
+
+          if (src1) {
+            const src1Mid = HDR_H + matchTops[src1.id] + CARD_H / 2;
+            svgLines += `<line x1="${xRight}" y1="${src1Mid}" x2="${xMid}" y2="${src1Mid}" stroke="${lc}" stroke-width="${lw}"/>`;
+            svgLines += `<line x1="${xMid}" y1="${src1Mid}" x2="${xMid}" y2="${destMid}" stroke="${lc}" stroke-width="${lw}"/>`;
+          }
+          if (src2) {
+            const src2Mid = HDR_H + matchTops[src2.id] + CARD_H / 2;
+            svgLines += `<line x1="${xRight}" y1="${src2Mid}" x2="${xMid}" y2="${src2Mid}" stroke="${lc}" stroke-width="${lw}"/>`;
+            svgLines += `<line x1="${xMid}" y1="${src2Mid}" x2="${xMid}" y2="${destMid}" stroke="${lc}" stroke-width="${lw}"/>`;
+          }
+          svgLines += `<line x1="${xMid}" y1="${destMid}" x2="${xLeft}" y2="${destMid}" stroke="${lc}" stroke-width="${lw}"/>`;
+          svgLines += `<circle cx="${xLeft}" cy="${destMid}" r="2.5" fill="${lc}"/>`;
+        });
       }
     });
-    bracketHtml += '</div>';
 
-    el.innerHTML = `<div style="background:#0a1628;border-radius:12px;padding:16px 14px">
+    el.innerHTML = `<div style="background:#0a1628;border-radius:12px;padding:16px 14px 20px">
       ${adminBtns}
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px">
-        ${bracketHtml}
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px">
+        <div style="position:relative;width:${totalW}px;height:${svgH}px">
+          <svg style="position:absolute;top:0;left:0;pointer-events:none" width="${totalW}" height="${svgH}">
+            ${svgLines}
+          </svg>
+          ${colsHtml}
+        </div>
       </div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.2);text-align:center;margin-top:10px">&#8592; Swipe to see all rounds &#8594;</div>
+      ${rounds.length > 1 ? '<div style="font-size:11px;color:rgba(255,255,255,0.2);text-align:center;margin-top:4px">&#8592; Swipe to see all rounds &#8594;</div>' : ""}
     </div>`;
 
   } catch(e) { console.error("renderKnockout error:",e.message); }
