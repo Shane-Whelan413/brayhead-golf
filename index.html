@@ -8111,11 +8111,11 @@ function renderKnockout() {
     function pRow(player, won, lost, isMe, avail, done) {
       const name = player ? player.name : "TBD";
       const isTbd = !player;
-      const rowBg = won?"background:#071220":lost?"background:rgba(0,0,0,0.2)":"";
-      const nameSt = won?"font-weight:700;color:white":lost?"color:rgba(255,255,255,0.28)":isTbd?"color:rgba(255,255,255,0.22)":"color:rgba(255,255,255,0.9)";
+      const rowBg = won?"background:rgba(22,163,74,0.12)":lost?"background:rgba(0,0,0,0.2)":"";
+      const nameSt = won?"font-weight:700;color:#4ade80":lost?"color:rgba(255,255,255,0.28)":isTbd?"color:rgba(255,255,255,0.22)":"color:rgba(255,255,255,0.9)";
       const avBg = won?"background:#C9A84C;color:#0a1628":isTbd?"background:transparent;border:1px dashed rgba(255,255,255,0.18);color:rgba(255,255,255,0.22)":"background:#0f2240;color:#C9A84C";
       const ring = isMe&&!won&&!lost?";box-shadow:0 0 0 2px #C9A84C":"";
-      const badge = won?'<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(201,168,76,0.18);color:#C9A84C;flex-shrink:0">Won</span>'
+      const badge = won?'<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(22,163,74,0.2);color:#4ade80;flex-shrink:0">Won &#10003;</span>'
         :lost?'<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.28);flex-shrink:0">Lost</span>'
         :!done&&player&&avail?'<span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:99px;background:rgba(22,163,74,0.18);color:#4ade80;flex-shrink:0">&#10003;</span>':"";
       return `<div style="display:flex;align-items:center;gap:6px;padding:0 10px;height:${ROW_H}px;box-sizing:border-box;${rowBg}">
@@ -8177,8 +8177,13 @@ function renderKnockout() {
         : "background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5)";
       const pillLabel = isLive?"&#9679;&nbsp;"+roundName:isDone?roundName+"&nbsp;&#10003;":roundName;
 
-      colsHtml += `<div style="position:absolute;left:${x}px;top:0;width:${COL_W}px;height:${HDR_H}px;display:flex;align-items:center;justify-content:center">
-        <div style="display:inline-block;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.05em;${pillStyle}">${pillLabel}${isFinal?"&nbsp;&#127942;":""}</div>
+      const headerLineColor = isLive ? "rgba(201,168,76,0.4)" : isDone ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.05)";
+      colsHtml += `<div style="position:absolute;left:${x}px;top:0;width:${COL_W}px;height:${HDR_H}px;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:6px">
+        <div style="height:0.5px;background:${headerLineColor}"></div>
+        <div style="text-align:center;padding:0 4px">
+          <div style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.05em;${pillStyle}">${pillLabel}${isFinal?"&nbsp;&#127942;":""}</div>
+        </div>
+        <div style="height:0.5px;background:${headerLineColor}"></div>
       </div>`;
 
       rVisible.forEach(m => {
@@ -8203,8 +8208,8 @@ function renderKnockout() {
       if (ri < rounds.length - 1) {
         const nextRound = rounds[ri + 1];
         const nextMatches = sortedRound(nextRound);
-        const lc = isDone ? "#C9A84C" : "rgba(255,255,255,0.2)";
-        const lw = isDone ? 1.5 : 1;
+        const lc = isDone ? "#C9A84C" : "rgba(255,255,255,0.18)";
+        const lw = isDone ? 2 : 1;
         const xRight = x + COL_W;
         const xMid   = xRight + CONN_W / 2;
         const xLeft  = xRight + CONN_W;
