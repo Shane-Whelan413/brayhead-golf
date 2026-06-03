@@ -8132,15 +8132,17 @@ function renderKnockout() {
       if (allMatches.filter(m=>m.round===r&&!m.is_bye&&m.status!=='complete').length>0){liveRound=r;break;}
     }
 
-    const adminBtns = isAdmin ? `
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;position:relative">
+    const adminBtns = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;position:relative">
+        <button onclick="koFsOpen()" style="padding:7px 14px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.1);color:#C9A84C;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">&#x26F3; Full view</button>
+        ${isAdmin ? `<div style="position:relative">
         <button onclick="toggleKoAdminMenu()" style="padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.12);color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">&#9881; Admin &#9660;</button>
         <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#1a3050;border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:50;min-width:180px;overflow:hidden">
           ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Edit draw</button>':""}
           ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Post fixtures</button>':""}
           ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8)">Post results</button>':""}
         </div>
-      </div>` : "";
+        </div>` : ''}
+      </div>`;
 
     function pRow(player, won, lost, isMe, avail, done) {
       const name = player ? player.name : "TBD";
@@ -8298,13 +8300,13 @@ function renderKnockout() {
 
     el.innerHTML=`<div style="background:#0a1628;border-radius:12px;padding:16px 14px 20px">
       ${adminBtns}
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px">
+      <div style="overflow:auto;-webkit-overflow-scrolling:touch;max-height:72vh;padding-bottom:8px">
         <div style="position:relative;width:${totalW}px;height:${totalH}px">
           <svg style="position:absolute;top:0;left:0;pointer-events:none" width="${totalW}" height="${totalH}">${svgLines}</svg>
           ${colsHtml}
         </div>
       </div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.2);text-align:center;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:10px">&#8592; Swipe &#8594;&nbsp;&nbsp;<button onclick="koFsOpen()" style="padding:4px 14px;border-radius:99px;border:1px solid #C9A84C;background:rgba(201,168,76,0.1);color:#C9A84C;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">&#x26F3; Full view</button></div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.2);text-align:center;margin-top:8px">&#8592; Swipe to navigate &#8594;</div>
     </div>`;
 
   } catch(e){ console.error('renderKnockout:',e.message,e.stack); }
