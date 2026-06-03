@@ -8048,6 +8048,21 @@ function renderKnockout() {
     const allMatches = db.knockout_matches;
     const rounds = [...new Set(allMatches.map(m=>m.round))].sort((a,b)=>a-b);
     const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+
+    // DEBUG: show raw match data so we can see the structure
+    if (isAdmin) {
+      const debugHtml = rounds.map(r => {
+        const ms = allMatches.filter(m=>m.round===r).sort((a,b)=>(a.match_number||0)-(b.match_number||0));
+        return `<div style="margin-bottom:8px"><strong>Round ${r} (${ROUND_NAMES[r]||''})</strong>: ${ms.map(m=>`#${m.match_number||'?'}${m.is_bye?'[BYE]':''}${m.status==='complete'?'✓':''} ${m.player1_id?'P1':'?'} vs ${m.player2_id?'P2':'?'}`).join(', ')}</div>`;
+      }).join('');
+      el.innerHTML = `<div style="background:#0a1628;border-radius:12px;padding:16px;color:rgba(255,255,255,0.8);font-size:12px;font-family:monospace">
+        <div style="color:#C9A84C;font-weight:700;margin-bottom:12px">Bracket debug (admin only)</div>
+        ${debugHtml}
+        <div style="margin-top:12px;color:rgba(255,255,255,0.4)">Total matches: ${allMatches.length} (${allMatches.filter(m=>m.is_bye).length} byes)</div>
+        <button onclick="window._koDebug=false;renderKnockout()" style="margin-top:12px;padding:6px 12px;border-radius:6px;border:1px solid #C9A84C;background:transparent;color:#C9A84C;font-size:12px;cursor:pointer">Show bracket</button>
+      </div>`;
+      if (!window._koDebug) { window._koDebug = true; return; }
+    }
     const pid = currentUser?.playerId;
 
     const adminBtns = isAdmin ? `
