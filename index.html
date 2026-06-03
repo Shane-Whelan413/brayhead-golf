@@ -9431,7 +9431,6 @@ function koFsOpen() {
   var canvas  = document.getElementById('ko-fs-canvas');
   if (!overlay || !canvas) return;
 
-  var PAD = 16;
   var W = window.innerWidth;
   var H = window.innerHeight;
   var dpr = window.devicePixelRatio || 1;
@@ -9442,7 +9441,6 @@ function koFsOpen() {
   var ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  // Background
   ctx.fillStyle = '#0a1628';
   ctx.fillRect(0, 0, W, H);
 
@@ -9478,60 +9476,75 @@ function koFsOpen() {
 
   function topHalf(r){var a=fullRounds[r];return a.slice(0,a.length/2);}
   function bottomHalf(r){var a=fullRounds[r];return a.slice(a.length/2);}
+  function firstName(n){return n?n.split(' ')[0]:'TBD';}
 
   var ROUND_NAMES={1:'R1',2:'R16',3:'QF',4:'SF',5:'Final'};
+  var PAD=16, CONN=10, HDR_H=18, CARD_GAP=8, TITLE_H=44, BTN_H=64;
 
-  // Layout dimensions
-  // Columns: Final is centred, side rounds spread left from centre
+  // Available height for bracket content
+  var availH = H - TITLE_H - BTN_H;
   var numCols = sideRounds.length + 1;
-  var CONN = 10;
   var availW = W - PAD*2;
   var COL_W = Math.floor((availW - (numCols-1)*CONN) / numCols);
-  // Final is always in the last column position (rightmost)
-  // But we want: col0=leftmost, col1, col2... colN=Final centred
-  // Reorder: Final is at centre-right, side rounds go left from Final
-  // x position for side round ri: PAD + ri*(COL_W+CONN)
-  // x position for Final: PAD + sideRounds.length*(COL_W+CONN)
 
-  var TITLE_H = 48;
-  var FOOT_H  = 48;
-  var CONN_V = 10;
-  var halfH   = Math.floor((H - TITLE_H - FOOT_H) / 2);
-  var HDR_H   = 18;
-  var CARD_GAP = 6;
-
-  // Cards per column = top/bottom half of R16
-  var topR16 = topHalf(sideRounds[0]);
-  var botR16  = bottomHalf(sideRounds[0]);
-  var maxCards = Math.max(topR16.length, botR16.length);
-  // CH must fit maxCards cards + gaps + header within halfH
-  var CH = Math.floor((halfH - HDR_H - (maxCards-1)*CARD_GAP - 8) / maxCards);
-  CH = Math.min(CH, 62); // cap
+  // Cards per column = top/bottom half of first side round
+  var topCards = topHalf(sideRounds[0]);
+  var maxCards = topCards.length; // cards in each half column
+  // Total height needed for one half:
+  // HDR_H + maxCards*CH + (maxCards-1)*CARD_GAP
+  // Two halves + Final card + gaps between halves = availH
+  // 2*(HDR_H + maxCards*CH + (maxCards-1)*CARD_GAP) + CH + 2*CARD_GAP*2 = availH
+  var CH = Math.floor((availH - 2*HDR_H - 2*(maxCards-1)*CARD_GAP - 4*CARD_GAP) / (2*maxCards + 1));
+  CH = Math.min(CH, 58);
   var ROW_H = Math.floor(CH/2);
-  var FS = Math.max(9, Math.min(12, Math.floor(ROW_H * 0.5)));
+  var FS = Math.max(9, Math.min(12, Math.floor(ROW_H*0.5)));
 
-  // First name only helper
-  function firstName(name) {
-    if (!name) return 'TBD';
-    return name.split(' ')[0];
-  }
+  // Calculate actual total height used
+  var halfH = HDR_H + maxCards*CH + (maxCards-1)*CARD_GAP;
+  var totalH = halfH + CARD_GAP*3 + CH + CARD_GAP*3 + halfH;
+  // Centre this block vertically
+  var blockTop = TITLE_H + Math.round((availH - totalH) / 2);
 
-  // Compute top positions
-  function computeTops(halves, startY, fromTop) {
+  // Top half starts at blockTop + HDR_H
+  var topStart = blockTop + HDR_H;
+  // Final card is in the middle
+  var finalCardY = blockTop + halfH + CARD_GAP*3;
+  // Bottom half starts after Final
+  var botStart = finalCardY + CH + CARD_GAP*3;
+
+  // Compute positions for top half (downward from topStart)
+  function computeTopTops(halves) {
     var tops = {};
     halves.forEach(function(matches, ri) {
       if (ri === 0) {
-        matches.forEach(function(m, mi) {
-          tops[m.id] = fromTop
-            ? startY + mi*(CH+CARD_GAP)
-            : startY - (matches.length-1-mi)*(CH+CARD_GAP);
-        });
+        matches.forEach(function(m, mi) { tops[m.id] = topStart + mi*(CH+CARD_GAP); });
       } else {
         var prev = halves[ri-1];
         matches.forEach(function(m, mi) {
           var f1=prev[mi*2], f2=prev[mi*2+1];
-          var t1=f1?(tops[f1.id]||0):0;
-          var t2=f2?(tops[f2.id]||0):t1+CH+CARD_GAP;
+          var t1=f1?(tops[f1.id]||topStart):topStart;
+          var t2=f2?(tops[f2.id]||topStart+CH+CARD_GAP):t1+CH+CARD_GAP;
+          tops[m.id] = (t1+t2)/2;
+        });
+      }
+    });
+    return tops;
+  }
+
+  // Compute positions for bottom half (upward from botStart+botCards*CH)
+  function computeBotTops(halves) {
+    var tops = {};
+    var botCards = halves[0]?halves[0].length:0;
+    var botEnd = botStart + (botCards-1)*(CH+CARD_GAP);
+    halves.forEach(function(matches, ri) {
+      if (ri === 0) {
+        matches.forEach(function(m, mi) { tops[m.id] = botStart + mi*(CH+CARD_GAP); });
+      } else {
+        var prev = halves[ri-1];
+        matches.forEach(function(m, mi) {
+          var f1=prev[mi*2], f2=prev[mi*2+1];
+          var t1=f1?(tops[f1.id]||botStart):botStart;
+          var t2=f2?(tops[f2.id]||botStart+CH+CARD_GAP):t1+CH+CARD_GAP;
           tops[m.id] = (t1+t2)/2;
         });
       }
@@ -9541,50 +9554,13 @@ function koFsOpen() {
 
   var leftByRound  = sideRounds.map(topHalf);
   var rightByRound = sideRounds.map(bottomHalf);
+  var leftTops  = computeTopTops(leftByRound);
+  var rightTops = computeBotTops(rightByRound);
 
-  // Final card is exactly centred vertically
-  var finalCardY = Math.round((H - CH) / 2);
-  var centreMid  = finalCardY + CH/2;
-
-  // For top half: the SF (last side round) card midpoint should be just above centre
-  // For bottom half: the SF card midpoint should be just below centre
-  // Work outward from centre to calculate all positions
-
-  function computeTopsFromCentre(halves, fromTop) {
-    var tops = {};
-    // Start from innermost round (SF) and work outward
-    for (var ri = halves.length-1; ri >= 0; ri--) {
-      var matches = halves[ri];
-      if (ri === halves.length-1) {
-        // SF: single card, position adjacent to Final
-        var m = matches[0];
-        if (m) tops[m.id] = fromTop
-          ? centreMid - CH - CONN_V - CH/2  // top SF: its midpoint is above centre
-          : centreMid + CONN_V + CH/2;       // bot SF: its midpoint is below centre
-      } else {
-        // Earlier rounds: position feeders centred around their destination
-        var next = halves[ri+1];
-        matches.forEach(function(m, mi) {
-          var destIdx = Math.floor(mi/2);
-          var dest = next[destIdx];
-          if (!dest || tops[dest.id] === undefined) return;
-          var destMid = tops[dest.id] + CH/2;
-          var isFirst = mi % 2 === 0;
-          tops[m.id] = fromTop
-            ? isFirst ? destMid - CONN_V/2 - CH : destMid + CONN_V/2
-            : isFirst ? destMid - CONN_V/2 - CH : destMid + CONN_V/2;
-        });
-      }
-    }
-    return tops;
-  }
-
-  var leftTops  = computeTopsFromCentre(leftByRound,  true);
-  var rightTops = computeTopsFromCentre(rightByRound, false);
-  // Centre the Final card on screen, fan side rounds out to the left
-  var totalBracketW = (sideRounds.length+1)*COL_W + sideRounds.length*CONN;
-  var bracketStartX = Math.round((W - totalBracketW) / 2);
-  var finalX = bracketStartX + sideRounds.length*(COL_W+CONN);
+  // Centre bracket horizontally
+  var totalW = numCols*COL_W + (numCols-1)*CONN;
+  var bracketX = Math.round((W - totalW) / 2);
+  var finalX = bracketX + sideRounds.length*(COL_W+CONN);
 
   function rrect(x,y,w,h,r){
     ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
@@ -9601,42 +9577,31 @@ function koFsOpen() {
     var p1won=done&&m.winner_id===m.player1_id, p2won=done&&m.winner_id===m.player2_id;
     var isLive=m.round===live&&!done&&(m.player1_id||m.player2_id);
     var isTbd=!m.player1_id&&!m.player2_id&&!m.is_bye;
-
-    ctx.fillStyle = isTbd ? 'rgba(255,255,255,0.03)' : '#1a3050';
-    rrect(x,y,COL_W,CH,4); ctx.fill();
-    ctx.strokeStyle = isLive?'#C9A84C':isTbd?'rgba(255,255,255,0.07)':done?'rgba(255,255,255,0.1)':'rgba(255,255,255,0.14)';
-    ctx.lineWidth = isLive?2:1;
-    rrect(x,y,COL_W,CH,4); ctx.stroke();
-
-    // Live accent bar
-    if(isLive){ ctx.fillStyle='#C9A84C'; ctx.fillRect(x,y,3,CH); }
-
-    // Divider
+    ctx.fillStyle=isTbd?'rgba(255,255,255,0.03)':'#1a3050';
+    rrect(x,y,COL_W,CH,4);ctx.fill();
+    ctx.strokeStyle=isLive?'#C9A84C':isTbd?'rgba(255,255,255,0.07)':done?'rgba(255,255,255,0.1)':'rgba(255,255,255,0.14)';
+    ctx.lineWidth=isLive?2:1;
+    rrect(x,y,COL_W,CH,4);ctx.stroke();
+    if(isLive){ctx.fillStyle='#C9A84C';ctx.fillRect(x,y,3,CH);}
     ctx.strokeStyle='rgba(255,255,255,0.07)';ctx.lineWidth=0.5;
     ctx.beginPath();ctx.moveTo(x+5,y+ROW_H);ctx.lineTo(x+COL_W-5,y+ROW_H);ctx.stroke();
-
     ctx.textBaseline='middle';ctx.textAlign='left';
-
-    function drawRow(player, won, lost, ry) {
-      var nm = player ? firstName(player.name) : (m.is_bye&&m.winner_id?firstName((db.players.find(function(p){return p.id===m.winner_id;})||{name:'?'}).name)+' ·bye':'TBD');
-      // Winner row tint
-      if(won){ ctx.fillStyle='rgba(22,163,74,0.12)'; ctx.fillRect(x+(isLive?3:0),y+(ry-ROW_H/2),COL_W-(isLive?3:0),ROW_H); }
+    function row(player,won,lost,ry){
+      var nm=player?firstName(player.name):(m.is_bye&&m.winner_id?firstName((db.players.find(function(p){return p.id===m.winner_id;})||{name:'?'}).name)+' ·bye':'TBD');
+      if(won){ctx.fillStyle='rgba(22,163,74,0.12)';ctx.fillRect(x+(isLive?3:0),y+(ry-ROW_H/2),COL_W-(isLive?3:0),ROW_H);}
       ctx.font=(won?'bold ':'')+FS+'px DM Sans,sans-serif';
       ctx.fillStyle=won?'#4ade80':lost?'rgba(255,255,255,0.22)':(!player?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.88)');
       ctx.fillText(nm,x+(isLive?7:5),y+ry);
-      if(won){
-        ctx.fillStyle='#4ade80';ctx.font='bold '+(FS-1)+'px DM Sans';
-        ctx.fillText('✓',x+COL_W-(FS+2),y+ry);
-      }
+      if(won){ctx.fillStyle='#4ade80';ctx.font='bold '+(FS-1)+'px DM Sans';ctx.fillText('✓',x+COL_W-(FS+2),y+ry);}
     }
-    drawRow(p1,p1won,done&&!p1won, ROW_H/2);
-    drawRow(p2,p2won,done&&!p2won, ROW_H+ROW_H/2);
+    row(p1,p1won,done&&!p1won,ROW_H/2);
+    row(p2,p2won,done&&!p2won,ROW_H+ROW_H/2);
   }
 
-  function drawHdr(label, cx, y, isLive, isDone) {
-    var tw = ctx.measureText(label).width + 14;
-    var ph=14, px=cx-tw/2;
+  function drawHdr(label,cx,y,isLive,isDone){
     ctx.font='bold 8px DM Sans,sans-serif';
+    var tw=ctx.measureText((isLive?'● ':'')+label).width+14, ph=14;
+    var px=cx-tw/2;
     ctx.fillStyle=isLive?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.05)';
     rrect(px,y,tw,ph,6);ctx.fill();
     ctx.strokeStyle=isLive?'#C9A84C':'rgba(255,255,255,0.1)';ctx.lineWidth=isLive?1.5:1;
@@ -9651,52 +9616,42 @@ function koFsOpen() {
   function vline(x,y1,y2,col,lw){ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(x,y1);ctx.lineTo(x,y2);ctx.stroke();}
 
   // Title
-  ctx.font='bold 13px DM Sans,sans-serif';ctx.fillStyle='#C9A84C';
+  ctx.font='bold 14px DM Sans,sans-serif';ctx.fillStyle='#C9A84C';
   ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('2026 Knockout Bracket',W/2,28);
+  ctx.fillText('2026 Knockout Bracket',W/2,TITLE_H/2);
   ctx.textAlign='left';
-
-  // Subtle centre divider line
-  ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;
-  ctx.setLineDash([4,6]);
-  ctx.beginPath();ctx.moveTo(PAD,H/2);ctx.lineTo(W-PAD,H/2);ctx.stroke();
-  ctx.setLineDash([]);
 
   function drawSide(byRound, tops, isTop) {
     byRound.forEach(function(half, ri) {
       var r=sideRounds[ri], isDone=r<live, isLive=r===live;
-      var x=bracketStartX+ri*(COL_W+CONN);
+      var x=bracketX+ri*(COL_W+CONN);
+      var cx=x+COL_W/2;
       var nm=ROUND_NAMES[r]||('R'+r);
-      var colCX=x+COL_W/2;
-
-      // Header: above for top half, below for bottom half
-      if(isTop){
-        var firstY = half[0]?tops[half[0].id]:topStart;
-        drawHdr(nm, colCX, firstY-HDR_H, isLive, isDone);
-      } else {
-        var lastY = half[half.length-1]?tops[half[half.length-1].id]:botStart;
-        drawHdr(nm, colCX, lastY+CH+4, isLive, isDone);
+      // Header
+      if(half[0] && tops[half[0].id]!==undefined){
+        if(isTop) drawHdr(nm,cx,tops[half[0].id]-HDR_H,isLive,isDone);
+        else {
+          var last=half[half.length-1];
+          if(last) drawHdr(nm,cx,tops[last.id]+CH+4,isLive,isDone);
+        }
       }
-
-      half.forEach(function(m){ drawCard(m,x,tops[m.id]); });
-
+      half.forEach(function(m){ if(tops[m.id]!==undefined) drawCard(m,x,tops[m.id]); });
       // Connectors to next column
       if(ri<byRound.length-1){
-        var nxt=byRound[ri+1];
-        var lc=isDone?'#C9A84C':'rgba(255,255,255,0.18)', lw=isDone?1.5:1;
+        var nxt=byRound[ri+1], lc=isDone?'#C9A84C':'rgba(255,255,255,0.18)', lw=isDone?1.5:1;
         var xR=x+COL_W, xMid=xR+CONN/2;
         nxt.forEach(function(dest,di){
-          var s1=half[di*2],s2=half[di*2+1];
-          var dMid=tops[dest.id]+CH/2;
-          if(s1){var sM=tops[s1.id]+CH/2;hline(xR,sM,xMid,lc,lw);vline(xMid,sM,dMid,lc,lw);}
-          if(s2){var sM=tops[s2.id]+CH/2;hline(xR,sM,xMid,lc,lw);vline(xMid,sM,dMid,lc,lw);}
+          if(tops[dest.id]===undefined)return;
+          var s1=half[di*2], s2=half[di*2+1], dMid=tops[dest.id]+CH/2;
+          if(s1&&tops[s1.id]!==undefined){var sM=tops[s1.id]+CH/2;hline(xR,sM,xMid,lc,lw);vline(xMid,sM,dMid,lc,lw);}
+          if(s2&&tops[s2.id]!==undefined){var sM=tops[s2.id]+CH/2;hline(xR,sM,xMid,lc,lw);vline(xMid,sM,dMid,lc,lw);}
           hline(xMid,dMid,xMid+CONN/2,lc,lw);
         });
       }
       // Connector to Final
       if(ri===byRound.length-1){
-        var sf=half[0];if(!sf)return;
-        var lc=isDone?'#C9A84C':'rgba(255,255,255,0.15)',lw=isDone?1.5:1;
+        var sf=half[0]; if(!sf||tops[sf.id]===undefined)return;
+        var lc=isDone?'#C9A84C':'rgba(255,255,255,0.15)', lw=isDone?1.5:1;
         var sMid=tops[sf.id]+CH/2, dMid=finalCardY+CH/2;
         var xR=x+COL_W, xMid=(xR+finalX)/2;
         hline(xR,sMid,xMid,lc,lw);
@@ -9709,12 +9664,11 @@ function koFsOpen() {
   drawSide(leftByRound, leftTops, true);
   drawSide(rightByRound, rightTops, false);
 
-  // Final
+  // Final card
   var finalM=(fullRounds[finalRound]&&fullRounds[finalRound][0])||{id:'final',status:'pending',player1_id:null,player2_id:null,is_bye:false,winner_id:null,round:finalRound,match_number:1};
-  drawHdr('Final', finalX+COL_W/2, finalCardY-HDR_H, finalRound===live, finalRound<live);
-  // Trophy
-  ctx.font='16px serif';ctx.textAlign='center';ctx.fillText('🏆',finalX+COL_W/2,finalCardY-HDR_H-14);
-  drawCard(finalM, finalX, finalCardY);
+  ctx.font='16px serif';ctx.textAlign='center';ctx.fillText('🏆',finalX+COL_W/2,finalCardY-20);
+  drawHdr('Final',finalX+COL_W/2,finalCardY-HDR_H,finalRound===live,finalRound<live);
+  drawCard(finalM,finalX,finalCardY);
 
   overlay.classList.add('on');
 }
@@ -9722,6 +9676,7 @@ function koFsOpen() {
 function koFsExit() {
   document.getElementById('ko-fs').classList.remove('on');
 }
+
 
 
 
