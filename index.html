@@ -8146,16 +8146,84 @@ function renderKnockout() {
       </div>`;
     }
 
+    const CARD_H = 64; // fixed card height for positioning
+    const CARD_GAP = 8;
+
     function buildGroup(byRound, isTop) {
-      return byRound.map((half, ri) => {
+      if (!byRound.length) return '';
+      // Calculate top positions for each card in each round
+      // Round 0 (R16): evenly spaced
+      // Round 1+ (QF, SF): centred between their two feeders
+      const tops = {};
+      byRound.forEach((half, ri) => {
+        if (ri === 0) {
+          half.forEach((m, mi) => { tops[m.id] = mi * (CARD_H + CARD_GAP); });
+        } else {
+          const prev = byRound[ri-1];
+          half.forEach((m, mi) => {
+            const f1 = prev[mi*2], f2 = prev[mi*2+1];
+            const t1 = f1 ? tops[f1.id] : 0;
+            const t2 = f2 ? tops[f2.id] : t1 + CARD_H + CARD_GAP;
+            tops[m.id] = ((t1 + CARD_H/2) + (t2 + CARD_H/2)) / 2 - CARD_H/2;
+          });
+        }
+      });
+
+      // Total height = last R16 card bottom
+      const firstHalf = byRound[0];
+      const totalH = (firstHalf.length - 1) * (CARD_H + CARD_GAP) + CARD_H;
+      const HDR = 22;
+
+      // Column width
+      const numCols = byRound.length;
+      const COL_W = Math.floor((window.innerWidth - 28 - (numCols-1)*24) / numCols);
+      const CONN = 24;
+      const totalW = numCols * COL_W + (numCols-1) * CONN;
+
+      let colsHtml = '';
+      let svgLines = '';
+
+      byRound.forEach((half, ri) => {
         const r = sideRounds[ri];
-        const cards = half.map(m=>`<div style="margin-bottom:8px">${cardHtml(m)}</div>`).join('');
-        return `<div style="flex:1;min-width:0">
-          ${isTop ? hdrHtml(r) : ''}
-          ${cards}
-          ${!isTop ? hdrHtml(r) : ''}
+        const x = ri * (COL_W + CONN);
+        const isDone = r < live, isLive = r === live;
+        const nm = ROUND_NAMES[r]||('Round '+r);
+
+        // Header
+        const pillStyle = isLive ? 'background:rgba(201,168,76,0.15);border:1px solid #C9A84C;color:#C9A84C'
+          : isDone ? 'background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.35)'
+          : 'background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5)';
+        colsHtml += `<div style="position:absolute;left:${x}px;top:0;width:${COL_W}px;display:flex;justify-content:center">
+          <div style="padding:2px 10px;border-radius:99px;font-size:9px;font-weight:700;${pillStyle}">${isLive?'● ':''}${nm}${isDone?' ✓':''}</div>
         </div>`;
-      }).join('<div style="width:10px;flex-shrink:0"></div>');
+
+        // Cards
+        half.forEach(m => {
+          const top = HDR + tops[m.id];
+          colsHtml += `<div style="position:absolute;left:${x}px;top:${top}px;width:${COL_W}px">${cardHtml(m)}</div>`;
+        });
+
+        // SVG connector lines to next round
+        if (ri < byRound.length - 1) {
+          const nextHalf = byRound[ri+1];
+          const lc = isDone ? '#C9A84C' : 'rgba(255,255,255,0.2)';
+          const lw = isDone ? 1.5 : 1;
+          const xR = x + COL_W, xMid = xR + CONN/2, xL = xR + CONN;
+          nextHalf.forEach((dest, di) => {
+            const s1 = half[di*2], s2 = half[di*2+1];
+            const dMid = HDR + tops[dest.id] + CARD_H/2;
+            if(s1){const y=HDR+tops[s1.id]+CARD_H/2;svgLines+=`<line x1="${xR}" y1="${y}" x2="${xMid}" y2="${y}" stroke="${lc}" stroke-width="${lw}"/><line x1="${xMid}" y1="${y}" x2="${xMid}" y2="${dMid}" stroke="${lc}" stroke-width="${lw}"/>`;}
+            if(s2){const y=HDR+tops[s2.id]+CARD_H/2;svgLines+=`<line x1="${xR}" y1="${y}" x2="${xMid}" y2="${y}" stroke="${lc}" stroke-width="${lw}"/><line x1="${xMid}" y1="${y}" x2="${xMid}" y2="${dMid}" stroke="${lc}" stroke-width="${lw}"/>`;}
+            svgLines+=`<line x1="${xMid}" y1="${dMid}" x2="${xL}" y2="${dMid}" stroke="${lc}" stroke-width="${lw}"/><circle cx="${xL}" cy="${dMid}" r="2.5" fill="${lc}"/>`;
+          });
+        }
+      });
+
+      const svgH = HDR + totalH;
+      return `<div style="position:relative;width:${totalW}px;height:${svgH}px">
+        <svg style="position:absolute;top:0;left:0;pointer-events:none" width="${totalW}" height="${svgH}">${svgLines}</svg>
+        ${colsHtml}
+      </div>`; 
     }
 
     const leftByRound  = sideRounds.map(topHalf);
@@ -8177,7 +8245,7 @@ function renderKnockout() {
       </div>
 
       <!-- Top half -->
-      <div style="display:flex;gap:0;margin-bottom:12px;position:relative">${buildGroup(leftByRound, true)}</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:12px">${buildGroup(leftByRound, true)}</div>
 
       <!-- Final -->
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
@@ -8191,7 +8259,7 @@ function renderKnockout() {
       </div>
 
       <!-- Bottom half -->
-      <div style="display:flex;gap:0;position:relative">${buildGroup(rightByRound, false)}</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${buildGroup(rightByRound, false)}</div>
     </div>`;
 
   } catch(e){ console.error('renderKnockout:',e.message,e.stack); }
