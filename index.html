@@ -8177,7 +8177,7 @@ function renderKnockout() {
       // Column width — fit all columns on screen with no scroll
       const numCols = byRound.length;
       const CONN = 16;
-      const totalAvailW = window.innerWidth - 28; // 14px padding each side
+      const totalAvailW = window.innerWidth - 42; // more padding each side
       const COL_W = Math.floor((totalAvailW - (numCols-1)*CONN) / numCols);
 
       let colsHtml = '';
