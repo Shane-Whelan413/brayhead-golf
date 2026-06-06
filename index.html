@@ -8117,8 +8117,8 @@ function renderKnockout() {
         const rowBg=won?'background:rgba(22,163,74,0.12)':'';
         const col=won?'#4ade80':lost?'rgba(255,255,255,0.25)':(!player?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.9)');
         return `<div style="height:50%;display:flex;align-items:center;padding:0 10px;${rowBg}">
-          <span style="flex:1;font-size:13px;font-weight:${won?700:400};color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</span>
-          ${won?'<span style="font-size:11px;color:#4ade80;flex-shrink:0">✓</span>':''}
+          <span style="flex:1;font-size:11px;font-weight:${won?700:400};color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</span>
+          ${won?'<span style="font-size:10px;color:#4ade80;flex-shrink:0">✓</span>':''}
         </div>`;
       }
       const myCallout=isMyMatch?`<div style="padding:2px 8px;background:rgba(201,168,76,0.15);border-bottom:0.5px solid rgba(201,168,76,0.2);font-size:8px;font-weight:700;color:#C9A84C;letter-spacing:.08em;text-align:center">YOUR MATCH</div>`:'';
@@ -8128,7 +8128,7 @@ function renderKnockout() {
       const accent=isLive?'<div style="position:absolute;left:0;top:0;width:3px;height:100%;background:#C9A84C;border-radius:4px 0 0 4px"></div>':'';
       return `<div style="position:relative;background:${bg};border:${border};border-radius:8px;overflow:hidden">
         ${myCallout}${banner}${accent}
-        <div style="height:64px">
+        <div style="height:52px">
           ${rowHtml(p1,p1won,done&&!p1won)}
           <div style="height:0.5px;background:rgba(255,255,255,0.07);margin:0 8px"></div>
           ${rowHtml(p2,p2won,done&&!p2won)}
@@ -8146,8 +8146,8 @@ function renderKnockout() {
       </div>`;
     }
 
-    const CARD_H = 64; // fixed card height for positioning
-    const CARD_GAP = 8;
+    const CARD_H = 52; // fixed card height for positioning
+    const CARD_GAP = 6;
 
     function buildGroup(byRound, isTop) {
       if (!byRound.length) return '';
