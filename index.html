@@ -8047,7 +8047,7 @@ function renderKnockout() {
   if (!el) return;
   try {
     const allMatches = db.knockout_matches;
-    if (!allMatches.length) {
+    if (!allMatches.filter(m=>!m.is_bye).length) {
       el.innerHTML = '<div style="background:#0a1628;border-radius:12px;padding:3rem;text-align:center;color:rgba(255,255,255,0.4)">No knockout draw yet</div>';
       return;
     }
@@ -8055,253 +8055,143 @@ function renderKnockout() {
     const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
     const pid = currentUser?.playerId;
 
-    // Find existing rounds and determine full bracket size from R1
     const existingRounds = [...new Set(allMatches.map(m=>m.round))].sort((a,b)=>a-b);
-    const r1Matches = allMatches.filter(m=>m.round===existingRounds[0]);
-    const totalR1 = r1Matches.length;
-    const firstRound = existingRounds[0];
+    const totalR1 = allMatches.filter(m=>m.round===existingRounds[0]).length;
     const numRounds = Math.ceil(Math.log2(totalR1)) + 1;
-    const rounds = [];
-    for (let i = 0; i < numRounds; i++) rounds.push(firstRound + i);
+    const allRounds = [];
+    for (let i=0;i<numRounds;i++) allRounds.push(existingRounds[0]+i);
+    const roundSizes = {};
+    roundSizes[allRounds[0]] = totalR1;
+    for (let i=1;i<allRounds.length;i++) roundSizes[allRounds[i]] = roundSizes[allRounds[i-1]]/2;
 
-    // Build a complete virtual bracket based on known round 1 size
-    // Each round halves: R1=16, R2=8, QF=4, SF=2, Final=1
-    // For each slot, look up whether a real match exists, otherwise show TBD
-    function getOrVirtual(round, matchNum) {
-      const real = allMatches.find(m => m.round===round && m.match_number===matchNum);
-      if (real) return real;
-      return { id:'__v_'+round+'_'+matchNum, round, match_number:matchNum, player1_id:null, player2_id:null, status:'pending', is_bye:false, winner_id:null, _virtual:true };
+    function getM(r,n){
+      return allMatches.find(m=>m.round===r&&m.match_number===n)||
+        {id:'v_'+r+'_'+n,round:r,match_number:n,player1_id:null,player2_id:null,status:'pending',is_bye:false,winner_id:null};
     }
-
-    // Build complete round arrays with virtual slots filled in
-    const CARD_H = 78, ROW_H = 38, GAP = 14, COL_W = 200, CONN_W = 44, HDR_H = 48;
-    const roundSizes = {}; // round -> total match count
-    roundSizes[rounds[0]] = totalR1;
-    rounds.forEach((r,ri) => {
-      if (ri > 0) roundSizes[r] = roundSizes[rounds[ri-1]] / 2;
+    const fullRounds={};
+    allRounds.forEach(r=>{
+      const size=Math.ceil(roundSizes[r]);fullRounds[r]=[];
+      for(let n=1;n<=size;n++)fullRounds[r].push(getM(r,n));
     });
 
-    // Build complete match arrays per round
-    const fullRounds = {};
-    rounds.forEach(r => {
-      const size = Math.ceil(roundSizes[r]);
-      fullRounds[r] = [];
-      for (let n = 1; n <= size; n++) {
-        fullRounds[r].push(getOrVirtual(r, n));
-      }
-    });
+    const finalRound = allRounds[allRounds.length-1];
 
-    // Split each round in half
-    function topHalf(r)    { const all=fullRounds[r]; return all.slice(0, all.length/2); }
-    function bottomHalf(r) { const all=fullRounds[r]; return all.slice(all.length/2); }
-
-    // Compute top positions — round 0 evenly spaced, later rounds centred between feeders
-    function computeTops(halfsByRound) {
-      const tops = {};
-      halfsByRound.forEach((matches, ri) => {
-        if (ri === 0) {
-          matches.forEach((m,mi) => { tops[m.id] = mi * (CARD_H + GAP); });
-        } else {
-          const prev = halfsByRound[ri-1];
-          matches.forEach((m, mi) => {
-            // feeders are prev[mi*2] and prev[mi*2+1]
-            const f1 = prev[mi*2];
-            const f2 = prev[mi*2+1];
-            const t1 = f1 ? (tops[f1.id]||0) : 0;
-            const t2 = f2 ? (tops[f2.id]||0) : t1 + CARD_H + GAP;
-            tops[m.id] = ((t1 + CARD_H/2) + (t2 + CARD_H/2)) / 2 - CARD_H/2;
-          });
-        }
-      });
-      return tops;
+    let live = allRounds[allRounds.length-1];
+    for(let i=0;i<allRounds.length;i++){
+      const r=allRounds[i];
+      if(allMatches.filter(m=>m.round===r&&!m.is_bye&&m.status!=='complete').length>0){live=r;break;}
     }
 
-    const finalRound = rounds[rounds.length-1];
-    const sideRounds = rounds.slice(0,-1);
+    const allSideRounds = allRounds.slice(1,-1);
+    const sideRounds = allSideRounds.filter(r=>allMatches.some(m=>m.round===r&&!m.is_bye));
 
-    const leftByRound  = sideRounds.map(r => topHalf(r));
-    const rightByRound = sideRounds.map(r => bottomHalf(r));
-    const leftTops  = computeTops(leftByRound);
-    const rightTops = computeTops(rightByRound);
+    function topHalf(r){const a=fullRounds[r];return a.slice(0,a.length/2);}
+    function bottomHalf(r){const a=fullRounds[r];return a.slice(a.length/2);}
+    function fn(n){return n?n.split(' ')[0]:'TBD';}
 
-    let liveRound = rounds[rounds.length-1];
-    for (const r of rounds) {
-      if (allMatches.filter(m=>m.round===r&&!m.is_bye&&m.status!=='complete').length>0){liveRound=r;break;}
-    }
-
-    const adminBtns = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <button onclick="koFsOpen()" style="padding:7px 16px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.12);color:#C9A84C;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">&#x26F3; Full view</button>
-        ${isAdmin?`<div style="position:relative">
+    const adminBtns = isAdmin ? `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;position:relative">
         <button onclick="toggleKoAdminMenu()" style="padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.12);color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">&#9881; Admin &#9660;</button>
         <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#1a3050;border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:50;min-width:180px;overflow:hidden">
           ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Edit draw</button>':""}
           ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Post fixtures</button>':""}
           ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8)">Post results</button>':""}
-        </div></div>`:''}\n      </div>`;
+        </div>
+      </div>` : "";
 
-    function pRow(player, won, lost, isMe, avail, done) {
-      const name = player ? player.name : "TBD";
-      const isTbd = !player;
-      const rowBg = won?"background:rgba(22,163,74,0.12)":lost?"background:rgba(0,0,0,0.2)":"";
-      const nameSt = won?"font-weight:700;color:#4ade80":lost?"color:rgba(255,255,255,0.28)":isTbd?"color:rgba(255,255,255,0.22)":"color:rgba(255,255,255,0.9)";
-      const avBg = won?"background:#C9A84C;color:#0a1628":isTbd?"background:transparent;border:1px dashed rgba(255,255,255,0.18);color:rgba(255,255,255,0.22)":"background:#0f2240;color:#C9A84C";
-      const ring = isMe&&!won&&!lost?";box-shadow:0 0 0 2px #C9A84C":"";
-      const badge = won?'<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:rgba(22,163,74,0.2);color:#4ade80;flex-shrink:0">Won &#10003;</span>'
-        :lost?'<span style="font-size:9px;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.28);flex-shrink:0">Lost</span>'
-        :!done&&player&&avail?'<span style="font-size:9px;font-weight:600;padding:2px 7px;border-radius:99px;background:rgba(22,163,74,0.18);color:#4ade80;flex-shrink:0">&#10003;</span>':"";
-      return `<div style="display:flex;align-items:center;gap:8px;padding:0 12px;height:${ROW_H}px;box-sizing:border-box;${rowBg}">
-        <div style="width:26px;height:26px;border-radius:50%;${avBg};font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0${ring}">${isTbd?"&#8212;":initials(name)}</div>
-        <div style="flex:1;font-size:13px;${nameSt};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isTbd?'<i style="opacity:.35">TBD</i>':name}</div>
-        ${badge}
-      </div>`;
-    }
-
-    function renderCard(m) {
-      // Bye
-      if (m.is_bye) {
-        const winner = db.players.find(p=>p.id===m.winner_id);
-        return `<div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);border-radius:10px;height:${CARD_H}px;display:flex;align-items:center;gap:8px;padding:0 12px;opacity:0.65">
-          <div style="width:26px;height:26px;border-radius:50%;background:#0f2240;color:#C9A84C;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${winner?initials(winner.name):"?"}</div>
-          <div style="flex:1;font-size:13px;color:rgba(255,255,255,0.6)">${winner?winner.name:"TBD"}</div>
-          <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.4)">BYE</span>
-        </div>`;
-      }
-      // Virtual TBD slot
-      if (m._virtual) {
-        return `<div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.08);border-radius:10px;height:${CARD_H}px;display:flex;align-items:center;justify-content:center">
-          <span style="font-size:12px;color:rgba(255,255,255,0.18);font-style:italic">TBD</span>
-        </div>`;
-      }
-      // Real match
-      const p1 = db.players.find(p=>p.id===m.player1_id);
-      const p2 = db.players.find(p=>p.id===m.player2_id);
-      const done = m.status==="complete";
-      const isMyMatch = m.round===liveRound&&pid&&!done&&(m.player1_id===pid||m.player2_id===pid);
-      const fresh = isAvailabilityFresh(m);
-      const p1avail=fresh&&m.p1_available; const p2avail=fresh&&m.p2_available;
-      const bothAvail=p1avail&&p2avail;
+    function cardHtml(m) {
+      const p1=db.players.find(p=>p.id===m.player1_id);
+      const p2=db.players.find(p=>p.id===m.player2_id);
+      const done=m.status==='complete';
+      const p1won=done&&m.winner_id===m.player1_id, p2won=done&&m.winner_id===m.player2_id;
+      const isMyMatch=m.round===live&&pid&&!done&&(m.player1_id===pid||m.player2_id===pid);
+      const isLive=m.round===live&&!done&&(m.player1_id||m.player2_id);
+      const fresh=isAvailabilityFresh(m);
       const myAvail=fresh&&(m.player1_id===pid?m.p1_available:m.p2_available);
-      const p1won=done&&m.winner_id===m.player1_id;
-      const p2won=done&&m.winner_id===m.player2_id;
-      const border=bothAvail?"1.5px solid rgba(22,163,74,0.55)":isMyMatch?"1.5px solid #C9A84C":done?"0.5px solid rgba(255,255,255,0.07)":"0.5px solid rgba(255,255,255,0.12)";
-      const myCallout=isMyMatch?'<div style="padding:3px 8px;background:rgba(201,168,76,0.15);border-bottom:0.5px solid rgba(201,168,76,0.2);font-size:8px;font-weight:700;color:#C9A84C;letter-spacing:.08em;text-align:center">YOUR MATCH</div>':"";
-      const banner=bothAvail?'<div style="padding:3px 8px;background:rgba(22,163,74,0.1);border-bottom:0.5px solid rgba(22,163,74,0.18);font-size:8px;font-weight:600;color:#4ade80;text-align:center">Both available!</div>':"";
-      const availStrip=isMyMatch?`<div onclick="toggleMatchAvailability('${m.id}')" style="padding:7px 8px;background:${myAvail?"rgba(22,163,74,0.1)":"rgba(201,168,76,0.07)"};border-top:0.5px solid rgba(255,255,255,0.06);font-size:11px;font-weight:600;color:${myAvail?"#4ade80":"#C9A84C"};cursor:pointer;text-align:center">${myAvail?"&#10003; Available":"Confirm availability"}</div>`:"";
-      const adminSettle=isAdmin&&!done?`<div onclick="showMatchEntry('${m.id}')" style="padding:5px 8px;background:rgba(201,168,76,0.07);border-top:0.5px solid rgba(255,255,255,0.05);font-size:11px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center">&#9881; Settle</div>`:"";
-      return `<div style="background:#1a3050;border:${border};border-radius:10px;overflow:hidden">
-        ${myCallout}${banner}
-        <div style="height:${CARD_H}px">
-          ${pRow(p1,p1won,done&&!p1won,pid===m.player1_id,p1avail,done)}
-          <div style="height:1px;background:rgba(255,255,255,0.07);margin:0 10px"></div>
-          ${pRow(p2,p2won,done&&!p2won,pid===m.player2_id,p2avail,done)}
+      const bothAvail=fresh&&m.p1_available&&m.p2_available;
+      const isTbd=!m.player1_id&&!m.player2_id&&!m.is_bye;
+      const border=isMyMatch?'1.5px solid #C9A84C':isTbd?'1px dashed rgba(255,255,255,0.1)':'0.5px solid rgba(255,255,255,0.12)';
+      const bg=isTbd?'rgba(255,255,255,0.02)':'#1a3050';
+      function rowHtml(player,won,lost){
+        const nm=player?fn(player.name):(m.is_bye&&m.winner_id?fn((db.players.find(p=>p.id===m.winner_id)||{name:'?'}).name)+' ·bye':'TBD');
+        const rowBg=won?'background:rgba(22,163,74,0.12)':'';
+        const col=won?'#4ade80':lost?'rgba(255,255,255,0.25)':(!player?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.9)');
+        return `<div style="height:50%;display:flex;align-items:center;padding:0 10px;${rowBg}">
+          <span style="flex:1;font-size:13px;font-weight:${won?700:400};color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</span>
+          ${won?'<span style="font-size:11px;color:#4ade80;flex-shrink:0">✓</span>':''}
+        </div>`;
+      }
+      const myCallout=isMyMatch?`<div style="padding:2px 8px;background:rgba(201,168,76,0.15);border-bottom:0.5px solid rgba(201,168,76,0.2);font-size:8px;font-weight:700;color:#C9A84C;letter-spacing:.08em;text-align:center">YOUR MATCH</div>`:'';
+      const banner=bothAvail?`<div style="padding:2px 8px;background:rgba(22,163,74,0.1);border-bottom:0.5px solid rgba(22,163,74,0.18);font-size:8px;font-weight:600;color:#4ade80;text-align:center">Both available!</div>`:'';
+      const availStrip=isMyMatch?`<div onclick="toggleMatchAvailability('${m.id}')" style="padding:7px 10px;background:${myAvail?'rgba(22,163,74,0.1)':'rgba(201,168,76,0.07)'};border-top:0.5px solid rgba(255,255,255,0.06);font-size:11px;font-weight:600;color:${myAvail?'#4ade80':'#C9A84C'};cursor:pointer;text-align:center">${myAvail?'✓ Available':'Confirm availability'}</div>`:'';
+      const adminSettle=isAdmin&&!done?`<div onclick="showMatchEntry('${m.id}')" style="padding:5px 10px;background:rgba(201,168,76,0.07);border-top:0.5px solid rgba(255,255,255,0.05);font-size:11px;font-weight:600;color:#C9A84C;cursor:pointer;text-align:center">⚙ Settle</div>`:'';
+      const accent=isLive?'<div style="position:absolute;left:0;top:0;width:3px;height:100%;background:#C9A84C;border-radius:4px 0 0 4px"></div>':'';
+      return `<div style="position:relative;background:${bg};border:${border};border-radius:8px;overflow:hidden">
+        ${myCallout}${banner}${accent}
+        <div style="height:64px">
+          ${rowHtml(p1,p1won,done&&!p1won)}
+          <div style="height:0.5px;background:rgba(255,255,255,0.07);margin:0 8px"></div>
+          ${rowHtml(p2,p2won,done&&!p2won)}
         </div>
         ${availStrip}${adminSettle}
       </div>`;
     }
 
-    function roundHeader(r) {
-      const isLive=r===liveRound, isDone=r<liveRound, isFinal=r===finalRound;
-      const name=(ROUND_NAMES[r]||('Round '+r))+(isFinal?' &#127942;':'');
-      const pill=isLive?"background:#1e3a5f;border:1px solid #C9A84C;color:#C9A84C":isDone?"background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.35)":"background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5)";
-      const lc=isLive?"rgba(201,168,76,0.35)":isDone?"rgba(255,255,255,0.08)":"rgba(255,255,255,0.05)";
-      const label=isLive?'&#9679;&nbsp;'+name:isDone?name+'&nbsp;&#10003;':name;
-      return `<div style="height:${HDR_H}px;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:5px">
-        <div style="height:0.5px;background:${lc}"></div>
-        <div style="text-align:center"><div style="display:inline-block;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.05em;${pill}">${label}</div></div>
-        <div style="height:0.5px;background:${lc}"></div>
+    function hdrHtml(r) {
+      const nm=ROUND_NAMES[r]||('Round '+r), isLive=r===live, isDone=r<live;
+      return `<div style="display:flex;justify-content:center;margin-bottom:8px">
+        <div style="padding:3px 12px;border-radius:99px;background:${isLive?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.05)'};border:${isLive?'1px solid #C9A84C':'0.5px solid rgba(255,255,255,0.1)'};font-size:10px;font-weight:700;color:${isLive?'#C9A84C':isDone?'rgba(255,255,255,0.4)':'rgba(255,255,255,0.35)'}">
+          ${isLive?'● ':''}${nm}${isDone?' ✓':''}
+        </div>
       </div>`;
     }
 
-    const finalX = sideRounds.length * (COL_W + CONN_W);
-    const totalW = finalX + COL_W + CONN_W + sideRounds.length * (COL_W + CONN_W);
-    const leftR0 = leftByRound[0]||[];
-    const totalH = HDR_H + (leftR0.length-1)*(CARD_H+GAP) + CARD_H + 40;
-    const finalCardTop = Math.round((totalH - HDR_H - CARD_H) / 2);
+    function buildGroup(byRound, isTop) {
+      return byRound.map((half, ri) => {
+        const r = sideRounds[ri];
+        const cards = half.map(m=>`<div style="margin-bottom:8px">${cardHtml(m)}</div>`).join('');
+        return `<div style="flex:1;min-width:0">
+          ${isTop ? hdrHtml(r) : ''}
+          ${cards}
+          ${!isTop ? hdrHtml(r) : ''}
+        </div>`;
+      }).join('<div style="width:10px;flex-shrink:0"></div>');
+    }
 
-    let colsHtml='', svgLines='';
+    const leftByRound  = sideRounds.map(topHalf);
+    const rightByRound = sideRounds.map(bottomHalf);
+    const finalM=(fullRounds[finalRound]&&fullRounds[finalRound][0])||{id:'final',status:'pending',player1_id:null,player2_id:null,is_bye:false,winner_id:null,round:finalRound,match_number:1};
 
-    // LEFT SIDE
-    sideRounds.forEach((r,ri)=>{
-      const half=leftByRound[ri];
-      const isLive=r===liveRound, isDone=r<liveRound;
-      const x=ri*(COL_W+CONN_W);
-      colsHtml+=`<div style="position:absolute;left:${x}px;top:0;width:${COL_W}px">${roundHeader(r)}</div>`;
-      half.forEach(m=>{
-        const top=HDR_H+(leftTops[m.id]||0);
-        colsHtml+=`<div style="position:absolute;left:${x}px;top:${top}px;width:${COL_W}px">${renderCard(m)}</div>`;
-      });
-      if(ri<sideRounds.length-1){
-        const nextHalf=leftByRound[ri+1];
-        const lc=isDone?"#C9A84C":"rgba(255,255,255,0.18)"; const lw=isDone?2:1;
-        const xR=x+COL_W, xM=xR+CONN_W/2, xL=xR+CONN_W;
-        nextHalf.forEach((dest,di)=>{
-          const src1=half[di*2], src2=half[di*2+1];
-          const dMid=HDR_H+(leftTops[dest.id]||0)+CARD_H/2;
-          if(src1){const y=HDR_H+(leftTops[src1.id]||0)+CARD_H/2;svgLines+=`<line x1="${xR}" y1="${y}" x2="${xM}" y2="${y}" stroke="${lc}" stroke-width="${lw}"/><line x1="${xM}" y1="${y}" x2="${xM}" y2="${dMid}" stroke="${lc}" stroke-width="${lw}"/>`;}
-          if(src2){const y=HDR_H+(leftTops[src2.id]||0)+CARD_H/2;svgLines+=`<line x1="${xR}" y1="${y}" x2="${xM}" y2="${y}" stroke="${lc}" stroke-width="${lw}"/><line x1="${xM}" y1="${y}" x2="${xM}" y2="${dMid}" stroke="${lc}" stroke-width="${lw}"/>`;}
-          svgLines+=`<line x1="${xM}" y1="${dMid}" x2="${xL}" y2="${dMid}" stroke="${lc}" stroke-width="${lw}"/><circle cx="${xL}" cy="${dMid}" r="2.5" fill="${lc}"/>`;
-        });
-      }
-      if(ri===sideRounds.length-1){
-        const sfMatch=half[0]; if(sfMatch){
-          const lc=isDone?"#C9A84C":"rgba(255,255,255,0.18)"; const lw=isDone?2:1;
-          const ym=HDR_H+(leftTops[sfMatch.id]||0)+CARD_H/2, dMid=finalCardTop+CARD_H/2;
-          const xR=x+COL_W, xM=(xR+finalX)/2;
-          svgLines+=`<line x1="${xR}" y1="${ym}" x2="${xM}" y2="${ym}" stroke="${lc}" stroke-width="${lw}"/>`;
-          svgLines+=`<line x1="${xM}" y1="${ym}" x2="${xM}" y2="${dMid}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
-          svgLines+=`<line x1="${xM}" y1="${dMid}" x2="${finalX}" y2="${dMid}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
-        }
-      }
-    });
-
-    // FINAL
-    const finalM=fullRounds[finalRound]?.[0]||getOrVirtual(finalRound,1);
-    colsHtml+=`<div style="position:absolute;left:${finalX}px;top:0;width:${COL_W}px">${roundHeader(finalRound)}</div>`;
-    colsHtml+=`<div style="position:absolute;left:${finalX}px;top:${finalCardTop}px;width:${COL_W}px">${renderCard(finalM)}</div>`;
-
-    // RIGHT SIDE (mirrored)
-    sideRounds.forEach((r,ri)=>{
-      const half=rightByRound[ri];
-      const isLive=r===liveRound, isDone=r<liveRound;
-      const x=finalX+COL_W+CONN_W+(sideRounds.length-1-ri)*(COL_W+CONN_W);
-      colsHtml+=`<div style="position:absolute;left:${x}px;top:0;width:${COL_W}px">${roundHeader(r)}</div>`;
-      half.forEach(m=>{
-        const top=HDR_H+(rightTops[m.id]||0);
-        colsHtml+=`<div style="position:absolute;left:${x}px;top:${top}px;width:${COL_W}px">${renderCard(m)}</div>`;
-      });
-      if(ri<sideRounds.length-1){
-        const nextHalf=rightByRound[ri+1];
-        const lc=isDone?"#C9A84C":"rgba(255,255,255,0.18)"; const lw=isDone?2:1;
-        const xL=x, xM=x-CONN_W/2, xR2=x-CONN_W;
-        nextHalf.forEach((dest,di)=>{
-          const src1=half[di*2], src2=half[di*2+1];
-          const dMid=HDR_H+(rightTops[dest.id]||0)+CARD_H/2;
-          if(src1){const y=HDR_H+(rightTops[src1.id]||0)+CARD_H/2;svgLines+=`<line x1="${xL}" y1="${y}" x2="${xM}" y2="${y}" stroke="${lc}" stroke-width="${lw}"/><line x1="${xM}" y1="${y}" x2="${xM}" y2="${dMid}" stroke="${lc}" stroke-width="${lw}"/>`;}
-          if(src2){const y=HDR_H+(rightTops[src2.id]||0)+CARD_H/2;svgLines+=`<line x1="${xL}" y1="${y}" x2="${xM}" y2="${y}" stroke="${lc}" stroke-width="${lw}"/><line x1="${xM}" y1="${y}" x2="${xM}" y2="${dMid}" stroke="${lc}" stroke-width="${lw}"/>`;}
-          svgLines+=`<line x1="${xM}" y1="${dMid}" x2="${xR2}" y2="${dMid}" stroke="${lc}" stroke-width="${lw}"/><circle cx="${xR2}" cy="${dMid}" r="2.5" fill="${lc}"/>`;
-        });
-      }
-      if(ri===sideRounds.length-1){
-        const sfMatch=half[0]; if(sfMatch){
-          const lc=isDone?"#C9A84C":"rgba(255,255,255,0.18)"; const lw=isDone?2:1;
-          const ym=HDR_H+(rightTops[sfMatch.id]||0)+CARD_H/2, dMid=finalCardTop+CARD_H/2;
-          const xFR=finalX+COL_W, xM=(x+xFR)/2;
-          svgLines+=`<line x1="${x}" y1="${ym}" x2="${xM}" y2="${ym}" stroke="${lc}" stroke-width="${lw}"/>`;
-          svgLines+=`<line x1="${xM}" y1="${ym}" x2="${xM}" y2="${dMid}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
-          svgLines+=`<line x1="${xM}" y1="${dMid}" x2="${xFR}" y2="${dMid}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
-        }
-      }
-    });
-
-    el.innerHTML=`<div style="background:#0a1628;border-radius:12px;padding:16px 14px 20px">
-      ${adminBtns}
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px">
-        <div style="position:relative;width:${totalW}px;height:${totalH}px">
-          <svg style="position:absolute;top:0;left:0;pointer-events:none" width="${totalW}" height="${totalH}">${svgLines}</svg>
-          ${colsHtml}
+    el.innerHTML = `<div style="background:#0a1628;border-radius:12px;padding:16px 14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:600;color:#C9A84C">🏆 Knockout</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button onclick="koFsOpen()" style="padding:5px 12px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.1);color:#C9A84C;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📺 Live view</button>
+          ${isAdmin ? `<button onclick="toggleKoAdminMenu()" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.5);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">⚙ Admin</button>
+          <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#1a3050;border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:50;min-width:180px;overflow:hidden">
+            ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Edit draw</button>':""}
+            ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Post fixtures</button>':""}
+            ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8)">Post results</button>':""}
+          </div>` : ''}
         </div>
       </div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.2);text-align:center;margin-top:4px">&#8592; Swipe to navigate &#8594;</div>
+
+      <!-- Top half -->
+      <div style="display:flex;gap:0;margin-bottom:12px;position:relative">${buildGroup(leftByRound, true)}</div>
+
+      <!-- Final -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="flex:1;height:0.5px;background:rgba(255,255,255,0.08)"></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div style="font-size:14px">🏆</div>
+          ${hdrHtml(finalRound)}
+          <div style="width:160px">${cardHtml(finalM)}</div>
+        </div>
+        <div style="flex:1;height:0.5px;background:rgba(255,255,255,0.08)"></div>
+      </div>
+
+      <!-- Bottom half -->
+      <div style="display:flex;gap:0;position:relative">${buildGroup(rightByRound, false)}</div>
     </div>`;
 
   } catch(e){ console.error('renderKnockout:',e.message,e.stack); }
