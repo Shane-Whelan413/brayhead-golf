@@ -8220,6 +8220,7 @@ function renderKnockout() {
       });
 
       const totalW = numCols * COL_W + (numCols-1) * CONN;
+      const svgH = HDR + totalH;
       return `<div style="position:relative;width:${totalW}px;height:${svgH}px">
         <svg style="position:absolute;top:0;left:0;pointer-events:none" width="${totalW}" height="${svgH}">${svgLines}</svg>
         ${colsHtml}
