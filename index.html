@@ -8174,11 +8174,11 @@ function renderKnockout() {
       const totalH = (firstHalf.length - 1) * (CARD_H + CARD_GAP) + CARD_H;
       const HDR = 22;
 
-      // Column width
+      // Column width — fit all columns on screen with no scroll
       const numCols = byRound.length;
-      const COL_W = Math.floor((window.innerWidth - 28 - (numCols-1)*24) / numCols);
-      const CONN = 24;
-      const totalW = numCols * COL_W + (numCols-1) * CONN;
+      const CONN = 16;
+      const totalAvailW = window.innerWidth - 28; // 14px padding each side
+      const COL_W = Math.floor((totalAvailW - (numCols-1)*CONN) / numCols);
 
       let colsHtml = '';
       let svgLines = '';
@@ -8219,7 +8219,7 @@ function renderKnockout() {
         }
       });
 
-      const svgH = HDR + totalH;
+      const totalW = numCols * COL_W + (numCols-1) * CONN;
       return `<div style="position:relative;width:${totalW}px;height:${svgH}px">
         <svg style="position:absolute;top:0;left:0;pointer-events:none" width="${totalW}" height="${svgH}">${svgLines}</svg>
         ${colsHtml}
@@ -8245,7 +8245,7 @@ function renderKnockout() {
       </div>
 
       <!-- Top half -->
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:12px">${buildGroup(leftByRound, true)}</div>
+      <div style="margin-bottom:12px">${buildGroup(leftByRound, true)}</div>
 
       <!-- Final -->
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
@@ -8259,7 +8259,7 @@ function renderKnockout() {
       </div>
 
       <!-- Bottom half -->
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${buildGroup(rightByRound, false)}</div>
+      <div>${buildGroup(rightByRound, false)}</div>
     </div>`;
 
   } catch(e){ console.error('renderKnockout:',e.message,e.stack); }
