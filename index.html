@@ -7777,6 +7777,29 @@ async function showNotificationStatus() {
   }
 }
 
+function showPendingMatches() {
+  const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
+  const pending = db.knockout_matches.filter(m => !m.is_bye && m.status !== 'complete');
+  if (!pending.length) { toast('No pending matches', 'success'); return; }
+
+  const rows = pending.map(m => {
+    const p1 = db.players.find(p => p.id === m.player1_id);
+    const p2 = db.players.find(p => p.id === m.player2_id);
+    const rName = ROUND_NAMES[m.round] || 'Round ' + m.round;
+    return `<div style="padding:12px 0;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${p1?p1.name:'TBD'} <span style="color:var(--text-3)">vs</span> ${p2?p2.name:'TBD'}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${rName}</div>
+      </div>
+      <button onclick="closeModal();showMatchEntry('${m.id}')" class="btn sm primary">Settle</button>
+    </div>`;
+  }).join('');
+
+  document.getElementById('modal-title').textContent = 'Pending matches';
+  document.getElementById('modal-body').innerHTML = `<div style="padding:0 4px">${rows}</div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
 function toggleKoAdminMenu() {
   haptic();
   const menu = document.getElementById('ko-admin-menu');
@@ -8098,6 +8121,7 @@ function renderKnockout() {
         <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#1a3050;border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:50;min-width:180px;overflow:hidden">
           ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Edit draw</button>':""}
           ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Post fixtures</button>':""}
+          ${allMatches.filter(m=>!m.is_bye&&m.status!=='complete').length>0?'<button onclick="toggleKoAdminMenu();showPendingMatches()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:#C9A84C;border-bottom:0.5px solid rgba(255,255,255,0.08)">Settle pending matches</button>':""}
           ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8)">Post results</button>':""}
         </div>
       </div>` : "";
