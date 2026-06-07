@@ -8268,20 +8268,19 @@ function renderKnockout() {
       </div>`; 
     }
 
-    const leftByRound  = sideRounds.map(topHalf);
-    const rightByRound = sideRounds.map(bottomHalf);
-    const finalM=(fullRounds[finalRound]&&fullRounds[finalRound][0])||{id:'final',status:'pending',player1_id:null,player2_id:null,is_bye:false,winner_id:null,round:finalRound,match_number:1};
-
     el.innerHTML = `<div style="background:#0a1628;border-radius:12px;padding:16px 14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <div style="font-size:13px;font-weight:600;color:#C9A84C">🏆 Knockout</div>
         <div style="display:flex;gap:8px;align-items:center">
           <button onclick="koFsOpen()" style="padding:5px 12px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.1);color:#C9A84C;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📺 Live view</button>
-          ${isAdmin ? `<button onclick="toggleKoAdminMenu()" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.5);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">⚙ Admin</button>
-          <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#1a3050;border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:50;min-width:180px;overflow:hidden">
-            ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Edit draw</button>':""}
-            ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Post fixtures</button>':""}
-            ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8)">Post results</button>':""}
+          ${isAdmin ? `<div style="position:relative;display:inline-block">
+            <button onclick="toggleKoAdminMenu()" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.6);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">⚙ Admin ▾</button>
+            <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:#1a3050;border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:99;min-width:200px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.5)">
+              <button onclick="toggleKoAdminMenu();showPendingMatches()" style="width:100%;padding:12px 16px;border:none;background:rgba(201,168,76,0.06);text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:#C9A84C;border-bottom:0.5px solid rgba(255,255,255,0.08);font-weight:700">Settle pending matches</button>
+              <button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:12px 16px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Edit draw</button>
+              <button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:12px 16px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Post fixtures</button>
+              <button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:12px 16px;border:none;background:none;text-align:left;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8)">Post results</button>
+            </div>
           </div>` : ''}
         </div>
       </div>
