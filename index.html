@@ -1510,8 +1510,11 @@ function fmtDate(d) {
 
 function calcStableford(score, par, allowance) { return Math.max(0, par - (score - allowance) + 2); }
 function calcCourseHcp(idx, slope, cr, par) { return Math.min(18, Math.round(idx)); }
-function calcNewHcp(hcpIdx, totalPts, position) {
-  if (totalPts >= 18) {
+function calcNewHcp(hcpIdx, totalPts, position, eventDate) {
+  var newRule = eventDate && eventDate >= '2026-05-31';
+  if (newRule && totalPts > 22) {
+    return Math.max(0, parseFloat((hcpIdx - 2).toFixed(1)));
+  } else if (totalPts >= 18) {
     return Math.max(0, parseFloat((hcpIdx - 1).toFixed(1)));
   } else if (position && position <= 3) {
     return hcpIdx;
@@ -2864,7 +2867,7 @@ function updateRoundSummary() {
     const eventRounds = db.rounds.filter(r=>r.event_id===eid);
     const allPts = [...eventRounds.map(r=>r.stableford_points), pts].sort((a,b)=>b-a);
     const pos = allPts.indexOf(pts) + 1;
-    const newH = calcNewHcp(hcp, pts, pos);
+    const newH = calcNewHcp(hcp, pts, pos, ev.event_date);
     const newHOuting = calcNewHcpOuting(hcp, pts, pos);
     const hcpNote = isOuting
       ? pos === 1 ? `Hcp ${hcp} → ${newHOuting} (1st −1.0)`
@@ -3002,7 +3005,7 @@ async function saveRound() {
     const eventRounds = db.rounds.filter(r=>r.event_id===eid);
     const allPts = [...eventRounds.map(r=>r.stableford_points), totalPts].sort((a,b)=>b-a);
     const position = allPts.indexOf(totalPts) + 1;
-    newHcp = calcNewHcp(hcpIdx, totalPts, position);
+    newHcp = calcNewHcp(hcpIdx, totalPts, position, ev.event_date);
   }
 
   const btn = document.getElementById('btn-save-round');
@@ -3325,7 +3328,7 @@ async function verifyAllRounds(eid) {
       } else if (isOuting) {
         newHcp = calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points, pos);
       } else {
-        newHcp = calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos);
+        newHcp = calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos, ev.event_date);
       }
       await patch(`rounds?id=eq.${r.id}`, { verified: true, handicap_after: newHcp });
       if (isProvisional && !isOuting) {
@@ -3862,7 +3865,7 @@ function buildHandicapTimeline() {
       if (isOuting) {
         correctAfter = calcNewHcpOuting(correctBefore, pts, pos);
       } else {
-        correctAfter = calcNewHcp(correctBefore, pts, pos);
+        correctAfter = calcNewHcp(correctBefore, pts, pos, ev.event_date);
       }
 
       if (!timeline[pid]) timeline[pid] = [];
@@ -3952,7 +3955,7 @@ function renderAuditStep() {
       const correctBefore = parseFloat(runningHcp.toFixed(1));
       const correctAfter  = entry.isOuting
         ? calcNewHcpOuting(correctBefore, entry.pts, pos)
-        : calcNewHcp(correctBefore, entry.pts, pos);
+        : calcNewHcp(correctBefore, entry.pts, pos, entry.date);
       runningHcp = correctAfter;
       return { ...entry, pos, correctBefore, correctAfter };
     });
@@ -4208,7 +4211,7 @@ async function recalcHandicaps(eid) {
       if (isOuting) {
         newHcp = calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points, pos);
       } else {
-        newHcp = calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos);
+        newHcp = calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos, ev.event_date);
       }
       await patch(`rounds?id=eq.${r.id}`, { handicap_after: newHcp });
       await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp });
@@ -4235,7 +4238,7 @@ async function verifyAndPublish(eid) {
         const pos = posMap[r.id] || 99;
         const newHcp = isOuting
           ? calcNewHcpOuting(parseFloat(r.handicap_before), r.stableford_points, pos)
-          : calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos);
+          : calcNewHcp(parseFloat(r.handicap_before), r.stableford_points, pos, ev.event_date);
         await patch(`rounds?id=eq.${r.id}`, { verified: true, handicap_after: newHcp });
         await patch(`players?id=eq.${r.player_id}`, { handicap_index: newHcp });
       }
@@ -6622,7 +6625,7 @@ async function saveEditedRound(rid) {
     const eventRounds = db.rounds.filter(x=>x.event_id===r.event_id && x.id!==rid);
     const allPts = [...eventRounds.map(x=>x.stableford_points), totalPts].sort((a,b)=>b-a);
     const position = allPts.indexOf(totalPts) + 1;
-    newHcp = calcNewHcp(hcpIdx, totalPts, position);
+    newHcp = calcNewHcp(hcpIdx, totalPts, position, ev.event_date);
   }
   const btn = document.querySelector('#modal-body .btn.primary');
   if (btn) { btn.disabled=true; btn.textContent='Saving…'; }
