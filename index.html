@@ -7777,6 +7777,20 @@ async function showNotificationStatus() {
   }
 }
 
+function postKnockoutResults() {
+  // Find the most recently completed round
+  const completed = db.knockout_matches.filter(m => !m.is_bye && m.status === 'complete');
+  if (!completed.length) { toast('No completed matches to post', 'error'); return; }
+  const rounds = [...new Set(completed.map(m => m.round))].sort((a,b) => b-a);
+  const latestRound = rounds[0];
+  // Use existing share card function if available
+  if (typeof generateKnockoutShareCard === 'function') {
+    generateKnockoutShareCard(latestRound);
+  } else {
+    toast('Results card coming soon', 'info');
+  }
+}
+
 function showPendingMatches() {
   const ROUND_NAMES = {1:'Round 1',2:'Round of 16',3:'Quarter-finals',4:'Semi-finals',5:'Final'};
   const pending = db.knockout_matches.filter(m => !m.is_bye && m.status !== 'complete');
