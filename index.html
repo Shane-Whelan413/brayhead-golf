@@ -8129,16 +8129,6 @@ function renderKnockout() {
     function bottomHalf(r){const a=fullRounds[r];return a.slice(a.length/2);}
     function fn(n){return n?n.split(' ')[0]:'TBD';}
 
-    const adminBtns = isAdmin ? `
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;position:relative">
-        <button onclick="toggleKoAdminMenu()" style="padding:7px 12px;border-radius:8px;border:1px solid #C9A84C;background:rgba(201,168,76,0.12);color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">&#9881; Admin &#9660;</button>
-        <div id="ko-admin-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#1a3050;border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:50;min-width:180px;overflow:hidden">
-          ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showKnockoutSetup()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Edit draw</button>':""}
-          ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();showFixturePost()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8);border-bottom:0.5px solid rgba(255,255,255,0.08)">Post fixtures</button>':""}
-          ${allMatches.filter(m=>!m.is_bye&&m.status!=='complete').length>0?'<button onclick="toggleKoAdminMenu();showPendingMatches()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:#C9A84C;border-bottom:0.5px solid rgba(255,255,255,0.08)">Settle pending matches</button>':""}
-          ${allMatches.filter(m=>!m.is_bye).length>0?'<button onclick="toggleKoAdminMenu();postKnockoutResults()" style="width:100%;padding:11px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;color:rgba(255,255,255,0.8)">Post results</button>':""}
-        </div>
-      </div>` : "";
 
     function cardHtml(m) {
       const p1=db.players.find(p=>p.id===m.player1_id);
