@@ -4162,12 +4162,12 @@ async function runFullHandicapRecalc() {
       <div style="margin-bottom:16px">${rows}</div>
       <div style="display:flex;gap:8px">
         <button class="btn" style="flex:1" onclick="closeModal()">Cancel</button>
-        <button class="btn primary" style="flex:2" onclick="applyHandicapRecalc()">Apply ${changes.length} change${changes.length!==1?'s':''}</button>
+        <button class="btn primary" id="recalc-apply-btn" style="flex:2" onclick="applyHandicapRecalc()">Apply ${changes.length} change${changes.length!==1?'s':''}</button>
       </div>
     `;
 
     // Store for apply step
-    window._pendingRecalc = { timeline, finalHcp, ignored: new Set() };
+    window._pendingRecalc = { timeline, finalHcp, ignored: new Set(), totalChanges: changes.length };
 
   } catch(e) {
     document.getElementById('modal-body').innerHTML = `<div style="color:#E24B4A;padding:1rem">Error: ${e.message}</div>`;
@@ -4184,6 +4184,18 @@ function ignoreRecalcPlayer(pid) {
     row.style.textDecoration = 'line-through';
     var btn = row.querySelector('button');
     if (btn) { btn.textContent = 'Ignored'; btn.style.color = 'var(--text-3)'; btn.disabled = true; }
+  }
+  // Update apply button count
+  var remaining = window._pendingRecalc.totalChanges - window._pendingRecalc.ignored.size;
+  var applyBtn = document.getElementById('recalc-apply-btn');
+  if (applyBtn) {
+    if (remaining <= 0) {
+      applyBtn.textContent = 'Nothing to apply';
+      applyBtn.disabled = true;
+      applyBtn.style.opacity = '0.5';
+    } else {
+      applyBtn.textContent = 'Apply ' + remaining + ' change' + (remaining !== 1 ? 's' : '');
+    }
   }
 }
 
