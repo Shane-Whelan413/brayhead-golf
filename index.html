@@ -4101,63 +4101,116 @@ async function auditNextPlayer() {
 }
 
 async function runFullHandicapRecalc() {
-  if (!confirm(
-    'This will recalculate ALL handicap values for every player across every event in chronological order, and update Supabase.\n\nThis cannot be undone. Continue?'
-  )) return;
-
   const modal = document.getElementById('modal-overlay');
-  document.getElementById('modal-title').textContent = '⟳ Recalculating handicaps…';
-  document.getElementById('modal-body').innerHTML = '<div class="empty">Working through events in order…</div>';
+  document.getElementById('modal-title').textContent = 'Checking handicaps…';
+  document.getElementById('modal-body').innerHTML = '<div class="empty">Calculating…</div>';
   modal.classList.add('open');
   await new Promise(r=>setTimeout(r,50));
 
   try {
     const { timeline, finalHcp } = buildHandicapTimeline();
-    let updated = 0, errors = 0;
-    const totalRounds = Object.values(timeline).flat().length;
 
-    // Update all rounds in chronological order
-    const allEntries = Object.entries(timeline).flatMap(([pid, rounds]) =>
-      rounds.map(r => ({pid, ...r}))
-    ).sort((a,b) => a.date.localeCompare(b.date));
-
-    for (const entry of allEntries) {
-      try {
-        await patch(`rounds?id=eq.${entry.rid}`, {
-          handicap_before: entry.correctBefore,
-          handicap_after:  entry.correctAfter
-        });
-        updated++;
-      } catch(e) { errors++; }
-    }
-
-    // Update each player's current handicap_index to their final correct value
+    // Find players whose current handicap differs from recalculated value
+    const changes = [];
     for (const pid in finalHcp) {
-      try {
-        await patch(`players?id=eq.${pid}`, { handicap_index: finalHcp[pid] });
-      } catch(e) { errors++; }
+      const player = db.players.find(p=>p.id===pid);
+      if (!player) continue;
+      const current = parseFloat(parseFloat(player.handicap_index).toFixed(1));
+      const recalc = parseFloat(finalHcp[pid].toFixed(1));
+      if (current !== recalc) {
+        // Find the most recent round for this player to show context
+        const rounds = (timeline[pid]||[]);
+        const lastRound = rounds[rounds.length-1];
+        const ev = lastRound ? db.events.find(e=>e.id===lastRound.eid) : null;
+        changes.push({ pid, name: player.name, current, recalc, lastCourse: ev?ev.course_name:'', lastDate: lastRound?lastRound.date:'' });
+      }
     }
 
-    await loadAll(); renderAll();
+    if (!changes.length) {
+      document.getElementById('modal-title').textContent = 'All handicaps correct';
+      document.getElementById('modal-body').innerHTML = `
+        <div style="text-align:center;padding:1.5rem 0">
+          <div style="font-size:13px;color:var(--text-3)">No handicap changes needed — all values are already correct.</div>
+        </div>
+        <button class="btn" style="width:100%;margin-top:1rem" onclick="closeModal()">Done</button>
+      `;
+      return;
+    }
 
-    document.getElementById('modal-title').textContent = errors ? '⚠️ Done with errors' : '✅ Recalculation complete';
+    const rows = changes.map(c => {
+      const diff = (c.recalc - c.current).toFixed(1);
+      const diffStr = diff > 0 ? '+'+diff : diff;
+      const diffColor = c.recalc < c.current ? '#2d7a4f' : '#E24B4A';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid var(--border)">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${c.name}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px">${c.lastCourse||''} ${c.lastDate?'· '+c.lastDate:''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+          <div style="font-size:13px;color:var(--text-3)">${c.current.toFixed(1)}</div>
+          <div style="font-size:11px;color:var(--text-3)">→</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${c.recalc.toFixed(1)}</div>
+          <div style="font-size:11px;font-weight:700;color:${diffColor};min-width:36px;text-align:right">${diffStr}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('modal-title').textContent = `${changes.length} handicap change${changes.length!==1?'s':''} found`;
     document.getElementById('modal-body').innerHTML = `
-      <div style="text-align:center;padding:1.5rem 0">
-        <div style="font-size:32px;margin-bottom:8px">${errors?'⚠️':'✅'}</div>
-        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">
-          ${updated} of ${totalRounds} rounds updated
-        </div>
-        ${errors ? `<div style="font-size:12px;color:#E24B4A">${errors} error${errors!==1?'s':''} — some rounds may not have updated</div>` : ''}
-        <div style="font-size:12px;color:var(--text-3);margin-top:8px">
-          ${Object.keys(finalHcp).length} player handicaps recalculated from scratch in chronological order.
-        </div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:12px">Review the changes below before applying. This cannot be undone.</div>
+      <div style="margin-bottom:16px">${rows}</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" style="flex:1" onclick="closeModal()">Cancel</button>
+        <button class="btn primary" style="flex:2" onclick="applyHandicapRecalc()">Apply ${changes.length} change${changes.length!==1?'s':''}</button>
       </div>
-      <button class="btn" style="width:100%;margin-top:1rem" onclick="closeModal()">Done</button>
     `;
+
+    // Store for apply step
+    window._pendingRecalc = { timeline, finalHcp };
+
   } catch(e) {
     document.getElementById('modal-body').innerHTML = `<div style="color:#E24B4A;padding:1rem">Error: ${e.message}</div>`;
   }
 }
+
+async function applyHandicapRecalc() {
+  const { timeline, finalHcp } = window._pendingRecalc || {};
+  if (!timeline || !finalHcp) { closeModal(); return; }
+
+  document.getElementById('modal-title').textContent = 'Applying changes…';
+  document.getElementById('modal-body').innerHTML = '<div class="empty">Updating handicaps…</div>';
+  await new Promise(r=>setTimeout(r,50));
+
+  let updated = 0, errors = 0;
+  const allEntries = Object.entries(timeline).flatMap(([pid, rounds]) =>
+    rounds.map(r => ({pid, ...r}))
+  ).sort((a,b) => a.date.localeCompare(b.date));
+
+  for (const entry of allEntries) {
+    try {
+      await patch(`rounds?id=eq.${entry.rid}`, { handicap_before: entry.correctBefore, handicap_after: entry.correctAfter });
+      updated++;
+    } catch(e) { errors++; }
+  }
+
+  for (const pid in finalHcp) {
+    try {
+      await patch(`players?id=eq.${pid}`, { handicap_index: finalHcp[pid] });
+    } catch(e) { errors++; }
+  }
+
+  await loadAll(); renderAll();
+  window._pendingRecalc = null;
+
+  document.getElementById('modal-title').textContent = errors ? '⚠️ Done with errors' : '✅ Done';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="text-align:center;padding:1.5rem 0">
+      <div style="font-size:13px;color:var(--text-3)">${updated} rounds updated. ${errors ? errors+' errors.' : 'All changes applied successfully.'}</div>
+    </div>
+    <button class="btn" style="width:100%;margin-top:1rem" onclick="closeModal()">Done</button>
+  `;
+}
+
 
 async function recalcOutingPenalties() {
   // Find the last published outing
