@@ -18,6 +18,7 @@
 <link rel="apple-touch-startup-image" href="/brayhead-golf/icon-512.png">
 <title>Bray Head Golf Society 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root {
     --green: #C9A84C;
@@ -4214,6 +4215,11 @@ async function applyHandicapRecalc() {
 
   for (const entry of allEntries) {
     if (ignored && ignored.has(entry.pid)) continue;
+    // Only patch if values actually differ from what's stored
+    const existingRound = db.rounds.find(r => r.id === entry.rid);
+    const beforeSame = existingRound && parseFloat(existingRound.handicap_before).toFixed(1) === parseFloat(entry.correctBefore).toFixed(1);
+    const afterSame = existingRound && parseFloat(existingRound.handicap_after).toFixed(1) === parseFloat(entry.correctAfter).toFixed(1);
+    if (beforeSame && afterSame) continue;
     try {
       await patch(`rounds?id=eq.${entry.rid}`, { handicap_before: entry.correctBefore, handicap_after: entry.correctAfter });
       updated++;
