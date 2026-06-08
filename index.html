@@ -1512,7 +1512,7 @@ function calcStableford(score, par, allowance) { return Math.max(0, par - (score
 function calcCourseHcp(idx, slope, cr, par) { return Math.min(18, Math.round(idx)); }
 function calcNewHcp(hcpIdx, totalPts, position, eventDate) {
   var newRule = eventDate && eventDate >= '2026-05-31';
-  if (newRule && totalPts > 22) {
+  if (newRule && totalPts >= 22) {
     return Math.max(0, parseFloat((hcpIdx - 2).toFixed(1)));
   } else if (totalPts >= 18) {
     return Math.max(0, parseFloat((hcpIdx - 1).toFixed(1)));
@@ -4141,16 +4141,17 @@ async function runFullHandicapRecalc() {
       const diff = (c.recalc - c.current).toFixed(1);
       const diffStr = diff > 0 ? '+'+diff : diff;
       const diffColor = c.recalc < c.current ? '#2d7a4f' : '#E24B4A';
-      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid var(--border)">
-        <div>
+      return `<div id="recalc-row-${c.pid}" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid var(--border)">
+        <div style="flex:1">
           <div style="font-size:13px;font-weight:600;color:var(--text)">${c.name}</div>
           <div style="font-size:11px;color:var(--text-3);margin-top:2px">${c.lastCourse||''} ${c.lastDate?'· '+c.lastDate:''}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
           <div style="font-size:13px;color:var(--text-3)">${c.current.toFixed(1)}</div>
           <div style="font-size:11px;color:var(--text-3)">→</div>
           <div style="font-size:14px;font-weight:700;color:var(--text)">${c.recalc.toFixed(1)}</div>
-          <div style="font-size:11px;font-weight:700;color:${diffColor};min-width:36px;text-align:right">${diffStr}</div>
+          <div style="font-size:11px;font-weight:700;color:${diffColor};min-width:32px;text-align:right">${diffStr}</div>
+          <button onclick="ignoreRecalcPlayer('${c.pid}')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-3);font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;flex-shrink:0">Ignore</button>
         </div>
       </div>`;
     }).join('');
@@ -4166,15 +4167,28 @@ async function runFullHandicapRecalc() {
     `;
 
     // Store for apply step
-    window._pendingRecalc = { timeline, finalHcp };
+    window._pendingRecalc = { timeline, finalHcp, ignored: new Set() };
 
   } catch(e) {
     document.getElementById('modal-body').innerHTML = `<div style="color:#E24B4A;padding:1rem">Error: ${e.message}</div>`;
   }
 }
 
+function ignoreRecalcPlayer(pid) {
+  if (!window._pendingRecalc) return;
+  if (!window._pendingRecalc.ignored) window._pendingRecalc.ignored = new Set();
+  window._pendingRecalc.ignored.add(pid);
+  var row = document.getElementById('recalc-row-'+pid);
+  if (row) {
+    row.style.opacity = '0.35';
+    row.style.textDecoration = 'line-through';
+    var btn = row.querySelector('button');
+    if (btn) { btn.textContent = 'Ignored'; btn.style.color = 'var(--text-3)'; btn.disabled = true; }
+  }
+}
+
 async function applyHandicapRecalc() {
-  const { timeline, finalHcp } = window._pendingRecalc || {};
+  const { timeline, finalHcp, ignored } = window._pendingRecalc || {};
   if (!timeline || !finalHcp) { closeModal(); return; }
 
   document.getElementById('modal-title').textContent = 'Applying changes…';
@@ -4187,6 +4201,7 @@ async function applyHandicapRecalc() {
   ).sort((a,b) => a.date.localeCompare(b.date));
 
   for (const entry of allEntries) {
+    if (ignored && ignored.has(entry.pid)) continue;
     try {
       await patch(`rounds?id=eq.${entry.rid}`, { handicap_before: entry.correctBefore, handicap_after: entry.correctAfter });
       updated++;
@@ -4194,6 +4209,7 @@ async function applyHandicapRecalc() {
   }
 
   for (const pid in finalHcp) {
+    if (ignored && ignored.has(pid)) continue;
     try {
       await patch(`players?id=eq.${pid}`, { handicap_index: finalHcp[pid] });
     } catch(e) { errors++; }
