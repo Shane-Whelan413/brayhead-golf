@@ -8037,9 +8037,8 @@ function animateProfileStats() {
 function animateTabEntrance(sectionId) {
   const section = document.getElementById(sectionId);
   if (!section) return;
+  section.style.opacity = '1';
   section.classList.remove('anim-fade-up');
-  void section.offsetWidth;
-  section.classList.add('anim-fade-up');
 }
 
 function dismissPushBanner() {
