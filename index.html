@@ -1879,22 +1879,6 @@ function renderLeaderboard() {
     </div>`;
   }).join('');
   setTimeout(() => {
-    const cards = Array.from(document.querySelectorAll('#lb-table .lb-slide-wrap'));
-    cards.forEach((card, i) => {
-      card.style.opacity = '0';
-      card.style.transform = 'translateX(-22px)';
-      card.style.transition = 'none';
-      setTimeout(() => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            card.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.22,1,0.36,1)';
-            card.style.opacity = '1';
-            card.style.transform = 'translateX(0)';
-          });
-        });
-      }, 80 + i * 110);
-    });
-  }, 50);
 
   setTimeout(() => {
     document.querySelectorAll('#lb-table .lb-card-pts').forEach(el => {
