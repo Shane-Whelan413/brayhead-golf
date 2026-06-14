@@ -8837,7 +8837,7 @@ function onFabClick() {
 
 function showTab(name) {
   haptic();
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>{ s.classList.remove('active'); if(s.id==='add-round') s.style.display='none'; });
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(name).classList.add('active');
   const tabs = ['home','leaderboard','add-round','profile','schedule'];
