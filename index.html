@@ -2218,7 +2218,7 @@ function hseRenderStrip() {
 
     stripHtml += `<div onclick="hseSelectHole(${h})" style="${bgStyle};${borderStyle};border-radius:5px;padding:5px 2px;text-align:center;font-size:11px;font-weight:700;${textColor};cursor:pointer;-webkit-tap-highlight-color:transparent">${displayVal}</div>`;
 
-    const ptsColor = pts !== null ? '#a3e635' : 'rgba(255,255,255,0.15)';
+    const ptsColor = pts !== null ? 'white' : 'rgba(255,255,255,0.2)';
     const ptsVal = pts !== null ? pts : '—';
     ptsHtml += `<div id="hpts${h}" style="font-size:9px;color:${ptsColor};text-align:center;padding-top:2px" data-pts="${pts!==null?pts:''}">${ptsVal}</div>`;
   }
