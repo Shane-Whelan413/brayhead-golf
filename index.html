@@ -1300,50 +1300,7 @@
 <div class="toasts" id="toasts"></div>
 
 <!-- Score entry keypad -->
-<div id="score-keypad">
-  <div style="display:flex;justify-content:center;padding:8px 0 4px;cursor:grab">
-    <div style="width:36px;height:4px;background:var(--border-strong);border-radius:99px"></div>
-  </div>
-  <div class="kp-hole-info" id="kp-hole-info">
-    <div class="kp-info-item" style="grid-column:1/-1;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:8px;margin-bottom:4px">
-      <div id="kp-hole-title" style="font-size:18px;font-weight:700;color:white;text-align:center;letter-spacing:0.02em">Hole —</div>
-      <div id="kp-hole-subtitle" style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;margin-top:2px">tap ◀ ▶ to navigate</div>
-    </div>
-    <div class="kp-info-item"><div class="kp-info-label">Par</div><div class="kp-info-val" id="kp-par">—</div></div>
-    <div class="kp-info-item"><div class="kp-info-label">SI</div><div class="kp-info-val" id="kp-si">—</div></div>
-    <div class="kp-info-item"><div class="kp-info-label">Shots</div><div class="kp-info-val gold" id="kp-shots">—</div></div>
-    <div class="kp-info-item"><div class="kp-info-label">Hole</div><div class="kp-info-val" id="kp-hole-num">—</div></div>
-  </div>
-  <div class="kp-score-display">
-    <div class="kp-nav">
-      <button class="kp-nav-btn" onclick="kpNavigate(-1)">&#9664;</button>
-      <div style="font-size:9px;color:var(--text-3);text-align:center;margin-top:4px">Prev</div>
-    </div>
-    <div>
-      <div style="font-size:11px;color:var(--text-3);text-align:center;margin-bottom:4px">Score</div>
-      <div class="kp-score-big empty" id="kp-score-display">—</div>
-      <div style="font-size:13px;font-weight:700;text-align:center;margin-top:4px;min-height:20px" id="kp-pts-display"></div>
-    </div>
-    <div class="kp-nav">
-      <button class="kp-nav-btn" onclick="kpNavigate(1)">&#9654;</button>
-      <div style="font-size:9px;color:var(--text-3);text-align:center;margin-top:4px">Next</div>
-    </div>
-  </div>
-  <div class="kp-grid">
-    <button class="kp-btn num" onclick="kpInput(1)">1</button>
-    <button class="kp-btn num" onclick="kpInput(2)">2</button>
-    <button class="kp-btn num" onclick="kpInput(3)">3</button>
-    <button class="kp-btn num" onclick="kpInput(4)">4</button>
-    <button class="kp-btn num" onclick="kpInput(5)">5</button>
-    <button class="kp-btn num" onclick="kpInput(6)">6</button>
-    <button class="kp-btn num" onclick="kpInput(7)">7</button>
-    <button class="kp-btn num" onclick="kpInput(8)">8</button>
-    <button class="kp-btn num" onclick="kpInput(9)">9</button>
-    <button class="kp-btn max" onclick="kpMax()">Max</button>
-    <button class="kp-btn del" onclick="kpDelete()">⌫</button>
-    <button class="kp-btn done" onclick="kpDone()">Done ✓</button>
-  </div>
-</div>
+<!-- score-keypad removed — replaced by hybrid score entry -->
 
 <script>
 const SUPABASE_URL = 'https://vlpfqavpwwhpflamujcp.supabase.co';
@@ -2110,44 +2067,90 @@ function renderAddRound() {
 
 function buildHoleInputs(n) {
   const wrap = document.getElementById('hole-inputs');
+  // Build hidden inputs for score storage (keeps existing data layer intact)
+  let hiddenInputs = '';
+  for (let i = 1; i <= n; i++) hiddenInputs += `<input type="hidden" id="h${i}">`;
 
-  function makeHeader() {
-    return '<div class="sc-progress-wrap"><div class="sc-progress-bar" id="sc-progress" style="width:0%"></div></div>'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px 2px">'
-      + '<div style="font-size:10px;color:var(--text-3)" id="sc-progress-label">0/' + n + ' holes entered</div>'
-      + '<div style="font-size:10px;color:var(--text-3)" id="sc-par-diff"></div></div>'
-      + '<div class="sc-col-header"><span>#</span><span>Par</span><span>SI</span><span>&#x2193;</span><span>Score</span><span>Pts</span></div>';
-  }
+  // Build the new hybrid score entry UI
+  const isSplit = n === 18;
 
-  function makeRow(i) {
-    return `<div class="sc-hole-row" id="sc-row${i}" onclick="openKeypad(${i})">
-      <div style="font-size:13px;font-weight:700;color:var(--text-3);text-align:center">${i}</div>
-      <div style="font-size:13px;font-weight:600;color:var(--text-2);text-align:center" id="sc-par${i}">—</div>
-      <div style="font-size:13px;font-weight:500;color:var(--text-3);text-align:center" id="sc-si${i}">—</div>
-      <div style="text-align:center" id="sc-shots${i}"><span style="font-size:12px;font-weight:700;color:#2d7a4f" id="sc-shots-val${i}"></span></div>
-      <div style="display:flex;align-items:center;justify-content:center;padding:6px 4px;flex-direction:column;gap:2px">
-        <div class="sc-score-val sc-empty" id="sc-score${i}">—</div>
-        <div style="font-size:9px;color:var(--text-3);letter-spacing:0.03em" id="sc-tap-hint${i}">tap</div>
+  wrap.innerHTML = `
+    <div id="hybrid-score-entry" style="display:flex;flex-direction:column;height:100%">
+      ${hiddenInputs}
+
+      ${isSplit ? `
+      <!-- Front/Back tabs -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;background:rgba(0,0,0,0.25);flex-shrink:0">
+        <button id="tab-front" onclick="hseTab('front')" style="padding:9px;text-align:center;font-size:12px;font-weight:700;color:#C9A84C;border:none;background:none;border-bottom:2px solid #C9A84C;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">Front 9</button>
+        <button id="tab-back" onclick="hseTab('back')" style="padding:9px;text-align:center;font-size:12px;font-weight:700;color:rgba(255,255,255,0.35);border:none;background:none;border-bottom:2px solid rgba(255,255,255,0.08);cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">Back 9</button>
+      </div>` : ''}
+
+      <!-- Hole strip -->
+      <div id="hse-strip-wrap" style="background:rgba(0,0,0,0.2);padding:8px 10px 0;flex-shrink:0">
+        <div id="hse-strip" style="display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin-bottom:4px"></div>
+        <div id="hse-pts-strip" style="display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin-bottom:6px"></div>
+        ${isSplit ? `<div id="hse-nine-summary" style="background:rgba(255,255,255,0.05);border-radius:6px;padding:5px 10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;display:none">
+          <div style="font-size:10px;color:rgba(255,255,255,0.3)" id="hse-nine-label">Front 9</div>
+          <div style="display:flex;gap:14px">
+            <div style="font-size:10px;color:rgba(255,255,255,0.35)">Score <span id="hse-nine-score" style="color:white;font-weight:700">—</span></div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.35)">Pts <span id="hse-nine-pts" style="color:#C9A84C;font-weight:700">—</span></div>
+          </div>
+        </div>` : ''}
       </div>
-      <div class="sc-pts-chip" id="hpts${i}"></div>
-    </div><input type="hidden" id="h${i}">`;
-  }
 
-  if (n === 9) {
-    // Sunday 9 — no tabs, just one panel
-    const front = Array.from({length:9},(_,i)=>makeRow(i+1)).join('');
-    wrap.innerHTML = '<div class="nine-panel active" id="panel-front">' + makeHeader() + front + '</div>';
-  } else {
-    // 18-hole outing — tabbed Front / Back
-    const front = Array.from({length:9},(_,i)=>makeRow(i+1)).join('');
-    const back  = Array.from({length:9},(_,i)=>makeRow(i+10)).join('');
-    wrap.innerHTML = '<div class="nine-tabs">'
-      + '<button class="nine-tab active" id="tab-front" onclick="switchNine(\'front\')">Front 9</button>'
-      + '<button class="nine-tab" id="tab-back" onclick="switchNine(\'back\')">Back 9</button>'
-      + '</div>'
-      + '<div class="nine-panel active" id="panel-front">' + makeHeader() + front + '</div>'
-      + '<div class="nine-panel" id="panel-back">' + makeHeader() + back + '</div>';
-  }
+      <!-- Active hole panel -->
+      <div id="hse-panel" style="background:#fffef9;margin:8px;border-radius:14px;padding:14px 14px 10px;flex-shrink:0">
+        <!-- Hole info row -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="display:flex;gap:14px">
+            <div style="text-align:center">
+              <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Hole</div>
+              <div style="font-size:22px;font-weight:800;color:#1a1510;line-height:1" id="hse-hole-num">—</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Par</div>
+              <div style="font-size:22px;font-weight:800;color:#1a1510;line-height:1" id="hse-par">—</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">SI</div>
+              <div style="font-size:22px;font-weight:800;color:#1a1510;line-height:1" id="hse-si">—</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Shots</div>
+              <div style="font-size:22px;font-weight:800;color:#C9A84C;line-height:1" id="hse-shots">—</div>
+            </div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Score</div>
+            <div style="font-size:44px;font-weight:800;color:#d0c8b8;line-height:1" id="hse-score-big">—</div>
+          </div>
+        </div>
+
+        <!-- Score grid 1-10 + NR -->
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:8px" id="hse-numgrid"></div>
+
+        <!-- Prev / Next -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button id="hse-prev" onclick="hseNav(-1)" style="background:#f8f5ee;border:1px solid rgba(0,0,0,0.09);border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:600;color:#9a9080;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">← Prev</button>
+          <button id="hse-next" onclick="hseNav(1)" style="background:#0a1628;border:none;border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:700;color:#C9A84C;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">Next →</button>
+        </div>
+      </div>
+
+      <!-- Spacer -->
+      <div style="flex:1"></div>
+    </div>
+  `;
+
+  hseInit(n);
+}
+
+// ── Hybrid Score Entry State ──────────────────────────────────
+var hseState = { n:9, active:1, nine:'front' };
+
+function hseInit(n) {
+  hseState.n = n;
+  hseState.active = 1;
+  hseState.nine = 'front';
 
   // Restore cached scores
   const pid = document.getElementById('r-player')?.value;
@@ -2156,17 +2159,218 @@ function buildHoleInputs(n) {
   try {
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
     if (cached) {
-      for (let i=1; i<=n; i++) {
+      for (let i = 1; i <= n; i++) {
         if (cached[i]) {
-          const inp  = document.getElementById('h'+i);
-          const disp = document.getElementById('sc-score'+i);
-          if (inp)  inp.value = cached[i];
-          if (disp) { disp.textContent = cached[i]; disp.classList.remove('sc-empty'); }
+          const inp = document.getElementById('h'+i);
+          if (inp) inp.value = cached[i];
         }
       }
-      updateRoundSummary();
     }
   } catch(e) {}
+
+  hseRenderStrip();
+  hseSelectHole(1);
+  updateRoundSummary();
+}
+
+function hseTab(which) {
+  hseState.nine = which;
+  const startHole = which === 'front' ? 1 : 10;
+  // Update tab styles
+  const tf = document.getElementById('tab-front');
+  const tb = document.getElementById('tab-back');
+  if (tf) { tf.style.color = which==='front'?'#C9A84C':'rgba(255,255,255,0.35)'; tf.style.borderBottomColor = which==='front'?'#C9A84C':'rgba(255,255,255,0.08)'; }
+  if (tb) { tb.style.color = which==='back'?'#C9A84C':'rgba(255,255,255,0.35)'; tb.style.borderBottomColor = which==='back'?'#C9A84C':'rgba(255,255,255,0.08)'; }
+  hseRenderStrip();
+  // Show summary of other nine
+  hseSummary(which === 'back' ? 'front' : 'back');
+  hseSelectHole(startHole);
+}
+
+function hseSummary(which) {
+  const sumEl = document.getElementById('hse-nine-summary');
+  const labEl = document.getElementById('hse-nine-label');
+  const scEl  = document.getElementById('hse-nine-score');
+  const ptEl  = document.getElementById('hse-nine-pts');
+  if (!sumEl) return;
+  const start = which === 'front' ? 1 : 10;
+  let hasAny = false, scoreTotal = 0, ptsTotal = 0;
+  for (let i = start; i < start+9; i++) {
+    const v = parseInt(document.getElementById('h'+i)?.value);
+    if (!isNaN(v) && v > 0) { hasAny = true; scoreTotal += v; }
+    const ptEl2 = document.getElementById('hpts'+i);
+    if (ptEl2 && ptEl2.dataset.pts) ptsTotal += parseInt(ptEl2.dataset.pts)||0;
+  }
+  sumEl.style.display = hasAny ? 'flex' : 'none';
+  if (labEl) labEl.textContent = (which==='front'?'Front 9':'Back 9') + ' total';
+  if (scEl) scEl.textContent = hasAny ? scoreTotal : '—';
+  if (ptEl) ptEl.textContent = hasAny ? ptsTotal : '—';
+}
+
+function hseRenderStrip() {
+  const n = hseState.n;
+  const nine = hseState.nine;
+  const startH = n === 9 ? 1 : (nine === 'front' ? 1 : 10);
+  const endH = startH + 8;
+  const strip = document.getElementById('hse-strip');
+  const ptsStrip = document.getElementById('hse-pts-strip');
+  if (!strip) return;
+
+  // Get event for par/si data
+  const eid = document.getElementById('r-event')?.value;
+  const ev = db.events.find(e=>e.id===eid);
+  const pid = document.getElementById('r-player')?.value;
+  const pl = db.players.find(p=>p.id===pid);
+
+  let stripHtml = '', ptsHtml = '';
+  for (let h = startH; h <= endH; h++) {
+    const val = document.getElementById('h'+h)?.value;
+    const score = val ? parseInt(val) : null;
+    const isActive = hseState.active === h;
+
+    // Calculate pts for this hole if scored
+    let pts = null;
+    if (score && ev && pl) {
+      const parVals = getParValues(n, ev, pl);
+      const siVals = getSIValues(n, ev, pl);
+      const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
+      const shots = getStrokeAllowance(courseHcp, siVals[h-1], n);
+      pts = calcStableford(score, parVals[h-1], shots);
+    }
+
+    const isDone = score !== null;
+    const borderStyle = isActive ? 'border:1.5px solid #C9A84C' : 'border:none';
+    const bgStyle = isDone ? 'background:#C9A84C' : isActive ? 'background:rgba(201,168,76,0.12)' : 'background:rgba(255,255,255,0.05)';
+    const textColor = isDone ? 'color:#0a1628' : isActive ? 'color:#C9A84C' : 'color:rgba(255,255,255,0.2)';
+    const displayVal = isDone ? score : '—';
+
+    stripHtml += `<div onclick="hseSelectHole(${h})" style="${bgStyle};${borderStyle};border-radius:5px;padding:5px 2px;text-align:center;font-size:11px;font-weight:700;${textColor};cursor:pointer;-webkit-tap-highlight-color:transparent">${displayVal}</div>`;
+
+    const ptsColor = pts !== null ? '#a3e635' : 'rgba(255,255,255,0.15)';
+    const ptsVal = pts !== null ? pts : '—';
+    ptsHtml += `<div id="hpts${h}" style="font-size:9px;color:${ptsColor};text-align:center;padding-top:2px" data-pts="${pts!==null?pts:''}">${ptsVal}</div>`;
+  }
+
+  strip.innerHTML = stripHtml;
+  ptsStrip.innerHTML = ptsHtml;
+}
+
+function hseSelectHole(h) {
+  hseState.active = h;
+  const n = hseState.n;
+
+  // Auto-switch nine if needed
+  if (n === 18) {
+    const nine = h <= 9 ? 'front' : 'back';
+    if (nine !== hseState.nine) hseTab(nine);
+  }
+
+  // Get event data
+  const eid = document.getElementById('r-event')?.value;
+  const pid = document.getElementById('r-player')?.value;
+  const ev = db.events.find(e=>e.id===eid);
+  const pl = db.players.find(p=>p.id===pid);
+
+  const parVals = ev && pl ? getParValues(n, ev, pl) : [];
+  const siVals  = ev && pl ? getSIValues(n, ev, pl)  : [];
+  const par = parVals[h-1] || '—';
+  const si  = siVals[h-1]  || '—';
+
+  let shots = '—';
+  if (ev && pl) {
+    const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
+    shots = getStrokeAllowance(courseHcp, si, n);
+    shots = shots > 0 ? '+' + shots : shots === 0 ? '0' : shots;
+  }
+
+  // Update info
+  const hNum = document.getElementById('hse-hole-num');
+  const hPar = document.getElementById('hse-par');
+  const hSI  = document.getElementById('hse-si');
+  const hShots = document.getElementById('hse-shots');
+  const hBig = document.getElementById('hse-score-big');
+  if (hNum) hNum.textContent = h;
+  if (hPar) hPar.textContent = par;
+  if (hSI)  hSI.textContent  = si;
+  if (hShots) hShots.textContent = shots;
+
+  const currentScore = document.getElementById('h'+h)?.value;
+  if (hBig) {
+    hBig.textContent = currentScore || '—';
+    hBig.style.color = currentScore ? '#1a1510' : '#d0c8b8';
+  }
+
+  // Build number grid 1-10 + NR
+  const grid = document.getElementById('hse-numgrid');
+  if (grid) {
+    let nums = '';
+    for (let i = 1; i <= 10; i++) {
+      const isSelected = parseInt(currentScore) === i;
+      const bg = isSelected ? '#0a1628' : '#f8f5ee';
+      const col = isSelected ? '#C9A84C' : '#5a5040';
+      const border = isSelected ? 'border:1px solid #0a1628' : 'border:1px solid rgba(0,0,0,0.09)';
+      nums += `<div onclick="hseScore(${h},${i})" style="background:${bg};${border};border-radius:10px;padding:13px 4px;text-align:center;font-size:18px;font-weight:700;color:${col};cursor:pointer;-webkit-tap-highlight-color:transparent">${i}</div>`;
+    }
+    nums += `<div onclick="hseScore(${h},'NR')" style="background:#FCEBEB;border:1px solid #F7C1C1;border-radius:10px;padding:13px 4px;text-align:center;font-size:12px;font-weight:700;color:#A32D2D;cursor:pointer;-webkit-tap-highlight-color:transparent">NR</div>`;
+    grid.innerHTML = nums;
+  }
+
+  // Update nav buttons
+  const prevBtn = document.getElementById('hse-prev');
+  const nextBtn = document.getElementById('hse-next');
+  if (prevBtn) {
+    prevBtn.disabled = h <= 1;
+    prevBtn.style.opacity = h <= 1 ? '0.35' : '1';
+    prevBtn.textContent = h > 1 ? `← Hole ${h-1}` : '←';
+  }
+  if (nextBtn) {
+    if (h >= n) {
+      nextBtn.textContent = 'Finish →';
+      nextBtn.style.background = '#C9A84C';
+      nextBtn.style.color = '#0a1628';
+    } else {
+      nextBtn.textContent = `Hole ${h+1} →`;
+      nextBtn.style.background = '#0a1628';
+      nextBtn.style.color = '#C9A84C';
+    }
+  }
+
+  hseRenderStrip();
+}
+
+function hseScore(h, val) {
+  haptic();
+  const inp = document.getElementById('h'+h);
+  if (!inp) return;
+  const score = val === 'NR' ? null : val;
+  inp.value = score !== null ? score : '';
+  updateRoundSummary();
+  hseSelectHole(h); // refresh display
+  hseSaveCache();
+  // Auto-advance to next hole
+  if (score !== null && h < hseState.n) {
+    setTimeout(() => hseNav(1), 120);
+  }
+}
+
+function hseNav(dir) {
+  haptic();
+  const next = hseState.active + dir;
+  if (next < 1 || next > hseState.n) return;
+  hseSelectHole(next);
+}
+
+function hseSaveCache() {
+  const pid = document.getElementById('r-player')?.value;
+  const eid = document.getElementById('r-event')?.value;
+  if (!pid || !eid) return;
+  const cacheKey = 'bhgs_scores_' + eid + '_' + pid;
+  const cache = {};
+  for (let i = 1; i <= hseState.n; i++) {
+    const v = document.getElementById('h'+i)?.value;
+    if (v) cache[i] = v;
+  }
+  try { localStorage.setItem(cacheKey, JSON.stringify(cache)); } catch(e) {}
 }
 
 function switchNine(which) {
@@ -2762,6 +2966,8 @@ function updateRoundSummary() {
   const sb  = document.getElementById('round-summary');
   if (!eid || !pid || !ev) { sb.classList.remove('show'); return; }
   const n   = ev.event_type==='outing_18' ? 18 : 9;
+  // Refresh strip and hole info
+  if (typeof hseRenderStrip === 'function') { hseRenderStrip(); hseSelectHole(hseState.active || 1); }
   const p   = db.players.find(x=>x.id===pid);
   const hcp = p ? parseFloat(p.handicap_index) : 18;
   const { cr, slope, par } = getCourseIndexForPlayer(p, ev);
