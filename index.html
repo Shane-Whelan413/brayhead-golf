@@ -1124,7 +1124,7 @@
     </div>
 
     <!-- Save bar pinned at bottom -->
-    <div id="ar-save-bar" style="flex-shrink:0;background:var(--bg);border-top:1px solid var(--border);padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 4px);display:none;">
+    <div id="ar-save-bar" style="display:none!important">
       <div id="round-summary" class="summary-bar" style="margin-bottom:8px"></div>
       <button class="btn primary" id="btn-save-round" onclick="showRoundConfirmation()" style="width:100%;padding:14px;font-size:16px;font-weight:700;border-radius:12px">Review & save</button>
     </div>
@@ -2299,13 +2299,15 @@ function hseSelectHole(h) {
   }
   if (nextBtn) {
     if (h >= n) {
-      nextBtn.textContent = 'Finish →';
+      nextBtn.textContent = 'Finish & review →';
       nextBtn.style.background = '#C9A84C';
       nextBtn.style.color = '#0a1628';
+      nextBtn.onclick = function() { showRoundConfirmation(); };
     } else {
       nextBtn.textContent = `Hole ${h+1} →`;
       nextBtn.style.background = '#0a1628';
       nextBtn.style.color = '#C9A84C';
+      nextBtn.onclick = function() { hseNav(1); };
     }
   }
 
