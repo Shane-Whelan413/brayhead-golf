@@ -4738,6 +4738,7 @@ function viewEventResults(eid) {
 let scheduleShowPast = false;
 
 function renderSchedule() {
+  try {
   const seasonDates = getSeasonDates();
   const byDate = {};
   db.events.forEach(e=>{ byDate[e.event_date]=e; });
@@ -4865,6 +4866,7 @@ function renderSchedule() {
     ${pastHtml}
     ${upcomingDates.map((e,i) => renderRow(e, i, false)).join('')}
     ${toggleBtn}`;
+  } catch(e) { console.error('renderSchedule error:', e.message, e.stack); document.getElementById('schedule-table').innerHTML = '<div style="padding:1rem;color:red;font-size:12px">Schedule error: '+e.message+'</div>'; }
 }
 
 function showHandicapSheet(eid) {
