@@ -1090,7 +1090,7 @@
   </div>
 
   <!-- ADD ROUND -->
-  <div id="add-round" class="section" style="position:fixed;top:calc(60px + env(safe-area-inset-top,0px));left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom,0px));display:none;flex-direction:column;background:var(--bg);z-index:5;">
+  <div id="add-round" class="section" style="position:fixed;top:calc(60px + env(safe-area-inset-top,0px));left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom,0px));display:none;flex-direction:column;background:#0a1628;z-index:5;">
 
     <!-- Dark header — event info + live stats -->
     <div id="ar-header" style="background:#0a1628;flex-shrink:0;">
@@ -1134,7 +1134,7 @@
     <input type="hidden" id="r-event" />
     <input type="hidden" id="sb-hcp" />
     <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;">
-      <div id="hole-inputs" style="background:var(--surface)"></div>
+      <div id="hole-inputs" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;">
       <div id="ar-no-event" style="display:none;padding:2rem;text-align:center;color:#9a9080;font-size:13px"></div>
     </div>
 
@@ -2225,6 +2225,7 @@ function hseRenderStrip() {
   let stripHtml = '', ptsHtml = '';
   for (let h = startH; h <= endH; h++) {
     const val = document.getElementById('h'+h)?.value;
+    const isNR = document.getElementById('h'+h)?.dataset?.nr === 'true';
     const score = val ? parseInt(val) : null;
     const isActive = hseState.active === h;
 
@@ -2295,9 +2296,10 @@ function hseSelectHole(h) {
   if (hShots) hShots.textContent = shots;
 
   const currentScore = document.getElementById('h'+h)?.value;
+  const isNR = document.getElementById('h'+h)?.dataset?.nr === 'true';
   if (hBig) {
-    hBig.textContent = currentScore || '—';
-    hBig.style.color = currentScore ? '#1a1510' : '#d0c8b8';
+    hBig.textContent = currentScore ? (isNR ? 'NR' : currentScore) : '—';
+    hBig.style.color = currentScore ? (isNR ? '#A32D2D' : '#1a1510') : '#d0c8b8';
   }
 
   // Build number grid 1-10 + NR
@@ -2305,13 +2307,14 @@ function hseSelectHole(h) {
   if (grid) {
     let nums = '';
     for (let i = 1; i <= 10; i++) {
-      const isSelected = parseInt(currentScore) === i;
+      const isSelected = !isNR && parseInt(currentScore) === i;
       const bg = isSelected ? '#0a1628' : '#f8f5ee';
       const col = isSelected ? '#C9A84C' : '#5a5040';
       const border = isSelected ? 'border:1px solid #0a1628' : 'border:1px solid rgba(0,0,0,0.09)';
       nums += `<div onclick="hseScore(${h},${i})" style="background:${bg};${border};border-radius:10px;padding:13px 4px;text-align:center;font-size:18px;font-weight:700;color:${col};cursor:pointer;-webkit-tap-highlight-color:transparent">${i}</div>`;
     }
-    nums += `<div onclick="hseScore(${h},'NR')" style="background:#FCEBEB;border:1px solid #F7C1C1;border-radius:10px;padding:13px 4px;text-align:center;font-size:12px;font-weight:700;color:#A32D2D;cursor:pointer;-webkit-tap-highlight-color:transparent">NR</div>`;
+    const nrSelected = isNR;
+    nums += `<div onclick="hseScore(${h},'NR')" style="background:${nrSelected?'#A32D2D':'#FCEBEB'};border:1px solid ${nrSelected?'#A32D2D':'#F7C1C1'};border-radius:10px;padding:13px 4px;text-align:center;font-size:12px;font-weight:700;color:${nrSelected?'white':'#A32D2D'};cursor:pointer;-webkit-tap-highlight-color:transparent">NR</div>`;
     grid.innerHTML = nums;
   }
 
@@ -2342,15 +2345,35 @@ function hseScore(h, val) {
   haptic();
   const inp = document.getElementById('h'+h);
   if (!inp) return;
-  const score = val === 'NR' ? null : val;
-  inp.value = score !== null ? score : '';
-  updateRoundSummary();
-  hseSelectHole(h); // refresh display
-  hseSaveCache();
-  // Auto-advance to next hole
-  if (score !== null && h < hseState.n) {
-    setTimeout(() => hseNav(1), 120);
+
+  let score;
+  if (val === 'NR') {
+    // Store net double bogey (gives 0 pts) but mark as NR
+    const eid = document.getElementById('r-event')?.value;
+    const pid = document.getElementById('r-player')?.value;
+    const ev = db.events.find(e=>e.id===eid);
+    const pl = db.players.find(p=>p.id===pid);
+    const n = hseState.n;
+    if (ev && pl) {
+      const parVals = getParValues(n, ev, pl);
+      const siVals = getSIValues(n, ev, pl);
+      const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
+      const shots = getStrokeAllowance(courseHcp, siVals[h-1], n);
+      score = (parVals[h-1]||4) + shots + 2; // net double bogey = 0 pts
+    } else {
+      score = 8; // fallback
+    }
+    inp.dataset.nr = 'true';
+  } else {
+    score = val;
+    delete inp.dataset.nr;
   }
+
+  inp.value = score;
+  updateRoundSummary();
+  hseSelectHole(h);
+  hseSaveCache();
+  if (h < hseState.n) setTimeout(() => hseNav(1), 120);
 }
 
 function hseNav(dir) {
