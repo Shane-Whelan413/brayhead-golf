@@ -111,13 +111,8 @@
   .anim-fade-up { animation: fadeSlideUp 0.35s cubic-bezier(0.34,1.1,0.64,1) both; }
   .anim-fade    { animation: fadeIn 0.25s ease both; }
 
-  /* Feed items stagger up */
-  .stagger-up > * { opacity: 0; animation: fadeSlideUp 0.35s cubic-bezier(0.34,1.1,0.64,1) forwards; }
-  .stagger-up > *:nth-child(1) { animation-delay: 0ms; }
-  .stagger-up > *:nth-child(2) { animation-delay: 80ms; }
-  .stagger-up > *:nth-child(3) { animation-delay: 160ms; }
-  .stagger-up > *:nth-child(4) { animation-delay: 240ms; }
-  .stagger-up > *:nth-child(n+5) { animation-delay: 320ms; }
+  /* Feed items stagger up — disabled for performance */
+  .stagger-up > * { opacity: 1; }
   @keyframes skeletonPulse {
     0%,100% { opacity: 0.6; }
     50%      { opacity: 1; }
@@ -6732,9 +6727,10 @@ async function verifyRound(rid) {
   if (!r) return;
   try {
     await patch(`rounds?id=eq.${rid}`, { verified: true });
-    await patch(`players?id=eq.${r.player_id}`, { handicap_index: parseFloat(r.handicap_after) });
-    toast(`Round verified! Hcp updated to ${parseFloat(r.handicap_after).toFixed(1)}`, 'success');
-    await loadAll(); renderAll();
+    const idx = db.rounds.findIndex(x=>x.id===rid);
+    if (idx>=0) db.rounds[idx].verified = true;
+    toast('Round verified — handicap will update when all rounds are published', 'success');
+    renderAll();
     closeModal();
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
