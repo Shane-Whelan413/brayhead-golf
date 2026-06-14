@@ -8843,6 +8843,8 @@ function showTab(name) {
   console.log('target element:', name, targetEl, targetEl ? targetEl.className : 'NOT FOUND');
   targetEl.classList.add('active');
   console.log('after active:', targetEl.className, 'display:', getComputedStyle(targetEl).display);
+  const scroller = document.getElementById('main-content');
+  if (scroller) scroller.scrollTop = 0;
   const tabs = ['home','leaderboard','add-round','profile','schedule'];
   const i = tabs.indexOf(name);
   if (i>=0) document.querySelectorAll('.nav-btn')[i].classList.add('active');
