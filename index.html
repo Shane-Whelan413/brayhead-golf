@@ -8835,10 +8835,14 @@ function onFabClick() {
 }
 
 function showTab(name) {
+  console.log('showTab called:', name);
   haptic();
   document.querySelectorAll('.section').forEach(s=>{ s.classList.remove('active'); if(s.id==='add-round') s.style.display='none'; });
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById(name).classList.add('active');
+  const targetEl = document.getElementById(name);
+  console.log('target element:', name, targetEl, targetEl ? targetEl.className : 'NOT FOUND');
+  targetEl.classList.add('active');
+  console.log('after active:', targetEl.className, 'display:', getComputedStyle(targetEl).display);
   const tabs = ['home','leaderboard','add-round','profile','schedule'];
   const i = tabs.indexOf(name);
   if (i>=0) document.querySelectorAll('.nav-btn')[i].classList.add('active');
