@@ -2302,7 +2302,7 @@ function hseSelectHole(h) {
       nextBtn.textContent = 'Finish & review →';
       nextBtn.style.background = '#C9A84C';
       nextBtn.style.color = '#0a1628';
-      nextBtn.onclick = function() { showRoundConfirmation(); };
+      nextBtn.onclick = function() { console.log('Finish tapped'); showRoundConfirmation(); };
     } else {
       nextBtn.textContent = `Hole ${h+1} →`;
       nextBtn.style.background = '#0a1628';
@@ -3084,6 +3084,7 @@ function updateRoundSummary() {
 }
 
 function showRoundConfirmation() {
+  try {
   const eid = document.getElementById('r-event').value;
   const pid = document.getElementById('r-player').value;
   const ev  = db.events.find(e=>e.id===eid);
@@ -3150,9 +3151,8 @@ function showRoundConfirmation() {
     </div>
   `;
   document.getElementById('modal-overlay').classList.add('open');
+  } catch(e) { console.error('showRoundConfirmation error:', e.message, e.stack); toast('Error: ' + e.message, 'error'); }
 }
-
-async function saveRound() {
   const eid = document.getElementById('r-event').value;
   const pid = document.getElementById('r-player').value;
   if (!eid) { toast('No event selected', 'error'); return; }
