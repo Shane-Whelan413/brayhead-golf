@@ -2647,7 +2647,8 @@ function kpNavigate(dir) {
 
 function kpDone() {
   haptic();
-  document.getElementById('score-keypad').classList.remove('open');
+  const kp = document.getElementById('score-keypad');
+  if (kp) kp.classList.remove('open');
   kpActiveHole = null;
 }
 
@@ -3150,7 +3151,8 @@ function showRoundConfirmation() {
       <button class="btn primary" onclick="closeModal();saveRound()">✓ Submit</button>
     </div>
   `;
-  document.getElementById('modal-overlay').classList.add('open');
+  const modalOverlay = document.getElementById('modal-overlay');
+  if (modalOverlay) modalOverlay.classList.add('open');
   } catch(e) { console.error('showRoundConfirmation error:', e.message, e.stack); toast('Error: ' + e.message, 'error'); }
 }
 
