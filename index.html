@@ -2101,8 +2101,8 @@ function buildHoleInputs(n) {
 
         <!-- Prev / Next -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <button id="hse-prev" onclick="hseNav(-1)" style="background:#f8f5ee;border:1px solid rgba(0,0,0,0.09);border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:600;color:#9a9080;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">← Prev</button>
-          <button id="hse-next" onclick="hseNav(1)" style="background:#0a1628;border:none;border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:700;color:#C9A84C;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">Next →</button>
+          <button id="hse-prev" style="background:#f8f5ee;border:1px solid rgba(0,0,0,0.09);border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:600;color:#9a9080;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">← Prev</button>
+          <button id="hse-next" style="background:#0a1628;border:none;border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:700;color:#C9A84C;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">Next →</button>
         </div>
       </div>
 
@@ -2295,6 +2295,7 @@ function hseSelectHole(h) {
     prevBtn.disabled = h <= 1;
     prevBtn.style.opacity = h <= 1 ? '0.35' : '1';
     prevBtn.textContent = h > 1 ? `← Hole ${h-1}` : '←';
+    prevBtn.onclick = function() { hseNav(-1); };
   }
   if (nextBtn) {
     if (h >= n) {
