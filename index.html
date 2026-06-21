@@ -1124,10 +1124,9 @@
     </div>
 
     <!-- Save bar pinned at bottom -->
-    <div id="ar-save-bar" style="display:none!important">
-      <div id="round-summary" class="summary-bar" style="margin-bottom:8px"></div>
-      <button class="btn primary" id="btn-save-round" onclick="showRoundConfirmation()" style="width:100%;padding:14px;font-size:16px;font-weight:700;border-radius:12px">Review & save</button>
-    </div>
+    <div id="ar-save-bar" style="display:none"></div>
+    <div id="round-summary" style="display:none"></div>
+    <button id="btn-save-round" style="display:none" onclick="showRoundConfirmation()"></button>
 
   </div>
 
@@ -8850,8 +8849,6 @@ function showTab(name) {
   if (i>=0) document.querySelectorAll('.nav-btn')[i].classList.add('active');
   const arEl = document.getElementById('add-round');
   if (arEl) arEl.style.display = name === 'add-round' ? 'flex' : 'none';
-  const arSaveBar = document.getElementById('ar-save-bar');
-  if (arSaveBar) arSaveBar.style.display = name === 'add-round' ? 'block' : 'none';
   if (name === 'profile') safeRender(renderProfile);
   if (name === 'leaderboard') safeRender(renderLeaderboard);
   if (name === 'add-round') safeRender(renderAddRound);
