@@ -3153,6 +3153,8 @@ function showRoundConfirmation() {
   document.getElementById('modal-overlay').classList.add('open');
   } catch(e) { console.error('showRoundConfirmation error:', e.message, e.stack); toast('Error: ' + e.message, 'error'); }
 }
+
+async function saveRound() {
   const eid = document.getElementById('r-event').value;
   const pid = document.getElementById('r-player').value;
   if (!eid) { toast('No event selected', 'error'); return; }
