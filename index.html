@@ -349,12 +349,6 @@
   .sc-adj:active { background: #C9A84C; border-color: #C9A84C; color: #0a1628; transform: scale(0.91); }
 
   /* Header stats bar */
-  .ar-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; }
-  .ar-stat { text-align: center; padding: 10px 4px; border-right: 1px solid rgba(255,255,255,0.08); }
-  .ar-stat:last-child { border-right: none; }
-  .ar-stat-label { font-size: 9px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 3px; }
-  .ar-stat-val { font-size: 20px; font-weight: 700; color: white; line-height: 1; }
-  .ar-stat-val.gold { font-size: 26px; color: #C9A84C; }
 
   /* Hole rows — 6 col: hole# | par | si | strokes | score | pts */
   .sc-hole-row { display: grid; grid-template-columns: 30px 34px 34px 34px 1fr 46px; align-items: center; border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.12s, border-left 0.12s; min-height: 64px; cursor: pointer; -webkit-tap-highlight-color: transparent; border-left: 3px solid transparent; }
@@ -1033,32 +1027,15 @@
           </button>
         </div>
       </div>
-      <!-- Live stats hidden - shown in score entry panel instead -->
-      <div class="ar-stats" style="display:none;border-top:1px solid rgba(255,255,255,0.08)">
-        <div class="ar-stat">
-          <div class="ar-stat-label">Course hcp</div>
-          <div class="ar-stat-val" id="sb-chcp">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:1px" id="sb-hcp-sub"></div>
-        </div>
-        <div class="ar-stat">
-          <div class="ar-stat-label">Holes</div>
-          <div class="ar-stat-val" id="sb-holes">0/9</div>
-        </div>
-        <div class="ar-stat" id="sb-pts-stat" style="position:relative;overflow:hidden">
-          <div class="ar-stat-label">Points</div>
-          <div style="font-size:34px;font-weight:800;color:#C9A84C;line-height:1;transition:transform 0.1s" id="sb-pts">0</div>
-          <div style="font-size:9px;color:rgba(255,255,255,0.3);margin-top:2px" id="sb-pts-sub">stableford</div>
-        </div>
-      </div>
     </div>
 
     <!-- Scrollable hole rows -->
     <input type="hidden" id="r-event" />
     <input type="hidden" id="sb-hcp" />
-    <div id="hole-inputs" style="flex:1;overflow:hidden;background:#0a1628">
+    <div id="hole-inputs" style="flex:1;overflow:hidden;background:#0a1628"></div>
     <div id="ar-no-event" style="display:none;padding:2rem;text-align:center;color:#9a9080;font-size:13px"></div>
 
-    <!-- Save bar pinned at bottom -->
+    <!-- Hidden placeholders -->
     <div id="ar-save-bar" style="display:none!important"></div>
     <div id="round-summary" style="display:none!important"></div>
     <button id="btn-save-round" style="display:none" onclick="showRoundConfirmation()"></button>
