@@ -2237,6 +2237,7 @@ function hseSelectHole(h) {
       nextBtn.textContent = 'Finish & review →';
       nextBtn.style.background = '#C9A84C';
       nextBtn.style.color = '#0a1628';
+      nextBtn.onclick = function() { showRoundConfirmation(); };
     } else {
       nextBtn.textContent = `Hole ${h+1} →`;
       nextBtn.style.background = '#0a1628';
