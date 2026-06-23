@@ -8953,15 +8953,18 @@ var _livePollEid = null;
 
 async function loadLiveRounds(eid) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/live_rounds?event_id=eq.${eid}&select=*&_=${Date.now()}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/live_rounds?event_id=eq.${eid}&select=*`, {
       headers: {
         'apikey': SUPABASE_KEY,
         'Authorization': 'Bearer ' + SUPABASE_KEY,
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache, no-store'
       }
     });
-    _liveRounds = await res.json();
-    renderLiveLeaderboard();
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      _liveRounds = data;
+      renderLiveLeaderboard();
+    }
   } catch(e) {}
 }
 
