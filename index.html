@@ -192,7 +192,7 @@
   .admin-pending-row:last-child { border-bottom: none; }
 
   /* Content padding for bottom nav and topbar */
-  .content { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem 140px; overflow-x: hidden; height: calc(100vh - 60px); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .content { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem 0; padding-bottom: calc(80px + env(safe-area-inset-bottom, 20px)); overflow-x: hidden; height: calc(100vh - 60px); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 
 
   /* Toasts above bottom nav */
@@ -615,7 +615,7 @@
   .locked-tab svg { margin-bottom: 1rem; opacity: 0.4; }
 
   @media(max-width:480px){
-    .content { padding: 1rem 1rem 140px; }
+    .content { padding: 1rem 1rem 0; padding-bottom: calc(80px + env(safe-area-inset-bottom, 20px)); }
     .card { padding: 1rem; }
     .hole-grid { gap: 3px; }
     .hole-grid input { height: 32px; font-size: 13px; }
@@ -1054,7 +1054,7 @@
     <input type="hidden" id="r-event" />
     <input type="hidden" id="sb-hcp" />
     <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;">
-      <div id="hole-inputs" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:var(--surface)">
+      <div id="hole-inputs" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:var(--surface);padding-bottom:env(safe-area-inset-bottom,12px)">
       <div id="ar-no-event" style="display:none;padding:2rem;text-align:center;color:#9a9080;font-size:13px"></div>
     </div>
 
