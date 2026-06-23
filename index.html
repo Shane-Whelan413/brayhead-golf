@@ -2334,7 +2334,7 @@ function hseScore(h, val) {
   hseSelectHole(h);
   hseSaveCache();
   updateRoundSummary();
-  if (val !== 'NR' && h < hseState.n) setTimeout(() => hseNav(1), 150);
+  if (h < hseState.n) setTimeout(() => hseNav(1), 150);
 }
 
 function hseNav(dir) {
