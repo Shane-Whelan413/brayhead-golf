@@ -2047,8 +2047,6 @@ function buildHoleInputs(n) {
 
         <!-- Finish & review — full width -->
         <button id="hse-finish" onclick="showRoundConfirmation()" style="display:none;width:100%;background:#C9A84C;border:none;border-radius:10px;padding:14px;text-align:center;font-size:14px;font-weight:700;color:#0a1628;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">Finish &amp; review</button>
-
-        ${isAdmin ? `<button onclick="hseClearScores()" style="width:100%;background:none;border:none;padding:10px;text-align:center;font-size:12px;color:rgba(201,168,76,0.5);cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:2px">Clear scores</button>` : ''}
       </div>
 
     </div>
@@ -2286,6 +2284,14 @@ function hseSelectHole(h) {
   }
 
   hseRenderStrip();
+}
+
+async function hseClearAllLiveScores(eid) {
+  if (!confirm('Clear all live scores for this event? This removes everyone from the live leaderboard.')) return;
+  await cleanupLiveRounds(eid);
+  window._homeHash = null; // force home re-render
+  renderHome();
+  toast('Live scores cleared', 'success');
 }
 
 function hseClearScores() {
@@ -4723,6 +4729,23 @@ function renderHome() {
       dashHtml += '</div>';
     }
     dash.innerHTML = dashHtml;
+
+    // Clear live scores button for current unpublished event
+    const nextEv = db.events.filter(e=>!e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0];
+    if (nextEv && _liveRounds.length > 0) {
+      const clearDiv = document.createElement('div');
+      clearDiv.style.cssText = 'margin-bottom:1rem';
+      clearDiv.innerHTML = `<div class="card" style="border-color:rgba(201,168,76,0.3)">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div class="card-title" style="margin:0">Live scores</div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:2px">${_liveRounds.length} player${_liveRounds!==1?'s':''} on course for ${nextEv.course_name}</div>
+          </div>
+          <button onclick="hseClearAllLiveScores('${nextEv.id}')" style="padding:7px 12px;border-radius:8px;border:1px solid rgba(163,46,46,0.3);background:#FCEBEB;color:#A32D2D;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Clear all</button>
+        </div>
+      </div>`;
+      dash.prepend(clearDiv);
+    }
   }
 
   // ── Personal stats bar ──────────────────────────────────────
@@ -8603,9 +8626,8 @@ function showTab(name) {
   if (name === 'profile') safeRender(renderProfile);
   if (name === 'leaderboard') {
     safeRender(renderLeaderboard);
-    // Subscribe to live rounds for current unpublished event
     const currentEid = db.events.filter(e=>!e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0]?.id;
-    if (currentEid) subscribeLiveRounds(currentEid);
+    if (currentEid) startLivePolling(currentEid);
   }
   if (name === 'add-round') safeRender(renderAddRound);
   if (name === 'knockout') safeRender(renderKnockout);
@@ -8834,6 +8856,9 @@ function updateUIForRole() {
   const validTabs = ['home','leaderboard','profile','schedule','knockout'];
   showTab(lastTab && validTabs.includes(lastTab) ? lastTab : 'home');
   renderAll();
+  // Start live polling for current unpublished event
+  const currentEid = db.events.filter(e=>!e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0]?.id;
+  if (currentEid) startLivePolling(currentEid);
 }
 
 function triggerAvatarUpload(pid) {
@@ -8956,8 +8981,9 @@ async function logout() {
 }
 
 // ── Live Scoring — Supabase Realtime ─────────────────────────
-var _liveRealtimeChannel = null;
 var _liveRounds = [];
+var _livePollInterval = null;
+var _livePollEid = null;
 
 async function loadLiveRounds(eid) {
   try {
@@ -8969,43 +8995,17 @@ async function loadLiveRounds(eid) {
   } catch(e) {}
 }
 
-function subscribeLiveRounds(eid) {
-  // Disconnect existing channel
-  if (_liveRealtimeChannel) {
-    try { _liveRealtimeChannel.close(); } catch(e) {}
-    _liveRealtimeChannel = null;
-  }
+function startLivePolling(eid) {
+  stopLivePolling();
   if (!eid) return;
+  _livePollEid = eid;
+  loadLiveRounds(eid); // immediate load
+  _livePollInterval = setInterval(() => loadLiveRounds(eid), 15000); // every 15s
+}
 
-  // Load initial data
-  loadLiveRounds(eid);
-
-  // Connect Supabase Realtime
-  const wsUrl = SUPABASE_URL.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + SUPABASE_KEY + '&vsn=1.0.0';
-  try {
-    const ws = new WebSocket(wsUrl);
-    _liveRealtimeChannel = ws;
-
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ topic: 'realtime:public:live_rounds', event: 'phx_join', payload: { config: { broadcast: { ack: false }, presence: { key: '' }, postgres_changes: [{ event: '*', schema: 'public', table: 'live_rounds', filter: `event_id=eq.${eid}` }] } }, ref: '1' }));
-    };
-
-    ws.onmessage = (msg) => {
-      try {
-        const data = JSON.parse(msg.data);
-        if (data.event === 'postgres_changes' || (data.payload?.data?.type)) {
-          loadLiveRounds(eid);
-        }
-        // Keep alive
-        if (data.event === 'phx_reply' && data.payload?.status === 'ok') {
-          setInterval(() => { try { ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: '0' })); } catch(e) {} }, 25000);
-        }
-      } catch(e) {}
-    };
-
-    ws.onerror = () => {};
-    ws.onclose = () => { _liveRealtimeChannel = null; };
-  } catch(e) {}
+function stopLivePolling() {
+  if (_livePollInterval) { clearInterval(_livePollInterval); _livePollInterval = null; }
+  _livePollEid = null;
 }
 
 function renderLiveLeaderboard() {
