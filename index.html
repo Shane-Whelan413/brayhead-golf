@@ -1997,11 +1997,26 @@ function buildHoleInputs(n) {
             <!-- Points -->
             <div id="hse-pts-strip" style="display:grid;grid-template-columns:repeat(9,1fr);gap:3px"></div>
           </div>
-          <!-- OUT total -->
-          <div id="hse-out-total" style="background:rgba(255,255,255,0.08);border-radius:6px;padding:4px 8px;min-width:44px;text-align:center;flex-shrink:0">
-            <div style="font-size:9px;color:rgba(255,255,255,0.4);font-weight:600;text-transform:uppercase;letter-spacing:.05em">OUT</div>
+        </div>
+      </div>
+
+      <!-- Round total bar -->
+      <div id="hse-round-total" style="background:rgba(201,168,76,0.08);border-top:0.5px solid rgba(201,168,76,0.2);border-bottom:0.5px solid rgba(201,168,76,0.2);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Round total</div>
+        <div style="display:flex;gap:20px;align-items:center">
+          <div style="text-align:center">
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em">Gross</div>
             <div style="font-size:18px;font-weight:800;color:white;line-height:1" id="hse-gross-total">—</div>
-            <div style="font-size:11px;font-weight:700;color:#a3e635;line-height:1;margin-top:2px" id="hse-pts-total">—</div>
+          </div>
+          <div style="width:0.5px;height:28px;background:rgba(255,255,255,0.15)"></div>
+          <div style="text-align:center">
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em">Points</div>
+            <div style="font-size:18px;font-weight:800;color:#a3e635;line-height:1" id="hse-pts-total">—</div>
+          </div>
+          <div style="width:0.5px;height:28px;background:rgba(255,255,255,0.15)"></div>
+          <div style="text-align:center">
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em">Holes</div>
+            <div style="font-size:18px;font-weight:800;color:white;line-height:1" id="hse-holes-done">0/${n}</div>
           </div>
         </div>
       </div>
@@ -2159,14 +2174,18 @@ function hseRenderStrip() {
   strip.innerHTML = stripHtml;
   ptsStrip.innerHTML = ptsHtml;
 
-  // Update OUT total
+  // Update round total bar
   const grossEl = document.getElementById('hse-gross-total');
   const ptsEl = document.getElementById('hse-pts-total');
+  const holesEl = document.getElementById('hse-holes-done');
+  let holesDone = 0;
+  for (let i = 1; i <= hseState.n; i++) { if (document.getElementById('h'+i)?.value) holesDone++; }
   if (grossEl) grossEl.textContent = hasAny ? grossTotal : '—';
   if (ptsEl) {
     ptsEl.textContent = hasAny ? (ptsTotal > 0 ? '+' + ptsTotal : ptsTotal) : '—';
     ptsEl.style.color = ptsTotal > 0 ? '#a3e635' : ptsTotal < 0 ? '#f87171' : 'rgba(255,255,255,0.4)';
   }
+  if (holesEl) holesEl.textContent = `${holesDone}/${hseState.n}`;
 }
 
 function hseSelectHole(h) {
