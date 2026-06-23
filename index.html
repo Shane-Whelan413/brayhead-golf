@@ -1912,14 +1912,41 @@ function renderAddRound() {
   } else if (isAdminUser) {
     if (playerBar) playerBar.style.display = 'flex';
     rp.disabled = false;
+    const prevPid = rp.value; // preserve current selection
     rp.innerHTML = '<option value="">Select player…</option>' + db.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    if (prevPid) rp.value = prevPid; // restore selection
+    rp.onchange = function() {
+      const oldPid = rp.dataset.prevPid || '';
+      const eid = re.value;
+      // Clear live round for previous player
+      if (eid && oldPid) {
+        fetch(`${SUPABASE_URL}/rest/v1/live_rounds?event_id=eq.${eid}&player_id=eq.${oldPid}`, {
+          method: 'DELETE',
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+        }).catch(()=>{});
+      }
+      rp.dataset.prevPid = rp.value;
+      // Reset build key so hole inputs rebuild for new player
+      const hi = document.getElementById('hole-inputs');
+      if (hi) hi.dataset.buildKey = '';
+      updateRoundSummary();
+      buildHoleInputs(n);
+    };
+    rp.dataset.prevPid = rp.value;
   } else {
     if (playerBar) playerBar.style.display = 'none';
     rp.disabled = true;
     rp.innerHTML = '<option value="">Not available</option>';
   }
 
-  buildHoleInputs(n);
+  // Only rebuild hole inputs if event or player changed
+  const currentPid = rp.value;
+  const newBuildKey = `${nextEvent.id}_${currentPid}`;
+  const holeInputsEl = document.getElementById('hole-inputs');
+  if (holeInputsEl?.dataset?.buildKey !== newBuildKey) {
+    if (holeInputsEl) holeInputsEl.dataset.buildKey = newBuildKey;
+    buildHoleInputs(n);
+  }
   updateRoundSummary();
 }
 
