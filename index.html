@@ -1972,73 +1972,86 @@ function renderAddRound() {
 
 function buildHoleInputs(n) {
   const wrap = document.getElementById('hole-inputs');
-  // Build hidden inputs for score storage (keeps existing data layer intact)
   let hiddenInputs = '';
   for (let i = 1; i <= n; i++) hiddenInputs += `<input type="hidden" id="h${i}">`;
-
-  // Build the new hybrid score entry UI
   const isSplit = n === 18;
 
   wrap.innerHTML = `
-    <div id="hybrid-score-entry" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+    <div id="hybrid-score-entry" style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:#0a1628">
       ${hiddenInputs}
 
       ${isSplit ? `
-      <!-- Front/Back tabs -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;background:rgba(0,0,0,0.25);flex-shrink:0">
-        <button id="tab-front" onclick="hseTab('front')" style="padding:9px;text-align:center;font-size:12px;font-weight:700;color:#C9A84C;border:none;background:none;border-bottom:2px solid #C9A84C;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">Front 9</button>
-        <button id="tab-back" onclick="hseTab('back')" style="padding:9px;text-align:center;font-size:12px;font-weight:700;color:rgba(255,255,255,0.35);border:none;background:none;border-bottom:2px solid rgba(255,255,255,0.08);cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">Back 9</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;background:rgba(0,0,0,0.3);flex-shrink:0">
+        <button id="tab-front" onclick="hseTab('front')" style="padding:8px;text-align:center;font-size:12px;font-weight:700;color:#C9A84C;border:none;background:none;border-bottom:2px solid #C9A84C;cursor:pointer;font-family:'DM Sans',sans-serif">Front 9</button>
+        <button id="tab-back" onclick="hseTab('back')" style="padding:8px;text-align:center;font-size:12px;font-weight:700;color:rgba(255,255,255,0.35);border:none;background:none;border-bottom:2px solid rgba(255,255,255,0.08);cursor:pointer;font-family:'DM Sans',sans-serif">Back 9</button>
       </div>` : ''}
 
-      <!-- Hole strip -->
-      <div id="hse-strip-wrap" style="background:#0a1628;padding:8px 10px 0;flex-shrink:0">
-        <div id="hse-strip" style="display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin-bottom:4px"></div>
-        <div id="hse-pts-strip" style="display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin-bottom:6px"></div>
-        ${isSplit ? `<div id="hse-nine-summary" style="background:rgba(255,255,255,0.05);border-radius:6px;padding:5px 10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;display:none">
-          <div style="font-size:10px;color:rgba(255,255,255,0.3)" id="hse-nine-label">Front 9</div>
-          <div style="display:flex;gap:14px">
-            <div style="font-size:10px;color:rgba(255,255,255,0.35)">Score <span id="hse-nine-score" style="color:white;font-weight:700">—</span></div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.35)">Pts <span id="hse-nine-pts" style="color:#C9A84C;font-weight:700">—</span></div>
+      <!-- Hole strip with hole numbers and OUT total -->
+      <div id="hse-strip-wrap" style="background:#0a1628;padding:8px 8px 6px;flex-shrink:0">
+        <div style="display:flex;align-items:flex-start;gap:4px">
+          <div style="flex:1">
+            <!-- Hole numbers -->
+            <div id="hse-hole-nums" style="display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin-bottom:3px"></div>
+            <!-- Score cells -->
+            <div id="hse-strip" style="display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin-bottom:3px"></div>
+            <!-- Points -->
+            <div id="hse-pts-strip" style="display:grid;grid-template-columns:repeat(9,1fr);gap:3px"></div>
           </div>
-        </div>` : ''}
+          <!-- OUT total -->
+          <div id="hse-out-total" style="background:rgba(255,255,255,0.08);border-radius:6px;padding:4px 8px;min-width:44px;text-align:center;flex-shrink:0">
+            <div style="font-size:9px;color:rgba(255,255,255,0.4);font-weight:600;text-transform:uppercase;letter-spacing:.05em">OUT</div>
+            <div style="font-size:18px;font-weight:800;color:white;line-height:1" id="hse-gross-total">—</div>
+            <div style="font-size:11px;font-weight:700;color:#a3e635;line-height:1;margin-top:2px" id="hse-pts-total">—</div>
+          </div>
+        </div>
       </div>
 
       <!-- Active hole panel -->
-      <div id="hse-panel" style="background:#fffef9;margin:8px;border-radius:14px;padding:14px 14px 16px;flex-shrink:0">
+      <div id="hse-panel" style="background:#fffef9;margin:8px 8px 0;border-radius:14px;padding:12px 14px 14px;flex-shrink:0">
         <!-- Hole info row -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <div style="display:flex;gap:14px">
-            <div style="text-align:center">
-              <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Hole</div>
-              <div style="font-size:22px;font-weight:800;color:#1a1510;line-height:1" id="hse-hole-num">—</div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Par</div>
-              <div style="font-size:22px;font-weight:800;color:#1a1510;line-height:1" id="hse-par">—</div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">SI</div>
-              <div style="font-size:22px;font-weight:800;color:#1a1510;line-height:1" id="hse-si">—</div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Shots</div>
-              <div style="font-size:22px;font-weight:800;color:#C9A84C;line-height:1" id="hse-shots">—</div>
-            </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:4px;margin-bottom:12px;text-align:center">
+          <div>
+            <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Hole</div>
+            <div style="font-size:20px;font-weight:800;color:#1a1510;line-height:1" id="hse-hole-num">—</div>
           </div>
-          <div style="text-align:center">
-            <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Score</div>
-            <div style="font-size:44px;font-weight:800;color:#d0c8b8;line-height:1" id="hse-score-big">—</div>
+          <div>
+            <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Par</div>
+            <div style="font-size:20px;font-weight:800;color:#1a1510;line-height:1" id="hse-par">—</div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Score</div>
+            <div style="font-size:20px;font-weight:800;line-height:1;background:#0a1628;color:#C9A84C;border-radius:6px;padding:2px 6px;display:inline-block;min-width:32px" id="hse-score-big">—</div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">To Par</div>
+            <div style="font-size:20px;font-weight:800;color:#1a1510;line-height:1" id="hse-to-par">—</div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#9a9080;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Pts</div>
+            <div style="font-size:20px;font-weight:800;color:#2d7a4f;line-height:1" id="hse-stableford">—</div>
           </div>
         </div>
 
-        <!-- Score grid 1-10 + NR -->
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:8px" id="hse-numgrid"></div>
+        <!-- Score grid 1-10 -->
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px" id="hse-numgrid"></div>
+
+        <!-- NR + Undo row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+          <button id="hse-nr-btn" style="background:#FCEBEB;border:1px solid #F7C1C1;border-radius:10px;padding:12px 4px;text-align:center;font-size:13px;font-weight:700;color:#A32D2D;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">NR</button>
+          <button onclick="hseUndo()" style="background:#f8f5ee;border:1px solid rgba(0,0,0,0.09);border-radius:10px;padding:12px 4px;text-align:center;font-size:12px;font-weight:600;color:#5a5040;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;gap:5px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+            Undo last entry
+          </button>
+        </div>
 
         <!-- Prev / Next -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <button id="hse-prev" style="background:#f8f5ee;border:1px solid rgba(0,0,0,0.09);border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:600;color:#9a9080;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">← Prev</button>
-          <button id="hse-next" style="background:#0a1628;border:none;border-radius:10px;padding:10px;text-align:center;font-size:12px;font-weight:700;color:#C9A84C;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">Next →</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <button id="hse-prev" style="background:#f8f5ee;border:1px solid rgba(0,0,0,0.09);border-radius:10px;padding:11px;text-align:center;font-size:13px;font-weight:600;color:#9a9080;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">← Prev</button>
+          <button id="hse-next" style="background:#0a1628;border:none;border-radius:10px;padding:11px;text-align:center;font-size:13px;font-weight:700;color:#C9A84C;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">Next →</button>
         </div>
+
+        <!-- Finish & review — full width -->
+        <button id="hse-finish" onclick="showRoundConfirmation()" style="display:none;width:100%;background:#C9A84C;border:none;border-radius:10px;padding:14px;text-align:center;font-size:14px;font-weight:700;color:#0a1628;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">Finish &amp; review</button>
       </div>
 
     </div>
@@ -2055,7 +2068,6 @@ function hseInit(n) {
   hseState.active = 1;
   hseState.nine = 'front';
 
-  // Restore cached scores
   const pid = document.getElementById('r-player')?.value;
   const eid = document.getElementById('r-event')?.value;
   const cacheKey = 'bhgs_scores_' + (eid||'') + '_' + (pid||'');
@@ -2065,7 +2077,7 @@ function hseInit(n) {
       for (let i = 1; i <= n; i++) {
         if (cached[i]) {
           const inp = document.getElementById('h'+i);
-          if (inp) inp.value = cached[i];
+          if (inp) { inp.value = cached[i]; if (cached['nr'+i]) inp.dataset.nr = 'true'; }
         }
       }
     }
@@ -2079,36 +2091,15 @@ function hseInit(n) {
 function hseTab(which) {
   hseState.nine = which;
   const startHole = which === 'front' ? 1 : 10;
-  // Update tab styles
   const tf = document.getElementById('tab-front');
   const tb = document.getElementById('tab-back');
   if (tf) { tf.style.color = which==='front'?'#C9A84C':'rgba(255,255,255,0.35)'; tf.style.borderBottomColor = which==='front'?'#C9A84C':'rgba(255,255,255,0.08)'; }
   if (tb) { tb.style.color = which==='back'?'#C9A84C':'rgba(255,255,255,0.35)'; tb.style.borderBottomColor = which==='back'?'#C9A84C':'rgba(255,255,255,0.08)'; }
   hseRenderStrip();
-  // Show summary of other nine
-  hseSummary(which === 'back' ? 'front' : 'back');
   hseSelectHole(startHole);
 }
 
-function hseSummary(which) {
-  const sumEl = document.getElementById('hse-nine-summary');
-  const labEl = document.getElementById('hse-nine-label');
-  const scEl  = document.getElementById('hse-nine-score');
-  const ptEl  = document.getElementById('hse-nine-pts');
-  if (!sumEl) return;
-  const start = which === 'front' ? 1 : 10;
-  let hasAny = false, scoreTotal = 0, ptsTotal = 0;
-  for (let i = start; i < start+9; i++) {
-    const v = parseInt(document.getElementById('h'+i)?.value);
-    if (!isNaN(v) && v > 0) { hasAny = true; scoreTotal += v; }
-    const ptEl2 = document.getElementById('hpts'+i);
-    if (ptEl2 && ptEl2.dataset.pts) ptsTotal += parseInt(ptEl2.dataset.pts)||0;
-  }
-  sumEl.style.display = hasAny ? 'flex' : 'none';
-  if (labEl) labEl.textContent = (which==='front'?'Front 9':'Back 9') + ' total';
-  if (scEl) scEl.textContent = hasAny ? scoreTotal : '—';
-  if (ptEl) ptEl.textContent = hasAny ? ptsTotal : '—';
-}
+function hseSummary(which) {}
 
 function hseRenderStrip() {
   const n = hseState.n;
@@ -2117,59 +2108,76 @@ function hseRenderStrip() {
   const endH = startH + 8;
   const strip = document.getElementById('hse-strip');
   const ptsStrip = document.getElementById('hse-pts-strip');
+  const holeNums = document.getElementById('hse-hole-nums');
   if (!strip) return;
 
-  // Get event for par/si data
   const eid = document.getElementById('r-event')?.value;
   const ev = db.events.find(e=>e.id===eid);
   const pid = document.getElementById('r-player')?.value;
   const pl = db.players.find(p=>p.id===pid);
 
-  let stripHtml = '', ptsHtml = '';
+  let stripHtml = '', ptsHtml = '', numsHtml = '';
+  let grossTotal = 0, ptsTotal = 0, hasAny = false;
+
   for (let h = startH; h <= endH; h++) {
-    const val = document.getElementById('h'+h)?.value;
-    const isNR = document.getElementById('h'+h)?.dataset?.nr === 'true';
+    const inp = document.getElementById('h'+h);
+    const val = inp?.value;
+    const isNR = inp?.dataset?.nr === 'true';
     const score = val ? parseInt(val) : null;
     const isActive = hseState.active === h;
 
-    // Calculate pts for this hole if scored
     let pts = null;
-    if (score && ev && pl) {
+    if (score !== null && ev && pl) {
       const parVals = getParValues(n, ev, pl);
       const siVals = getSIValues(n, ev, pl);
       const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
       const shots = getStrokeAllowance(courseHcp, siVals[h-1], n);
       pts = calcStableford(score, parVals[h-1], shots);
+      grossTotal += score;
+      ptsTotal += pts;
+      hasAny = true;
     }
 
+    // Hole number row
+    numsHtml += `<div style="font-size:9px;color:rgba(255,255,255,0.35);text-align:center;font-weight:600">${h}</div>`;
+
+    // Score cell
     const isDone = score !== null;
-    const borderStyle = isActive ? 'border:1.5px solid #C9A84C' : 'border:none';
-    const bgStyle = isDone ? 'background:#C9A84C' : isActive ? 'background:rgba(201,168,76,0.12)' : 'background:rgba(255,255,255,0.05)';
-    const textColor = isDone ? 'color:#0a1628' : isActive ? 'color:#C9A84C' : 'color:rgba(255,255,255,0.2)';
-    const displayVal = isDone ? score : '—';
+    const isActiveDone = isDone;
+    const bgStyle = isActive && !isDone ? 'background:rgba(201,168,76,0.15)' : isDone ? 'background:white' : 'background:rgba(255,255,255,0.07)';
+    const borderStyle = isActive ? 'outline:2px solid #C9A84C;outline-offset:-1px' : '';
+    const textColor = isDone ? 'color:#0a1628' : isActive ? 'color:#C9A84C' : 'color:rgba(255,255,255,0.25)';
+    const displayVal = isDone ? (isNR ? 'NR' : score) : '—';
+    stripHtml += `<div onclick="hseSelectHole(${h})" style="${bgStyle};${borderStyle};border-radius:5px;padding:6px 2px;text-align:center;font-size:12px;font-weight:700;${textColor};cursor:pointer;-webkit-tap-highlight-color:transparent">${displayVal}</div>`;
 
-    stripHtml += `<div onclick="hseSelectHole(${h})" style="${bgStyle};${borderStyle};border-radius:5px;padding:5px 2px;text-align:center;font-size:11px;font-weight:700;${textColor};cursor:pointer;-webkit-tap-highlight-color:transparent">${displayVal}</div>`;
-
-    const ptsColor = pts !== null ? '#a3e635' : 'rgba(255,255,255,0.2)';
-    const ptsVal = pts !== null ? pts : '—';
-    ptsHtml += `<div id="hpts${h}" style="font-size:9px;color:${ptsColor};text-align:center;padding-top:2px" data-pts="${pts!==null?pts:''}">${ptsVal}</div>`;
+    // Points row
+    const ptsColor = pts !== null ? '#a3e635' : 'rgba(255,255,255,0.15)';
+    ptsHtml += `<div id="hpts${h}" style="font-size:9px;color:${ptsColor};text-align:center;font-weight:600" data-pts="${pts!==null?pts:''}">${pts !== null ? pts : '—'}</div>`;
   }
 
+  if (holeNums) holeNums.innerHTML = numsHtml;
   strip.innerHTML = stripHtml;
   ptsStrip.innerHTML = ptsHtml;
+
+  // Update OUT total
+  const grossEl = document.getElementById('hse-gross-total');
+  const ptsEl = document.getElementById('hse-pts-total');
+  if (grossEl) grossEl.textContent = hasAny ? grossTotal : '—';
+  if (ptsEl) {
+    ptsEl.textContent = hasAny ? (ptsTotal > 0 ? '+' + ptsTotal : ptsTotal) : '—';
+    ptsEl.style.color = ptsTotal > 0 ? '#a3e635' : ptsTotal < 0 ? '#f87171' : 'rgba(255,255,255,0.4)';
+  }
 }
 
 function hseSelectHole(h) {
   hseState.active = h;
   const n = hseState.n;
 
-  // Auto-switch nine if needed
   if (n === 18) {
     const nine = h <= 9 ? 'front' : 'back';
     if (nine !== hseState.nine) hseTab(nine);
   }
 
-  // Get event data
   const eid = document.getElementById('r-event')?.value;
   const pid = document.getElementById('r-player')?.value;
   const ev = db.events.find(e=>e.id===eid);
@@ -2180,71 +2188,102 @@ function hseSelectHole(h) {
   const par = parVals[h-1] || '—';
   const si  = siVals[h-1]  || '—';
 
-  let shots = '—';
-  if (ev && pl) {
-    const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
-    shots = getStrokeAllowance(courseHcp, si, n);
-    shots = shots > 0 ? '+' + shots : shots === 0 ? '0' : shots;
-  }
+  const courseHcp = ev && pl ? calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par) : 0;
+  const shotsRaw = ev && pl ? getStrokeAllowance(courseHcp, si, n) : 0;
 
-  // Update info
   const hNum = document.getElementById('hse-hole-num');
   const hPar = document.getElementById('hse-par');
-  const hSI  = document.getElementById('hse-si');
-  const hShots = document.getElementById('hse-shots');
   const hBig = document.getElementById('hse-score-big');
+  const hToPar = document.getElementById('hse-to-par');
+  const hPts = document.getElementById('hse-stableford');
   if (hNum) hNum.textContent = h;
   if (hPar) hPar.textContent = par;
-  if (hSI)  hSI.textContent  = si;
-  if (hShots) hShots.textContent = shots;
 
-  const currentScore = document.getElementById('h'+h)?.value;
-  const isNR = document.getElementById('h'+h)?.dataset?.nr === 'true';
+  const inp = document.getElementById('h'+h);
+  const currentScore = inp?.value ? parseInt(inp.value) : null;
+  const isNR = inp?.dataset?.nr === 'true';
+
   if (hBig) {
-    hBig.textContent = currentScore ? (isNR ? 'NR' : currentScore) : '—';
-    hBig.style.color = currentScore ? (isNR ? '#A32D2D' : '#1a1510') : '#d0c8b8';
+    if (currentScore !== null) {
+      hBig.textContent = isNR ? 'NR' : currentScore;
+      hBig.style.background = isNR ? '#A32D2D' : '#0a1628';
+      hBig.style.color = isNR ? 'white' : '#C9A84C';
+    } else {
+      hBig.textContent = '—';
+      hBig.style.background = '#e8e4de';
+      hBig.style.color = '#9a9080';
+    }
   }
 
-  // Build number grid 1-10 + NR
+  // To par and stableford points
+  if (currentScore !== null && par !== '—') {
+    const pts = calcStableford(currentScore, par, shotsRaw);
+    const toPar = currentScore - par;
+    if (hToPar) {
+      hToPar.textContent = toPar > 0 ? '+' + toPar : toPar;
+      hToPar.style.color = toPar <= 0 ? '#2d7a4f' : '#A32D2D';
+    }
+    if (hPts) {
+      hPts.textContent = pts;
+      hPts.style.color = pts >= 3 ? '#C9A84C' : pts >= 2 ? '#2d7a4f' : pts === 1 ? '#1a1510' : '#A32D2D';
+    }
+  } else {
+    if (hToPar) { hToPar.textContent = '—'; hToPar.style.color = '#9a9080'; }
+    if (hPts) { hPts.textContent = '—'; hPts.style.color = '#9a9080'; }
+  }
+
+  // Number grid
   const grid = document.getElementById('hse-numgrid');
   if (grid) {
     let nums = '';
     for (let i = 1; i <= 10; i++) {
-      const isSelected = !isNR && parseInt(currentScore) === i;
-      const bg = isSelected ? '#0a1628' : '#f8f5ee';
-      const col = isSelected ? '#C9A84C' : '#5a5040';
-      const border = isSelected ? 'border:1px solid #0a1628' : 'border:1px solid rgba(0,0,0,0.09)';
-      nums += `<div onclick="hseScore(${h},${i})" style="background:${bg};${border};border-radius:10px;padding:13px 4px;text-align:center;font-size:18px;font-weight:700;color:${col};cursor:pointer;-webkit-tap-highlight-color:transparent">${i}</div>`;
+      const isSel = !isNR && currentScore === i;
+      nums += `<div onclick="hseScore(${h},${i})" style="background:${isSel?'#0a1628':'#f8f5ee'};border:1px solid ${isSel?'#0a1628':'rgba(0,0,0,0.09)'};border-radius:10px;padding:13px 4px;text-align:center;font-size:18px;font-weight:700;color:${isSel?'#C9A84C':'#5a5040'};cursor:pointer;-webkit-tap-highlight-color:transparent">${i}</div>`;
     }
-    const nrSelected = isNR;
-    nums += `<div onclick="hseScore(${h},'NR')" style="background:${nrSelected?'#A32D2D':'#FCEBEB'};border:1px solid ${nrSelected?'#A32D2D':'#F7C1C1'};border-radius:10px;padding:13px 4px;text-align:center;font-size:12px;font-weight:700;color:${nrSelected?'white':'#A32D2D'};cursor:pointer;-webkit-tap-highlight-color:transparent">NR</div>`;
     grid.innerHTML = nums;
   }
 
-  // Update nav buttons
+  // NR button state
+  const nrBtn = document.getElementById('hse-nr-btn');
+  if (nrBtn) {
+    nrBtn.style.background = isNR ? '#A32D2D' : '#FCEBEB';
+    nrBtn.style.color = isNR ? 'white' : '#A32D2D';
+    nrBtn.style.borderColor = isNR ? '#A32D2D' : '#F7C1C1';
+    nrBtn.onclick = function() { hseScore(h, 'NR'); };
+  }
+
+  // Prev / Next buttons
   const prevBtn = document.getElementById('hse-prev');
   const nextBtn = document.getElementById('hse-next');
+  const finishBtn = document.getElementById('hse-finish');
   if (prevBtn) {
     prevBtn.disabled = h <= 1;
-    prevBtn.style.opacity = h <= 1 ? '0.35' : '1';
+    prevBtn.style.opacity = h <= 1 ? '0.3' : '1';
     prevBtn.textContent = h > 1 ? `← Hole ${h-1}` : '←';
     prevBtn.onclick = function() { hseNav(-1); };
   }
   if (nextBtn) {
     if (h >= n) {
-      nextBtn.textContent = 'Finish & review →';
-      nextBtn.style.background = '#C9A84C';
-      nextBtn.style.color = '#0a1628';
-      nextBtn.onclick = function() { showRoundConfirmation(); };
+      nextBtn.style.display = 'none';
+      if (finishBtn) finishBtn.style.display = 'block';
     } else {
+      nextBtn.style.display = '';
       nextBtn.textContent = `Hole ${h+1} →`;
-      nextBtn.style.background = '#0a1628';
-      nextBtn.style.color = '#C9A84C';
       nextBtn.onclick = function() { hseNav(1); };
+      if (finishBtn) finishBtn.style.display = 'none';
     }
   }
 
   hseRenderStrip();
+}
+
+function hseUndo() {
+  haptic();
+  const h = hseState.active;
+  const inp = document.getElementById('h'+h);
+  if (inp) { inp.value = ''; delete inp.dataset.nr; }
+  hseSelectHole(h);
+  hseSaveCache();
 }
 
 function hseScore(h, val) {
@@ -2254,7 +2293,6 @@ function hseScore(h, val) {
 
   let score;
   if (val === 'NR') {
-    // Store net double bogey (gives 0 pts) but mark as NR
     const eid = document.getElementById('r-event')?.value;
     const pid = document.getElementById('r-player')?.value;
     const ev = db.events.find(e=>e.id===eid);
@@ -2265,10 +2303,8 @@ function hseScore(h, val) {
       const siVals = getSIValues(n, ev, pl);
       const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
       const shots = getStrokeAllowance(courseHcp, siVals[h-1], n);
-      score = (parVals[h-1]||4) + shots + 2; // net double bogey = 0 pts
-    } else {
-      score = 8; // fallback
-    }
+      score = (parVals[h-1]||4) + shots + 2;
+    } else { score = 8; }
     inp.dataset.nr = 'true';
   } else {
     score = val;
@@ -2276,10 +2312,10 @@ function hseScore(h, val) {
   }
 
   inp.value = score;
-  updateRoundSummary();
   hseSelectHole(h);
   hseSaveCache();
-  if (h < hseState.n) setTimeout(() => hseNav(1), 120);
+  updateRoundSummary();
+  if (val !== 'NR' && h < hseState.n) setTimeout(() => hseNav(1), 150);
 }
 
 function hseNav(dir) {
@@ -2296,18 +2332,17 @@ function hseSaveCache() {
   const cacheKey = 'bhgs_scores_' + eid + '_' + pid;
   const cache = {};
   for (let i = 1; i <= hseState.n; i++) {
-    const v = document.getElementById('h'+i)?.value;
-    if (v) cache[i] = v;
+    const inp = document.getElementById('h'+i);
+    if (inp?.value) { cache[i] = inp.value; if (inp.dataset.nr) cache['nr'+i] = true; }
   }
   try { localStorage.setItem(cacheKey, JSON.stringify(cache)); } catch(e) {}
 }
 
 function switchNine(which) {
-  document.getElementById('tab-front').classList.toggle('active', which === 'front');
-  document.getElementById('tab-back').classList.toggle('active', which === 'back');
-  document.getElementById('panel-front').classList.toggle('active', which === 'front');
-  document.getElementById('panel-back').classList.toggle('active', which === 'back');
+  document.getElementById('tab-front')?.classList.toggle('active', which === 'front');
+  document.getElementById('tab-back')?.classList.toggle('active', which === 'back');
 }
+
 
 let activeScorecardHole = 1;
 function selectScorecardHole(hole) {
