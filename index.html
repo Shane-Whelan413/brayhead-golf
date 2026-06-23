@@ -1056,7 +1056,7 @@
     <input type="hidden" id="r-event" />
     <input type="hidden" id="sb-hcp" />
     <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;">
-      <div id="hole-inputs" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:var(--surface);padding-bottom:env(safe-area-inset-bottom,12px)">
+      <div id="hole-inputs" style="flex:1;overflow:hidden;background:var(--surface)">
       <div id="ar-no-event" style="display:none;padding:2rem;text-align:center;color:#9a9080;font-size:13px"></div>
     </div>
 
@@ -1982,7 +1982,7 @@ function buildHoleInputs(n) {
   const isSplit = n === 18;
 
   wrap.innerHTML = `
-    <div id="hybrid-score-entry" style="display:flex;flex-direction:column;height:100%">
+    <div id="hybrid-score-entry" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
       ${hiddenInputs}
 
       ${isSplit ? `
@@ -2043,8 +2043,6 @@ function buildHoleInputs(n) {
         </div>
       </div>
 
-      <!-- Spacer -->
-      <div style="flex:1"></div>
     </div>
   `;
 
