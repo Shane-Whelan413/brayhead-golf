@@ -534,7 +534,9 @@
     font-size: 13px; color: var(--green-dark); font-weight: 500;
     display: none;
   }
-  .summary-bar.show { display: block; }
+  .summary-bar.show { display: none!important; }
+  #round-summary { display: none!important; }
+  #ar-save-bar { display: none!important; }
 
   .empty { text-align: center; padding: 2.5rem; color: var(--text-3); font-size: 14px; }
 
@@ -1059,8 +1061,8 @@
     </div>
 
     <!-- Save bar pinned at bottom -->
-    <div id="ar-save-bar" style="display:none"></div>
-    <div id="round-summary" style="display:none"></div>
+    <div id="ar-save-bar" style="display:none!important"></div>
+    <div id="round-summary" style="display:none!important"></div>
     <button id="btn-save-round" style="display:none" onclick="showRoundConfirmation()"></button>
 
   </div>
