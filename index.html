@@ -401,8 +401,6 @@
     60%  { opacity: 1; transform: translateY(2px) scale(1.05); }
     100% { opacity: 1; transform: translateY(0) scale(1); }
   }
-  .kp-slide-in-right { animation: slideInRight 0.22s cubic-bezier(0.34,1.1,0.64,1) forwards; }
-  .kp-slide-in-left  { animation: slideInLeft  0.22s cubic-bezier(0.34,1.1,0.64,1) forwards; }
   .score-bounce { animation: scoreBounce 0.3s cubic-bezier(0.34,1.2,0.64,1) forwards; }
   .chip-pop { animation: chipPop 0.25s cubic-bezier(0.34,1.2,0.64,1) forwards; }
   .row-flash { animation: rowFlash 0.35s ease-out forwards; }
@@ -488,70 +486,7 @@
     padding: 7px 16px; border-radius: 99px;
     display: inline-block;
   }
-  #score-keypad {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    border-radius: 20px 20px 0 0;
-    padding: 0 0 env(safe-area-inset-bottom, 16px);
-    z-index: 300;
-    transform: translateY(100%);
-    transition: transform 0.28s cubic-bezier(0.34, 1.1, 0.64, 1);
-    box-shadow: 0 -8px 32px rgba(0,0,0,0.15);
-  }
-  #score-keypad.open { transform: translateY(0); }
-  .kp-hole-info {
-    background: #0a1628;
-    border-radius: 16px 16px 0 0;
-    padding: 12px 16px;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 0;
-    text-align: center;
-  }
-  .kp-info-item { padding: 4px 0; }
-  .kp-info-label { font-size: 9px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 3px; }
-  .kp-info-val { font-size: 18px; font-weight: 700; color: white; }
-  .kp-info-val.gold { color: #C9A84C; }
-  .kp-score-display {
-    display: flex; align-items: center; justify-content: center;
-    gap: 16px; padding: 10px 16px 6px;
-  }
-  .kp-score-big { font-size: 52px; font-weight: 700; color: var(--text); line-height: 1; min-width: 60px; text-align: center; }
-  .kp-score-big.empty { color: #ccc; font-size: 36px; font-weight: 300; }
-  .kp-nav { display: flex; align-items: center; gap: 8px; flex-direction: column; }
-  .kp-nav-btn { 
-    width: 52px; height: 52px; border-radius: 99px; 
-    border: 2px solid var(--border-strong); 
-    background: #0a1628; 
-    display: flex; align-items: center; justify-content: center; 
-    cursor: pointer; font-size: 20px; color: #C9A84C; 
-    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-    user-select: none; -webkit-user-select: none;
-    font-weight: 700;
-  }
-  .kp-nav-btn:active { background: #C9A84C; color: #0a1628; border-color: #C9A84C; transform: scale(0.92); }
-  .kp-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 8px; padding: 8px 16px 12px;
-  }
-  .kp-btn {
-    height: 64px; border-radius: 14px; border: none;
-    font-size: 24px; font-weight: 600; font-family: 'DM Sans', sans-serif;
-    cursor: pointer; touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    transition: transform 0.08s, background 0.1s;
-    display: flex; align-items: center; justify-content: center;
-    user-select: none; -webkit-user-select: none;
-  }
-  .kp-btn:active { transform: scale(0.91); }
-  .kp-btn.num { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
-  .kp-btn.num:active { background: #0a1628; color: #C9A84C; border-color: #0a1628; }
-  .kp-btn.max { background: #FCEBEB; color: #A32D2D; font-size: 13px; font-weight: 700; border: 1px solid #F7C1C1; }
-  .kp-btn.max:active { background: #A32D2D; color: white; }
-  .kp-btn.done { background: #0a1628; color: #C9A84C; font-size: 15px; font-weight: 700; }
-  .kp-btn.done:active { background: #C9A84C; color: #0a1628; }
+  /* old keypad CSS removed */
   .kp-btn.del { background: var(--bg); color: var(--text-2); font-size: 18px; border: 1px solid var(--border); }
 
   /* Shrink hole rows when keypad is open — remove +/− buttons */
@@ -2302,7 +2237,6 @@ function hseSelectHole(h) {
       nextBtn.textContent = 'Finish & review →';
       nextBtn.style.background = '#C9A84C';
       nextBtn.style.color = '#0a1628';
-      nextBtn.onclick = function() { console.log('Finish tapped'); showRoundConfirmation(); };
     } else {
       nextBtn.textContent = `Hole ${h+1} →`;
       nextBtn.style.background = '#0a1628';
@@ -2397,340 +2331,14 @@ function haptic() {
   try { if (navigator.vibrate) navigator.vibrate(8); } catch(e) {}
 }
 
-function adjustScore(hole, delta) {
-  haptic();
-  const inp     = document.getElementById('h'+hole);
-  const display = document.getElementById('sc-score'+hole);
-  const current = parseInt(inp.value)||0;
-  if (current===0 && delta<0) return;
-  // First tap on + starts at par for that hole
-  if (current===0 && delta>0) {
-    const parEl = document.getElementById('sc-par'+hole);
-    const par = parseInt(parEl?.textContent)||4;
-    inp.value = par;
-  } else {
-    inp.value = Math.max(1, Math.min(15, current+delta));
-  }
-  display.textContent = inp.value;
-  display.classList.remove('sc-empty');
-  display.classList.remove('sc-pulse');
-  void display.offsetWidth;
-  display.classList.add('sc-pulse');
-  selectScorecardHole(hole);
-  updateRoundSummary();
-
-  // Auto-advance to next hole after a short delay when + is pressed
-  if (delta > 0) {
-    const n = document.getElementById('r-event') ? (db.events.find(e=>e.id===document.getElementById('r-event').value)?.event_type==='outing_18'?18:9) : 9;
-    if (hole < n) {
-      setTimeout(() => {
-        const nextRow = document.getElementById('sc-row'+(hole+1));
-        if (nextRow) {
-          // Switch tab if needed for 18-hole
-          if (hole === 9) switchNine('back');
-          nextRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          selectScorecardHole(hole+1);
-        }
-      }, 400);
-    }
-  }
-  // Cache scores
-  try {
-    const pid = document.getElementById('r-player')?.value;
-    const eid = document.getElementById('r-event')?.value;
-    if (pid && eid) {
-      const cache = {};
-      for (let i=1;i<=18;i++) { const v=document.getElementById('h'+i)?.value; if(v) cache[i]=v; }
-      localStorage.setItem('bhgs_scores_'+eid+'_'+pid, JSON.stringify(cache));
-    }
-  } catch(e) {}
-}
-
-// ── Score keypad ──────────────────────────────────────────────
-let kpActiveHole = null;
-let kpTotalHoles = 9;
-
-function openKeypad(hole) {
-  haptic();
-  const ev = db.events.find(e=>e.id===document.getElementById('r-event')?.value);
-  kpTotalHoles = ev?.event_type === 'outing_18' ? 18 : 9;
-  kpActiveHole = hole;
-  selectScorecardHole(hole);
-  kpRefreshDisplay();
-  document.getElementById('score-keypad').classList.add('open');
-  // Scroll hole into view above keypad
-  setTimeout(() => {
-    const row = document.getElementById('sc-row'+hole);
-    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, 100);
-}
-
-function kpRefreshDisplay() {
-  const hole = kpActiveHole;
-  if (!hole) return;
-  const parEl  = document.getElementById('sc-par'+hole);
-  const siEl   = document.getElementById('sc-si'+hole);
-  const inp    = document.getElementById('h'+hole);
-  const score  = parseInt(inp?.value) || 0;
-  const par    = parseInt(parEl?.textContent) || 4;
-  const si     = parseInt(siEl?.textContent) || 0;
-
-  // Get stroke allowance for this hole
-  const pid = document.getElementById('r-player')?.value;
-  const eid = document.getElementById('r-event')?.value;
-  const pl  = db.players.find(p=>p.id===pid);
-  const ev  = db.events.find(e=>e.id===eid);
-  const n   = kpTotalHoles;
-  let shots = 0;
-  if (pl && ev) {
-    const siVals = getSIValues(n, ev, pl);
-    const courseHcp = parseInt(document.getElementById('h1') !== null ?
-      calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par) : 0);
-    shots = getStrokeAllowance(courseHcp, si, n);
-  }
-
-  const titleEl = document.getElementById('kp-hole-title');
-  const subtitleEl = document.getElementById('kp-hole-subtitle');
-  if (titleEl) {
-    titleEl.classList.remove('hole-num-slide');
-    void titleEl.offsetWidth;
-    titleEl.textContent = 'Hole ' + hole + ' of ' + kpTotalHoles;
-    titleEl.classList.add('hole-num-slide');
-  }
-  if (subtitleEl) {
-    const entered = Array.from({length:kpTotalHoles},(_,i)=>document.getElementById('h'+(i+1))?.value).filter(Boolean).length;
-    subtitleEl.textContent = entered + ' of ' + kpTotalHoles + ' holes entered';
-  }
-  document.getElementById('kp-hole-num').textContent = hole;
-  document.getElementById('kp-par').textContent = par || '—';
-  document.getElementById('kp-si').textContent = si || '—';
-  document.getElementById('kp-shots').textContent = shots !== undefined ? shots : '—';
-
-  const scoreDisp = document.getElementById('kp-score-display');
-  const ptsDisp   = document.getElementById('kp-pts-display');
-
-  if (score) {
-    scoreDisp.textContent = score;
-    const pts = calcStableford(score, par, shots);
-    // Colour code: eagle+ gold, birdie green, par teal, bogey grey, double+ red
-    const scoreColor = pts >= 3 ? '#2d7a4f' : pts === 2 ? '#4a90a4' : pts === 1 ? 'var(--text)' : '#A32D2D';
-    scoreDisp.className = 'kp-score-big';
-    scoreDisp.style.color = scoreColor;
-    const ptsColor = pts >= 3 ? '#2d7a4f' : pts === 2 ? '#4a90a4' : pts === 1 ? 'var(--text-2)' : '#A32D2D';
-    const ptsLabel = pts >= 3 ? '\uD83D\uDC26 ' + pts + ' pts' : pts === 2 ? pts + ' pts' : pts === 1 ? pts + ' pt' : '0 pts';
-    ptsDisp.innerHTML = '<span style="color:' + ptsColor + ';font-weight:700;font-size:15px">' + ptsLabel + '</span>';
-  } else {
-    scoreDisp.textContent = '—';
-    scoreDisp.className = 'kp-score-big empty';
-    scoreDisp.style.color = '';
-    ptsDisp.textContent = '';
-  }
-}
-
-function kpInput(num) {
-  haptic();
-  const hole = kpActiveHole;
-  if (!hole) return;
-  const inp = document.getElementById('h'+hole);
-  if (!inp) return;
-  // Single digit entry — replace current value
-  inp.value = num;
-  const disp = document.getElementById('sc-score'+hole);
-  if (disp) { disp.textContent = num; disp.classList.remove('sc-empty'); disp.classList.add('sc-pulse'); }
-  const hint = document.getElementById('sc-tap-hint'+hole);
-  if (hint) hint.style.display = 'none';
-  // Bounce score in keypad
-  const scoreDisp = document.getElementById('kp-score-display');
-  if (scoreDisp) { scoreDisp.classList.remove('score-bounce'); void scoreDisp.offsetWidth; scoreDisp.classList.add('score-bounce'); }
-  // Flash active row
-  const activeRow = document.getElementById('sc-row'+hole);
-  if (activeRow) { activeRow.classList.add('row-flash'); setTimeout(()=>activeRow.classList.remove('row-flash'),400); }
-  // Expressive haptic for scoring
-  try { if (navigator.vibrate) navigator.vibrate([12, 30, 8]); } catch(e) {}
-  kpRefreshDisplay();
-  updateRoundSummary();
-  kpSaveCache();
-}
-
-function kpDelete() {
-  haptic();
-  const hole = kpActiveHole;
-  if (!hole) return;
-  const inp = document.getElementById('h'+hole);
-  if (!inp) return;
-  inp.value = '';
-  const disp = document.getElementById('sc-score'+hole);
-  if (disp) { disp.textContent = '—'; disp.classList.add('sc-empty'); }
-  const hintD = document.getElementById('sc-tap-hint'+hole);
-  if (hintD) hintD.style.display = '';
-  updateRoundSummary();
-  kpSaveCache();
-}
-
-function kpMax() {
-  haptic();
-  const hole = kpActiveHole;
-  if (!hole) return;
-  const parEl = document.getElementById('sc-par'+hole);
-  const siEl  = document.getElementById('sc-si'+hole);
-  const par   = parseInt(parEl?.textContent) || 4;
-  const si    = parseInt(siEl?.textContent)  || 0;
-
-  // Get stroke allowance for this hole so max = par + 2 - strokes (= 0 pts)
-  const pid = document.getElementById('r-player')?.value;
-  const eid = document.getElementById('r-event')?.value;
-  const pl  = db.players.find(p=>p.id===pid);
-  const ev  = db.events.find(e=>e.id===eid);
-  let shots = 0;
-  if (pl && ev) {
-    const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
-    shots = getStrokeAllowance(courseHcp, si, kpTotalHoles);
-  }
-  // Max score giving exactly 0 pts = par + 2 + strokes received
-  // (strokes received extend effective par, need to exceed that by 2 for 0 pts)
-  const maxScore = par + 2 + shots;
-
-  const inp = document.getElementById('h'+hole);
-  if (!inp) return;
-  inp.value = maxScore;
-  const disp = document.getElementById('sc-score'+hole);
-  if (disp) { disp.textContent = maxScore; disp.classList.remove('sc-empty'); }
-  const hint = document.getElementById('sc-tap-hint'+hole);
-  if (hint) hint.style.display = 'none';
-  kpRefreshDisplay();
-  updateRoundSummary();
-  kpSaveCache();
-}
-
-function kpNavigate(dir) {
-  haptic();
-  const next = kpActiveHole + dir;
-  if (next < 1 || next > kpTotalHoles) {
-    // Bounce feedback at boundary
-    const titleEl = document.getElementById('kp-hole-title');
-    if (titleEl) {
-      titleEl.style.transform = dir > 0 ? 'translateX(8px)' : 'translateX(-8px)';
-      setTimeout(() => { titleEl.style.transform = ''; titleEl.style.transition = 'transform 0.2s'; setTimeout(()=>{ titleEl.style.transition=''; },200); }, 80);
-    }
-    return;
-  }
-  // Switch tab if crossing hole 9 on 18-hole round
-  if (kpTotalHoles === 18) {
-    if (next === 10 && dir === 1) switchNine('back');
-    if (next === 9  && dir === -1) switchNine('front');
-  }
-  kpActiveHole = next;
-  selectScorecardHole(next);
-
-  // Animate keypad info sliding in
-  const infoEl = document.getElementById('kp-hole-info');
-  if (infoEl) {
-    infoEl.classList.remove('kp-slide-in-right', 'kp-slide-in-left');
-    void infoEl.offsetWidth; // force reflow
-    infoEl.classList.add(dir > 0 ? 'kp-slide-in-right' : 'kp-slide-in-left');
-  }
-
-  // Animate score display
-  const scoreDisp = document.getElementById('kp-score-display');
-  if (scoreDisp) {
-    scoreDisp.classList.remove('kp-slide-in-right', 'kp-slide-in-left');
-    void scoreDisp.offsetWidth;
-    scoreDisp.classList.add(dir > 0 ? 'kp-slide-in-right' : 'kp-slide-in-left');
-  }
-
-  kpRefreshDisplay();
-  setTimeout(() => {
-    const row = document.getElementById('sc-row'+next);
-    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, 50);
-}
-
 function kpDone() {
   haptic();
   const kp = document.getElementById('score-keypad');
   if (kp) kp.classList.remove('open');
-  kpActiveHole = null;
 }
 
-function kpSaveCache() {
-  try {
-    const pid = document.getElementById('r-player')?.value;
-    const eid = document.getElementById('r-event')?.value;
-    if (!pid || !eid) return;
-    const cache = {};
-    for (let i=1; i<=kpTotalHoles; i++) {
-      const v = document.getElementById('h'+i)?.value;
-      if (v) cache[i] = v;
-    }
-    localStorage.setItem('bhgs_scores_'+eid+'_'+pid, JSON.stringify(cache));
-  } catch(e) {}
-}
 
-// Close keypad when tapping outside score area
-document.addEventListener('touchstart', e => {
-  const kp = document.getElementById('score-keypad');
-  if (kp && kp.classList.contains('open')) {
-    if (!kp.contains(e.target) && !e.target.closest('.sc-hole-row')) {
-      kpDone();
-    }
-  }
-}, { passive: true });
 
-// Swipe left/right on keypad to navigate holes
-// Swipe down to close keypad
-(function() {
-  let swipeStartX = null;
-  let swipeStartY = null;
-  const kp = document.getElementById('score-keypad');
-  if (!kp) return;
-  kp.addEventListener('touchstart', e => {
-    swipeStartX = e.touches[0].clientX;
-    swipeStartY = e.touches[0].clientY;
-  }, { passive: true });
-  kp.addEventListener('touchmove', e => {
-    if (swipeStartY === null) return;
-    const dy = e.touches[0].clientY - swipeStartY;
-    const dx = Math.abs(e.touches[0].clientX - swipeStartX);
-    // If swiping down more than sideways, move keypad with finger
-    if (dy > 0 && dy > dx) {
-      kp.style.transform = 'translateY(' + Math.min(dy, 200) + 'px)';
-      kp.style.transition = 'none';
-    }
-  }, { passive: true });
-  kp.addEventListener('touchend', e => {
-    if (swipeStartY === null) return;
-    const dy = e.changedTouches[0].clientY - swipeStartY;
-    const dx = Math.abs(e.changedTouches[0].clientX - swipeStartX);
-    kp.style.transition = '';
-    kp.style.transform = '';
-
-    if (dy > 80 && dy > dx) {
-      // Swipe down — close
-      kpDone();
-    } else if (Math.abs(dx) > 60 && Math.abs(dy) < 40) {
-      // Swipe left/right — navigate
-      kpNavigate(dx < 0 ? 1 : -1);
-    }
-    swipeStartX = null;
-    swipeStartY = null;
-  }, { passive: true });
-})();
-
-function resetHoleInputs(n) {
-  document.getElementById('score-keypad')?.classList.remove('open');
-  kpActiveHole = null;
-  for (let i=1; i<=n; i++) {
-    const inp  = document.getElementById('h'+i);
-    const disp = document.getElementById('sc-score'+i);
-    const pts  = document.getElementById('hpts'+i);
-    const row  = document.getElementById('sc-row'+i);
-    if (inp)  inp.value = '';
-    if (disp) { disp.textContent = '—'; disp.classList.add('sc-empty'); }
-    if (pts)  { pts.textContent=''; pts.style.background=''; pts.style.color=''; }
-    if (row)  { row.classList.remove('sc-active'); if(i===1) row.classList.add('sc-active'); }
-  }
-  activeScorecardHole = 1;
-}
 
 function buildEventSIInputs(n) {
   const siLbl    = document.getElementById('e-si-labels');
@@ -3085,7 +2693,6 @@ function updateRoundSummary() {
 }
 
 function showRoundConfirmation() {
-  try {
   const eid = document.getElementById('r-event').value;
   const pid = document.getElementById('r-player').value;
   const ev  = db.events.find(e=>e.id===eid);
@@ -3153,7 +2760,6 @@ function showRoundConfirmation() {
   `;
   const modalOverlay = document.getElementById('modal-overlay');
   if (modalOverlay) modalOverlay.classList.add('open');
-  } catch(e) { console.error('showRoundConfirmation error:', e.message, e.stack); toast('Error: ' + e.message, 'error'); }
 }
 
 async function saveRound() {
@@ -8818,14 +8424,19 @@ async function advanceWinner(m, winnerId) {
 function safeRender(fn) { try { fn(); } catch(e) { console.error('Render error in', fn.name, ':', e.message); } }
 
 function renderAll() {
+  // Always render home and leaderboard as they're the most accessed
   safeRender(renderHome);
   safeRender(renderLeaderboard);
-  safeRender(renderProfile);
-  safeRender(renderPlayers);
-  safeRender(renderEvents);
-  safeRender(renderAddRound);
-  safeRender(renderSchedule);
-  safeRender(renderKnockout);
+  // Only render other tabs if they're currently active
+  const activeSection = document.querySelector('.section.active');
+  const activeName = activeSection ? activeSection.id : 'home';
+  if (activeName === 'profile') safeRender(renderProfile);
+  if (activeName === 'players') safeRender(renderPlayers);
+  if (activeName === 'events') safeRender(renderEvents);
+  if (activeName === 'add-round' || document.getElementById('add-round')?.style.display === 'flex') safeRender(renderAddRound);
+  if (activeName === 'schedule') safeRender(renderSchedule);
+  if (activeName === 'knockout') safeRender(renderKnockout);
+  // Always update knockout mine widget if visible
   if (document.getElementById('knockout-mine')?.style.display !== 'none') safeRender(renderMyMatches);
 }
 
@@ -8839,14 +8450,11 @@ function onFabClick() {
 }
 
 function showTab(name) {
-  console.log('showTab called:', name);
   haptic();
   document.querySelectorAll('.section').forEach(s=>{ s.classList.remove('active'); if(s.id==='add-round') s.style.display='none'; });
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   const targetEl = document.getElementById(name);
-  console.log('target element:', name, targetEl, targetEl ? targetEl.className : 'NOT FOUND');
   targetEl.classList.add('active');
-  console.log('after active:', targetEl.className, 'display:', getComputedStyle(targetEl).display);
   const scroller = document.getElementById('main-content');
   if (scroller) scroller.scrollTop = 0;
   const tabs = ['home','leaderboard','add-round','profile','schedule'];
