@@ -343,24 +343,9 @@
   .hole-grid input:focus { border-color: var(--green); }
 
   /* ── Score entry redesign ── */
-  .sc-score-val { font-size: 24px; font-weight: 700; color: var(--text); min-width: 34px; text-align: center; }
-  .sc-score-val.sc-empty { color: #ccc; font-size: 18px; font-weight: 300; }
-  .sc-adj { width: 46px; height: 46px; border-radius: 12px; border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text); font-size: 24px; font-weight: 300; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-family: 'DM Sans', sans-serif; line-height: 1; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; transition: background 0.1s, border-color 0.1s, transform 0.08s; }
-  .sc-adj:active { background: #C9A84C; border-color: #C9A84C; color: #0a1628; transform: scale(0.91); }
-
   /* Header stats bar */
 
   /* Hole rows — 6 col: hole# | par | si | strokes | score | pts */
-  .sc-hole-row { display: grid; grid-template-columns: 30px 34px 34px 34px 1fr 46px; align-items: center; border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.12s, border-left 0.12s; min-height: 64px; cursor: pointer; -webkit-tap-highlight-color: transparent; border-left: 3px solid transparent; }
-  .sc-hole-row:last-child { border-bottom: none; }
-  .sc-hole-row.sc-active { background: #0a1628; border-left: 3px solid #C9A84C; }
-  .sc-hole-row.sc-active div { color: white !important; }
-  .sc-hole-row.sc-active .sc-score-val { color: #C9A84C !important; font-size: 26px; }
-  .sc-hole-row.sc-active .sc-score-val.sc-empty { color: rgba(255,255,255,0.3) !important; }
-  .sc-hole-row.sc-active #sc-tap-hint { color: rgba(255,255,255,0.3) !important; }
-  .sc-hole-score-area { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 4px; }
-  .sc-pts-chip { width: 40px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; margin: 0 4px; }
-
   /* Column header */
   .sc-col-header { display: grid; grid-template-columns: 30px 34px 34px 34px 1fr 46px; background: #162338; padding: 7px 0; }
   .sc-col-header span { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: .07em; text-align: center; }
@@ -397,9 +382,6 @@
   }
   .score-bounce { animation: scoreBounce 0.3s cubic-bezier(0.34,1.2,0.64,1) forwards; }
   .chip-pop { animation: chipPop 0.25s cubic-bezier(0.34,1.2,0.64,1) forwards; }
-  .row-flash { animation: rowFlash 0.35s ease-out forwards; }
-  .hole-num-slide { animation: holeNumSlide 0.25s cubic-bezier(0.34,1.1,0.64,1) forwards; }
-
   /* ── Knockout pulse ── */
   @keyframes matchPulse {
     0%   { box-shadow: 0 0 0 0 rgba(22,163,74,0); border-color:#16a34a; }
@@ -484,8 +466,6 @@
   .kp-btn.del { background: var(--bg); color: var(--text-2); font-size: 18px; border: 1px solid var(--border); }
 
   /* Shrink hole rows when keypad is open — remove +/− buttons */
-  #score-keypad.open ~ * .sc-adj { display: none; }
-
   .lb-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 10px 12px;
@@ -623,8 +603,6 @@
     35%  { transform: scale(1.4); }
     100% { transform: scale(1); }
   }
-  .sc-pulse { animation: sc-pulse 0.18s ease-out; }
-
   .nine-tabs { display:flex;gap:0;margin-bottom:0;border-radius:0;overflow:hidden;border-bottom:1px solid #e0d8c8;background:#fff; }
   .nine-tab { flex:1;padding:12px 0;font-size:14px;font-weight:600;text-align:center;cursor:pointer;color:#9a9080;background:transparent;border:none;font-family:'DM Sans',sans-serif;transition:background 0.15s,color 0.15s;border-bottom:3px solid transparent; }
   .nine-tab.active { color:#0a1628;border-bottom-color:#C9A84C;background:#fef8e6; }
@@ -1196,7 +1174,6 @@
 <div class="toasts" id="toasts"></div>
 
 <!-- Score entry keypad -->
-<!-- score-keypad removed — replaced by hybrid score entry -->
 
 <script>
 const SUPABASE_URL = 'https://vlpfqavpwwhpflamujcp.supabase.co';
@@ -2058,6 +2035,16 @@ function hseInit(n) {
   hseState.nine = 'front';
 
   const pid = document.getElementById('r-player')?.value;
+  if (!pid) {
+    // No player selected — show prompt in strip area
+    const strip = document.getElementById('hse-strip');
+    if (strip) strip.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.4);font-size:12px;padding:8px 0">Select a player above to begin</div>';
+    const ptsStrip = document.getElementById('hse-pts-strip');
+    if (ptsStrip) ptsStrip.innerHTML = '';
+    const nums = document.getElementById('hse-hole-nums');
+    if (nums) nums.innerHTML = '';
+    return;
+  }
   const eid = document.getElementById('r-event')?.value;
   const cacheKey = 'bhgs_scores_' + (eid||'') + '_' + (pid||'');
   try {
@@ -3265,7 +3252,6 @@ const VAPID_PUBLIC_KEY = 'BIRwtUlPpu10lHmT93GizNuUJ7Uqttg8usuE6KPFpnclzwPgwOSYAM
 
 async function registerPushNotifications() {
   const log = (msg) => {
-    console.log(msg);
     const el = document.getElementById('push-debug-log');
     if (el) el.innerHTML += `<div>${msg}</div>`;
   };
@@ -3321,21 +3307,16 @@ async function registerPushNotifications() {
 }
 
 async function promptPushPermission() {
-  console.log('PUSH: promptPushPermission called, permission=', Notification.permission);
   if (!('Notification' in window)) { console.warn('PUSH: Notifications not supported'); return; }
   if (Notification.permission === 'granted') {
-    console.log('PUSH: already granted, registering...');
     registerPushNotifications();
     return;
   }
   if (Notification.permission === 'denied') { console.warn('PUSH: permission previously denied'); return; }
   // Show in-app prompt every session until they make a decision
-  console.log('PUSH: showing in-app prompt...');
   const agreed = await showPushPrompt();
-  console.log('PUSH: user agreed?', agreed);
   if (!agreed) return;
   const permission = await Notification.requestPermission();
-  console.log('PUSH: browser permission result:', permission);
   if (permission === 'granted') registerPushNotifications();
 }
 
@@ -4592,6 +4573,11 @@ function renderHome() {
   const badge = document.getElementById('admin-nav-badge');
   const feed  = document.getElementById('noticeboard-feed');
   const ql    = document.getElementById('admin-quick-links');
+
+  // Skip full re-render if data unchanged
+  const homeHash = JSON.stringify([db.events.length, db.rounds.filter(r=>!r.verified).length, db.rounds.length]);
+  if (window._homeHash === homeHash && feed && feed.innerHTML.length > 100) return;
+  window._homeHash = homeHash;
 
   // ── Admin dashboard ──────────────────────────────────────────
   if (ql) ql.style.display = isAdmin ? 'block' : 'none';
@@ -6962,6 +6948,10 @@ function switchProfileTab(tab) {
       drawScoreChart('score-history-chart', window._hcpChartRounds);
     }, 50);
   }
+  // Also pre-render charts for stats tab visibility
+  if (tab !== 'stats' && window._hcpChartRounds) {
+    setTimeout(() => { drawHcpChart(); drawScoreChart('score-history-chart', window._hcpChartRounds); }, 200);
+  }
 }
 
 function togglePrizeSection(id) {
@@ -9025,7 +9015,6 @@ ${parInfo}
     });
 
     const data = await response.json();
-    console.log('API response:', JSON.stringify(data));
     if (!response.ok || data.error) {
       throw new Error(data.error?.message || data.error?.type || `HTTP ${response.status}`);
     }
