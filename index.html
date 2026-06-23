@@ -833,6 +833,7 @@
 
   <!-- HOME / NOTICEBOARD -->
   <div id="home" class="section active">
+    <div id="home-live-section" style="display:none"></div>
     <div id="admin-dashboard" style="display:none"></div>
     <div id="noticeboard-feed"></div>
   </div>
@@ -4729,23 +4730,6 @@ function renderHome() {
       dashHtml += '</div>';
     }
     dash.innerHTML = dashHtml;
-
-    // Clear live scores button for current unpublished event
-    const nextEv = db.events.filter(e=>!e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0];
-    if (nextEv && _liveRounds.length > 0) {
-      const clearDiv = document.createElement('div');
-      clearDiv.style.cssText = 'margin-bottom:1rem';
-      clearDiv.innerHTML = `<div class="card" style="border-color:rgba(201,168,76,0.3)">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <div>
-            <div class="card-title" style="margin:0">Live scores</div>
-            <div style="font-size:12px;color:var(--text-3);margin-top:2px">${_liveRounds.length} player${_liveRounds!==1?'s':''} on course for ${nextEv.course_name}</div>
-          </div>
-          <button onclick="hseClearAllLiveScores('${nextEv.id}')" style="padding:7px 12px;border-radius:8px;border:1px solid rgba(163,46,46,0.3);background:#FCEBEB;color:#A32D2D;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Clear all</button>
-        </div>
-      </div>`;
-      dash.prepend(clearDiv);
-    }
   }
 
   // ── Personal stats bar ──────────────────────────────────────
@@ -9009,52 +8993,64 @@ function stopLivePolling() {
 }
 
 function renderLiveLeaderboard() {
-  const el = document.getElementById('lb-live-section');
-  if (!el) return;
+  const lbEl = document.getElementById('lb-live-section');
+  const homeEl = document.getElementById('home-live-section');
 
   const currentEid = db.events.filter(e=>!e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0]?.id;
   if (!currentEid || !_liveRounds.length) {
-    el.style.display = 'none';
+    if (lbEl) lbEl.style.display = 'none';
+    if (homeEl) homeEl.style.display = 'none';
     return;
   }
 
-  // Sort by pts desc then holes desc
   const sorted = [..._liveRounds]
     .filter(r => r.holes_done > 0)
     .sort((a,b) => b.total_pts - a.total_pts || b.holes_done - a.holes_done);
 
-  if (!sorted.length) { el.style.display = 'none'; return; }
+  if (!sorted.length) {
+    if (lbEl) lbEl.style.display = 'none';
+    if (homeEl) homeEl.style.display = 'none';
+    return;
+  }
 
-  el.style.display = 'block';
+  const ev = db.events.find(e=>e.id===currentEid);
+  const n = ev?.event_type === 'outing_18' ? 18 : 9;
 
   let html = `<div style="background:#0a1628;border-radius:12px;padding:14px;margin-bottom:16px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-      <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;animation:livePulse 1.2s ease-in-out infinite"></div>
-      <div style="font-size:13px;font-weight:700;color:white">Live scoring</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.4)">${sorted.length} player${sorted.length!==1?'s':''} on course</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;animation:livePulse 1.2s ease-in-out infinite"></div>
+        <div style="font-size:13px;font-weight:700;color:white">Live scoring</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4)">${sorted.length} player${sorted.length!==1?'s':''} on course</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="font-size:10px;color:rgba(255,255,255,0.25)">${ev?.course_name||''}</div>
+        ${isAdmin ? `<button onclick="hseClearAllLiveScores('${currentEid}')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.1);color:#f87171;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Clear</button>` : ''}
+      </div>
     </div>`;
 
   sorted.forEach((r, idx) => {
     const pl = db.players.find(p=>p.id===r.player_id);
     const name = pl?.name || 'Unknown';
-    const pts = r.total_pts;
-    const holes = r.holes_done;
-    const n = db.events.find(e=>e.id===r.event_id)?.event_type === 'outing_18' ? 18 : 9;
     const isMe = currentUser?.playerId === r.player_id;
     html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,0.06)${idx===sorted.length-1?';border:none':''}">
       <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.35);width:16px;text-align:center">${idx+1}</div>
       ${avatarHtml(pl, 28, 10)}
       <div style="flex:1">
         <div style="font-size:13px;font-weight:${isMe?700:500};color:${isMe?'#C9A84C':'white'}">${name}${isMe?' (you)':''}</div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.35)">${holes}/${n} holes</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.35)">${r.holes_done}/${n} holes</div>
       </div>
-      <div style="font-size:18px;font-weight:800;color:#a3e635">${pts}</div>
+      <div style="font-size:18px;font-weight:800;color:#a3e635">${r.total_pts}</div>
       <div style="font-size:10px;color:rgba(255,255,255,0.4)">pts</div>
     </div>`;
   });
 
-  html += `<div style="font-size:10px;color:rgba(255,255,255,0.25);text-align:center;margin-top:10px">Unverified · updates live</div></div>`;
-  el.innerHTML = html;
+  html += `<div style="font-size:10px;color:rgba(255,255,255,0.25);text-align:center;margin-top:10px">Unverified · updates every 15s</div></div>`;
+
+  // Show on home
+  if (homeEl) { homeEl.style.display = 'block'; homeEl.innerHTML = html; }
+  // Also show on leaderboard if open
+  if (lbEl) { lbEl.style.display = 'block'; lbEl.innerHTML = html; }
 }
 
 async function cleanupLiveRounds(eid) {
