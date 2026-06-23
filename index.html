@@ -2720,7 +2720,11 @@ function showRoundConfirmation() {
   }
 
   const filled = scores.filter(s=>s!==null).length;
-  if (filled < n) { toast(`Only ${filled} of ${n} holes entered`, 'error'); return; }
+  if (filled < n) {
+    const missing = n - filled;
+    toast(`${missing} hole${missing!==1?'s':''} still empty — tap them in the strip above`, 'error');
+    return;
+  }
 
   let totalPts = 0;
   const holeRows = scores.map((score, idx) => {
@@ -8451,6 +8455,16 @@ function onFabClick() {
 
 function showTab(name) {
   haptic();
+  // Close any open modals when switching tabs
+  const modal = document.getElementById('modal-overlay');
+  if (modal && modal.classList.contains('open')) closeModal();
+  const adminModal = document.getElementById('admin-modal');
+  if (adminModal && adminModal.classList.contains('open')) closeAdminModal();
+  const statsModal = document.getElementById('stats-modal');
+  if (statsModal && statsModal.classList.contains('open')) closeStatsModal();
+  // Close admin menu sheet if open
+  const sheet = document.getElementById('admin-menu-sheet');
+  if (sheet) sheet.remove();
   document.querySelectorAll('.section').forEach(s=>{ s.classList.remove('active'); if(s.id==='add-round') s.style.display='none'; });
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   const targetEl = document.getElementById(name);
@@ -8467,7 +8481,8 @@ function showTab(name) {
   if (name === 'add-round') safeRender(renderAddRound);
   if (name === 'knockout') safeRender(renderKnockout);
   if (name === 'schedule') safeRender(renderSchedule);
-  if (name === 'events') renderSavedCourseDropdown();
+  if (name === 'players') safeRender(renderPlayers);
+  if (name === 'events') { safeRender(renderEvents); renderSavedCourseDropdown(); }
   // Entrance animation on tab switch
   animateTabEntrance(name);
   try { localStorage.setItem('bhgs_last_tab', name); } catch(e) {}
