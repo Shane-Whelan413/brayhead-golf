@@ -110,6 +110,7 @@
   }
   .anim-fade-up { animation: fadeSlideUp 0.35s cubic-bezier(0.34,1.1,0.64,1) both; }
   .anim-fade    { animation: fadeIn 0.25s ease both; }
+  @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(0.85)} }
 
   /* Feed items stagger up — disabled for performance */
   .stagger-up > * { opacity: 1; }
@@ -853,6 +854,7 @@
 
   <!-- LEADERBOARD -->
   <div id="leaderboard" class="section">
+    <div id="lb-live-section" style="display:none"></div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:10px">
         <span class="card-title" style="margin:0">Season standings</span>
@@ -2316,6 +2318,55 @@ function hseSaveCache() {
     if (inp?.value) { cache[i] = inp.value; if (inp.dataset.nr) cache['nr'+i] = true; }
   }
   try { localStorage.setItem(cacheKey, JSON.stringify(cache)); } catch(e) {}
+
+  // Write live scores to Supabase in background
+  upsertLiveRound(eid, pid);
+}
+
+async function upsertLiveRound(eid, pid) {
+  try {
+    const ev = db.events.find(e=>e.id===eid);
+    const pl = db.players.find(p=>p.id===pid);
+    if (!ev || !pl) return;
+    const n = hseState.n;
+    const scores = {};
+    let totalPts = 0, holesDone = 0, grossScore = 0;
+    const siVals = getSIValues(n, ev, pl);
+    const parVals = getParValues(n, ev, pl);
+    const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
+    for (let i = 1; i <= n; i++) {
+      const inp = document.getElementById('h'+i);
+      if (inp?.value) {
+        const score = parseInt(inp.value);
+        scores[i] = inp.dataset.nr ? 'NR' : score;
+        const shots = getStrokeAllowance(courseHcp, siVals[i-1], n);
+        const pts = calcStableford(score, parVals[i-1], shots);
+        totalPts += pts;
+        grossScore += score;
+        holesDone++;
+      }
+    }
+    const societyId = db.events[0]?.society_id || null;
+    await fetch(`${SUPABASE_URL}/rest/v1/live_rounds`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        event_id: eid,
+        player_id: pid,
+        society_id: societyId,
+        scores,
+        total_pts: totalPts,
+        holes_done: holesDone,
+        gross_score: grossScore,
+        updated_at: new Date().toISOString()
+      })
+    });
+  } catch(e) { /* silent — live scoring is best-effort */ }
 }
 
 function switchNine(which) {
@@ -4203,6 +4254,7 @@ async function verifyAndPublish(eid) {
     const dateLabel = pubEv?.event_date ? new Date(pubEv.event_date).toLocaleDateString('en-IE', { weekday:'long', day:'numeric', month:'long' }) : '';
     notifyPlayers(allPlayerIds, '🏆 Results posted', `${dateLabel} results are live — check the leaderboard!`, 'results', '/brayhead-golf/');
     toast('Verified & published! 🎉', 'success');
+    cleanupLiveRounds(eid);
     await loadAll(); renderAll();
   } catch(e) { toast('Error publishing: '+e.message, 'error'); }
 }
@@ -8494,7 +8546,12 @@ function showTab(name) {
   const arEl = document.getElementById('add-round');
   if (arEl) arEl.style.display = name === 'add-round' ? 'flex' : 'none';
   if (name === 'profile') safeRender(renderProfile);
-  if (name === 'leaderboard') safeRender(renderLeaderboard);
+  if (name === 'leaderboard') {
+    safeRender(renderLeaderboard);
+    // Subscribe to live rounds for current unpublished event
+    const currentEid = db.events.filter(e=>!e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0]?.id;
+    if (currentEid) subscribeLiveRounds(currentEid);
+  }
   if (name === 'add-round') safeRender(renderAddRound);
   if (name === 'knockout') safeRender(renderKnockout);
   if (name === 'schedule') safeRender(renderSchedule);
@@ -8841,6 +8898,119 @@ async function logout() {
     console.error('reload on logout failed:', e);
     renderLoginNames();
   }
+}
+
+// ── Live Scoring — Supabase Realtime ─────────────────────────
+var _liveRealtimeChannel = null;
+var _liveRounds = [];
+
+async function loadLiveRounds(eid) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/live_rounds?event_id=eq.${eid}&select=*`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    _liveRounds = await res.json();
+    renderLiveLeaderboard();
+  } catch(e) {}
+}
+
+function subscribeLiveRounds(eid) {
+  // Disconnect existing channel
+  if (_liveRealtimeChannel) {
+    try { _liveRealtimeChannel.close(); } catch(e) {}
+    _liveRealtimeChannel = null;
+  }
+  if (!eid) return;
+
+  // Load initial data
+  loadLiveRounds(eid);
+
+  // Connect Supabase Realtime
+  const wsUrl = SUPABASE_URL.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + SUPABASE_KEY + '&vsn=1.0.0';
+  try {
+    const ws = new WebSocket(wsUrl);
+    _liveRealtimeChannel = ws;
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ topic: 'realtime:public:live_rounds', event: 'phx_join', payload: { config: { broadcast: { ack: false }, presence: { key: '' }, postgres_changes: [{ event: '*', schema: 'public', table: 'live_rounds', filter: `event_id=eq.${eid}` }] } }, ref: '1' }));
+    };
+
+    ws.onmessage = (msg) => {
+      try {
+        const data = JSON.parse(msg.data);
+        if (data.event === 'postgres_changes' || (data.payload?.data?.type)) {
+          loadLiveRounds(eid);
+        }
+        // Keep alive
+        if (data.event === 'phx_reply' && data.payload?.status === 'ok') {
+          setInterval(() => { try { ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: '0' })); } catch(e) {} }, 25000);
+        }
+      } catch(e) {}
+    };
+
+    ws.onerror = () => {};
+    ws.onclose = () => { _liveRealtimeChannel = null; };
+  } catch(e) {}
+}
+
+function renderLiveLeaderboard() {
+  const el = document.getElementById('lb-live-section');
+  if (!el) return;
+
+  const currentEid = db.events.filter(e=>!e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0]?.id;
+  if (!currentEid || !_liveRounds.length) {
+    el.style.display = 'none';
+    return;
+  }
+
+  // Sort by pts desc then holes desc
+  const sorted = [..._liveRounds]
+    .filter(r => r.holes_done > 0)
+    .sort((a,b) => b.total_pts - a.total_pts || b.holes_done - a.holes_done);
+
+  if (!sorted.length) { el.style.display = 'none'; return; }
+
+  el.style.display = 'block';
+
+  let html = `<div style="background:#0a1628;border-radius:12px;padding:14px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;animation:livePulse 1.2s ease-in-out infinite"></div>
+      <div style="font-size:13px;font-weight:700;color:white">Live scoring</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.4)">${sorted.length} player${sorted.length!==1?'s':''} on course</div>
+    </div>`;
+
+  sorted.forEach((r, idx) => {
+    const pl = db.players.find(p=>p.id===r.player_id);
+    const name = pl?.name || 'Unknown';
+    const pts = r.total_pts;
+    const holes = r.holes_done;
+    const n = db.events.find(e=>e.id===r.event_id)?.event_type === 'outing_18' ? 18 : 9;
+    const isMe = currentUser?.playerId === r.player_id;
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,0.06)${idx===sorted.length-1?';border:none':''}">
+      <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.35);width:16px;text-align:center">${idx+1}</div>
+      ${avatarHtml(pl, 28, 10)}
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:${isMe?700:500};color:${isMe?'#C9A84C':'white'}">${name}${isMe?' (you)':''}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.35)">${holes}/${n} holes</div>
+      </div>
+      <div style="font-size:18px;font-weight:800;color:#a3e635">${pts}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.4)">pts</div>
+    </div>`;
+  });
+
+  html += `<div style="font-size:10px;color:rgba(255,255,255,0.25);text-align:center;margin-top:10px">Unverified · updates live</div></div>`;
+  el.innerHTML = html;
+}
+
+async function cleanupLiveRounds(eid) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/live_rounds?event_id=eq.${eid}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    _liveRounds = [];
+    renderLiveLeaderboard();
+  } catch(e) {}
 }
 
 async function init() {
