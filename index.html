@@ -2570,8 +2570,8 @@ function updateRoundSummary() {
   const sb  = document.getElementById('round-summary');
   if (!eid || !pid || !ev) { sb.classList.remove('show'); return; }
   const n   = ev.event_type==='outing_18' ? 18 : 9;
-  // Refresh strip and hole info
-  if (typeof hseRenderStrip === 'function') { hseRenderStrip(); hseSelectHole(hseState.active || 1); }
+  // Refresh strip only, not full hole select which resets state
+  if (typeof hseRenderStrip === 'function') hseRenderStrip();
   const p   = db.players.find(x=>x.id===pid);
   const hcp = p ? parseFloat(p.handicap_index) : 18;
   const { cr, slope, par } = getCourseIndexForPlayer(p, ev);
