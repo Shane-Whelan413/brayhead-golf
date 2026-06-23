@@ -2047,6 +2047,8 @@ function buildHoleInputs(n) {
 
         <!-- Finish & review — full width -->
         <button id="hse-finish" onclick="showRoundConfirmation()" style="display:none;width:100%;background:#C9A84C;border:none;border-radius:10px;padding:14px;text-align:center;font-size:14px;font-weight:700;color:#0a1628;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent">Finish &amp; review</button>
+
+        ${isAdmin ? `<button onclick="hseClearScores()" style="width:100%;background:none;border:none;padding:10px;text-align:center;font-size:12px;color:rgba(201,168,76,0.5);cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:2px">Clear scores</button>` : ''}
       </div>
 
     </div>
@@ -2284,6 +2286,32 @@ function hseSelectHole(h) {
   }
 
   hseRenderStrip();
+}
+
+function hseClearScores() {
+  if (!confirm('Clear all scores for this player?')) return;
+  const pid = document.getElementById('r-player')?.value;
+  const eid = document.getElementById('r-event')?.value;
+  const n = hseState.n;
+  // Clear hidden inputs
+  for (let i = 1; i <= n; i++) {
+    const inp = document.getElementById('h'+i);
+    if (inp) { inp.value = ''; delete inp.dataset.nr; }
+  }
+  // Clear localStorage cache
+  if (pid && eid) {
+    try { localStorage.removeItem('bhgs_scores_' + eid + '_' + pid); } catch(e) {}
+    // Clear live round from Supabase
+    fetch(`${SUPABASE_URL}/rest/v1/live_rounds?event_id=eq.${eid}&player_id=eq.${pid}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    }).catch(()=>{});
+  }
+  // Reset build key so inputs rebuild fresh
+  const hi = document.getElementById('hole-inputs');
+  if (hi) hi.dataset.buildKey = '';
+  buildHoleInputs(n);
+  toast('Scores cleared', 'success');
 }
 
 function hseUndo() {
