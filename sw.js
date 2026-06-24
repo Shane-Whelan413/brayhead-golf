@@ -1,5 +1,5 @@
 // BHGS Service Worker — Push Notifications + Auto Update
-const CACHE_VERSION = 'bhgs-v3';
+const CACHE_VERSION = 'bhgs-v4';
 
 self.addEventListener('install', e => {
   // Take control immediately — don't wait for old SW to finish
