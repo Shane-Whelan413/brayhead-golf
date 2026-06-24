@@ -4896,7 +4896,7 @@ function renderHome() {
       + '<div style="display:flex;gap:8px;align-items:center">'
        + (ev?'<button onclick="viewEventResults(\''+ev.id+'\')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer;font-weight:600">Full results →</button>':'')  
        + '<button onclick="generateResultsCard(\''+n.event_id+'\')" style="background:#C9A84C;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;color:#0a1628;font-family:\'DM Sans\',sans-serif;cursor:pointer">Share</button>'
-       + (isAdmin?'<button onclick="deleteNotice(\''+n.id+'\')" style="background:none;border:none;font-size:11px;color:#b4b2a9;font-family:\'DM Sans\',sans-serif;cursor:pointer">Remove</button>':'')
+       + (isAdmin?'<button onclick="showPostUpdate(\''+n.event_id+'\')" style="background:none;border:none;font-size:11px;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer">Edit</button>':'') + (isAdmin?'<button onclick="deleteNotice(\''+n.id+'\')" style="background:none;border:none;font-size:11px;color:#b4b2a9;font-family:\'DM Sans\',sans-serif;cursor:pointer">Remove</button>':'')
       + '</div></div></div>';
   }
 
