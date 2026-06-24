@@ -332,16 +332,20 @@
     text-transform: uppercase; letter-spacing: 0.06em;
     margin: 14px 0 6px;
   }
-  .hole-grid { display: grid; grid-template-columns: repeat(9, minmax(0,1fr)); gap: 4px; margin-bottom: 4px; }
-  .hole-lbl { font-size: 10px; color: var(--text-3); text-align: center; padding: 2px 0; }
+  .hole-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+  .hole-grid-item { display: flex; flex-direction: column; }
+  .hole-grid-item label { font-size: 10px; color: var(--text-3); text-align: center; margin-bottom: 4px; font-weight: 600; }
   .hole-grid input {
-    height: 36px; padding: 0 2px; text-align: center; font-size: 14px;
-    border-radius: var(--radius); border: 1px solid var(--border-strong);
+    height: 44px; padding: 0 2px; text-align: center; font-size: 18px; font-weight: 600;
+    border-radius: 8px; border: 1px solid var(--border-strong);
     background: var(--bg); color: var(--text);
-    font-family: 'DM Sans', sans-serif; outline: none;
+    font-family: 'DM Sans', sans-serif; outline: none; width: 100%;
     transition: border-color 0.15s;
   }
   .hole-grid input:focus { border-color: var(--green); }
+  .hole-grid-divider { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; grid-column: 1/-1; }
+  .hole-grid-divider span { font-size: 10px; color: var(--text-3); font-weight: 600; white-space: nowrap; }
+  .hole-grid-divider::before, .hole-grid-divider::after { content:''; flex:1; height:1px; background:var(--border); }
 
   /* ── Score entry redesign ── */
   /* Header stats bar */
@@ -594,8 +598,7 @@
   @media(max-width:480px){
     .content { padding: 1rem 1rem 180px; }
     .card { padding: 1rem; }
-    .hole-grid { gap: 3px; }
-    .hole-grid input { height: 32px; font-size: 13px; }
+    .hole-grid { gap: 6px; }
   }
 
   /* ── Score entry UX polish ── */
@@ -2460,22 +2463,49 @@ function buildEventSIInputs(n) {
   const wparInp  = document.getElementById('e-wpar-h-inputs');
   const siTitle  = document.getElementById('e-si-title');
   const wsiTitle = document.getElementById('e-wsi-title');
-  siLbl.innerHTML=''; siInp.innerHTML='';
-  wsiLbl.innerHTML=''; wsiInp.innerHTML='';
-  parLbl.innerHTML=''; parInp.innerHTML='';
-  wparLbl.innerHTML=''; wparInp.innerHTML='';
+
   siTitle.querySelector('span').textContent  = '— enter 1 to ' + n + ' from scorecard (1 = hardest)';
   wsiTitle.querySelector('span').textContent = "— leave blank if same as men's";
-  for (let i=1; i<=n; i++) {
-    const lsi = document.createElement('div'); lsi.className='hole-lbl'; lsi.textContent=i; siLbl.appendChild(lsi);
-    const si  = document.createElement('input'); si.type='number'; si.setAttribute('inputmode','numeric'); si.min=1; si.max=n; si.id='e-si'+i; si.placeholder=i; siInp.appendChild(si);
-    const lwsi = document.createElement('div'); lwsi.className='hole-lbl'; lwsi.textContent=i; wsiLbl.appendChild(lwsi);
-    const wsi  = document.createElement('input'); wsi.type='number'; wsi.setAttribute('inputmode','numeric'); si.setAttribute('inputmode','numeric'); wsi.min=1; wsi.max=n; wsi.id='e-wsi'+i; wsi.placeholder=i; wsiInp.appendChild(wsi);
-    const lpar = document.createElement('div'); lpar.className='hole-lbl'; lpar.textContent=i; parLbl.appendChild(lpar);
-    const par  = document.createElement('input'); par.type='number'; par.setAttribute('inputmode','numeric'); par.min=3; par.max=5; par.id='e-par-h'+i; par.placeholder='4'; parInp.appendChild(par);
-    const lwpar = document.createElement('div'); lwpar.className='hole-lbl'; lwpar.textContent=i; wparLbl.appendChild(lwpar);
-    const wpar  = document.createElement('input'); wpar.type='number'; wpar.setAttribute('inputmode','numeric'); par.setAttribute('inputmode','numeric'); wpar.min=3; wpar.max=5; wpar.id='e-wpar-h'+i; wpar.placeholder='4'; wparInp.appendChild(wpar);
+
+  function buildGrid(labelEl, inputEl, idPrefix, min, max, placeholder, isWomen) {
+    if (!labelEl || !inputEl) return;
+    // Hide separate label containers — labels now live inside grid items
+    labelEl.style.display = 'none';
+    inputEl.innerHTML = '';
+    inputEl.style.display = 'grid';
+    inputEl.style.gridTemplateColumns = 'repeat(3,1fr)';
+    inputEl.style.gap = '8px';
+    inputEl.style.marginBottom = '8px';
+
+    for (let i = 1; i <= n; i++) {
+      // Add back 9 divider
+      if (i === 10) {
+        const div = document.createElement('div');
+        div.className = 'hole-grid-divider';
+        div.style.gridColumn = '1/-1';
+        div.innerHTML = '<span>Back 9</span>';
+        inputEl.appendChild(div);
+      }
+      const item = document.createElement('div');
+      item.className = 'hole-grid-item';
+      const lbl = document.createElement('label');
+      lbl.textContent = 'H' + i;
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.setAttribute('inputmode', 'numeric');
+      inp.min = min; inp.max = max;
+      inp.id = idPrefix + i;
+      inp.placeholder = typeof placeholder === 'function' ? placeholder(i) : placeholder;
+      item.appendChild(lbl);
+      item.appendChild(inp);
+      inputEl.appendChild(item);
+    }
   }
+
+  buildGrid(parLbl, parInp, 'e-par-h', 3, 5, '4');
+  buildGrid(wparLbl, wparInp, 'e-wpar-h', 3, 5, '4', true);
+  buildGrid(siLbl, siInp, 'e-si', 1, n, (i) => String(i));
+  buildGrid(wsiLbl, wsiInp, 'e-wsi', 1, n, (i) => String(i), true);
 }
 
 // ── Saved courses (localStorage) ──
