@@ -3185,27 +3185,36 @@ function editEvent(eid) {
     return html;
   };
 
-  document.getElementById('modal-title').textContent = `Edit event — ${ev.course_name}`;
+  document.getElementById('modal-title').textContent = `Edit — ${ev.course_name}`;
   document.getElementById('modal-body').innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px">
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
       <div class="form-group"><label>Course name</label><input id="ee-name" value="${ev.course_name}" /></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="form-group"><label>Date</label><input type="date" id="ee-date" value="${ev.event_date}" /></div>
         <div class="form-group"><label>Par total</label><input type="number" id="ee-par" value="${ev.par}" inputmode="numeric"></div>
       </div>
     </div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Men's index</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
-      <div class="form-group"><label>Rating</label><input type="number" step="0.1" id="ee-cr" value="${ev.course_rating}" inputmode="numeric"></div>
-      <div class="form-group"><label>Slope</label><input type="number" id="ee-slope" value="${ev.slope_rating}" inputmode="numeric"></div>
-      <div class="form-group"><label>Par</label><input type="number" id="ee-mpar" value="${ev.par}" inputmode="numeric"></div>
+
+    <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.textContent=this.textContent.includes('▾')?'Advanced settings ▴':'Advanced settings ▾'" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text-2);font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;margin-bottom:12px;text-align:left">Advanced settings ▾</button>
+    <div style="display:none">
+      <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Men's index</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group"><label>Course rating</label><input type="number" step="0.1" id="ee-cr" value="${ev.course_rating}" inputmode="numeric"></div>
+          <div class="form-group"><label>Slope</label><input type="number" id="ee-slope" value="${ev.slope_rating}" inputmode="numeric"></div>
+        </div>
+        <div class="form-group"><label>Par</label><input type="number" id="ee-mpar" value="${ev.par}" inputmode="numeric"></div>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Women's index</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group"><label>Course rating</label><input type="number" step="0.1" id="ee-wcr" value="${ev.womens_course_rating||''}" placeholder="optional" inputmode="numeric"></div>
+          <div class="form-group"><label>Slope</label><input type="number" id="ee-wslope" value="${ev.womens_slope_rating||''}" placeholder="optional" inputmode="numeric"></div>
+        </div>
+        <div class="form-group"><label>Par</label><input type="number" id="ee-wpar" value="${ev.womens_par||''}" placeholder="optional" inputmode="numeric"></div>
+      </div>
     </div>
-    <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Women's index</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
-      <div class="form-group"><label>Rating</label><input type="number" step="0.1" id="ee-wcr" value="${ev.womens_course_rating||''}" placeholder="optional" inputmode="numeric"></div>
-      <div class="form-group"><label>Slope</label><input type="number" id="ee-wslope" value="${ev.womens_slope_rating||''}" placeholder="optional" inputmode="numeric"></div>
-      <div class="form-group"><label>Par</label><input type="number" id="ee-wpar" value="${ev.womens_par||''}" placeholder="optional" inputmode="numeric"></div>
-    </div>
+
     <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Men's par per hole</div>
     ${holeRow('ee-ph', pars, '4', 3, 5)}
     <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Women's par per hole</div>
