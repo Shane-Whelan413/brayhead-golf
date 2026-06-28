@@ -1340,7 +1340,7 @@ function fmtDate(d) {
   return new Date(y, m-1, day).toLocaleDateString('en-IE',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
 }
 
-function calcStableford(score, par, allowance) { return Math.max(0, par - (score - allowance) + 2); }
+function calcStableford(score, par, allowance) { return Math.min(4, Math.max(0, par - (score - allowance) + 2)); }
 function calcCourseHcp(idx, slope, cr, par) { return Math.min(18, Math.round(idx)); }
 function calcNewHcp(hcpIdx, totalPts, position, eventDate) {
   var newRule = eventDate && eventDate >= '2026-05-31';
