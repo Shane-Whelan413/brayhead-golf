@@ -2957,26 +2957,12 @@ async function saveRound() {
     if (scores[i]!==null) totalPts += calcStableford(scores[i], parVals[i], getStrokeAllowance(courseHcp, siVals[i], n));
   }
   const gross = scores.reduce((a,b)=>a+(b||0),0);
-  let newHcp;
-  if (isProvisional && !isOuting) {
-    // Provisional players stay at 7.0 until 3 Sundays are verified
-    newHcp = 7.0;
-  } else if (isOuting) {
-    const outingRounds = db.rounds.filter(r=>r.event_id===eid);
-    const allOutingPts = [...outingRounds.map(r=>r.stableford_points), totalPts].sort((a,b)=>b-a);
-    const outingPos = allOutingPts.indexOf(totalPts) + 1;
-    newHcp = calcNewHcpOuting(hcpIdx, totalPts, outingPos);
-  } else {
-    const eventRounds = db.rounds.filter(r=>r.event_id===eid);
-    const allPts = [...eventRounds.map(r=>r.stableford_points), totalPts].sort((a,b)=>b-a);
-    const position = allPts.indexOf(totalPts) + 1;
-    newHcp = calcNewHcp(hcpIdx, totalPts, position, ev.event_date);
-  }
 
   const btn = document.getElementById('btn-save-round');
   btn.disabled=true; btn.textContent='Saving…';
   try {
-    await post('rounds',{ event_id:eid, player_id:pid, hole_scores:scores, par_values:parVals, stableford_points:totalPts, gross_score:gross, course_handicap:courseHcp, handicap_before:hcpIdx, handicap_after:newHcp, league_points:0 });
+    // handicap_after is left null — calculated correctly at verification when all scores are in
+    await post('rounds',{ event_id:eid, player_id:pid, hole_scores:scores, par_values:parVals, stableford_points:totalPts, gross_score:gross, course_handicap:courseHcp, handicap_before:hcpIdx, handicap_after:null, league_points:0 });
     // If this is an outing, clear the player's pending penalty — it's been used
     if (isOuting && pl.next_outing_penalty > 0) {
       await patch(`players?id=eq.${pid}`, { next_outing_penalty: 0 });
