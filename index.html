@@ -1463,13 +1463,27 @@ function calcBestHalf(rounds, half, excludePlayerIds) {
 }
 
 function assignLeaguePts(rounds) {
-  const sorted = [...rounds].sort((a,b) => {
+  // Split provisional and non-provisional
+  const isProvisional = (r) => {
+    const pl = db.players.find(p=>p.id===r.player_id);
+    return pl && pl.provisional === true;
+  };
+  const fullMembers = rounds.filter(r => !isProvisional(r));
+  const provisionals = rounds.filter(r => isProvisional(r));
+
+  // Rank full members normally
+  const sorted = [...fullMembers].sort((a,b) => {
     if (b.stableford_points !== a.stableford_points) return b.stableford_points - a.stableford_points;
     return tiebreakerCompare(a, b);
   });
   sorted.forEach((r,i) => { r._lp = LEAGUE_PTS(i+1); });
-  return sorted;
+
+  // Provisional players always get 6pts and placed last
+  provisionals.forEach(r => { r._lp = 6; r._provisional = true; });
+
+  return [...sorted, ...provisionals];
 }
+
 
 async function loadAll() {
   const fetchWithTimeout = (path, ms=8000) => {
@@ -4895,10 +4909,14 @@ function renderHome() {
 
     const top3 = ranked.map((r, i) => {
       const p = db.players.find(x => x.id === r.player_id);
+      const isProvis = p && p.provisional === true;
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid #f0ece5">'
         + '<div style="width:28px;height:28px;border-radius:50%;background:'+medalBg[i]+';color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>'
         + avatarHtml(p||{name:'?'}, 30, 10)
-        + '<div style="flex:1;font-size:13px;font-weight:'+(i===0?'700':'400')+';color:'+(i===0?'#0a1628':'#444441')+'">'+(p?p.name:'?')+'</div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:13px;font-weight:'+(i===0?'700':'400')+';color:'+(i===0?'#0a1628':'#444441')+'">'+(p?p.name:'?')+'</div>'
+        + (isProvis ? '<div style="font-size:10px;color:#9a9080">Provisional</div>' : '')
+        + '</div>'
         + '<div style="font-size:16px;font-weight:800;color:'+medalCol[i]+'">'+r.stableford_points+'<span style="font-size:10px;font-weight:400;color:#b4b2a9"> pts</span></div>'
         + '</div>';
     }).join('');
