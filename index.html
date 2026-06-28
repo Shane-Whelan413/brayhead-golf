@@ -2968,11 +2968,21 @@ async function saveRound() {
       await patch(`players?id=eq.${pid}`, { next_outing_penalty: 0 });
     }
     toast(`Saved! ${totalPts} stableford pts · Pending verification`, 'success');
-    resetHoleInputs(n);
+    // Clear scores and reset for next player
     try {
       const pid2 = document.getElementById('r-player')?.value;
       const eid2 = document.getElementById('r-event')?.value;
       if (pid2 && eid2) localStorage.removeItem('bhgs_scores_'+eid2+'_'+pid2);
+    } catch(e) {}
+    // Reset player dropdown and hole inputs
+    const rp = document.getElementById('r-player');
+    if (rp) { rp.value = ''; rp.dataset.prevPid = ''; }
+    const hi = document.getElementById('hole-inputs');
+    if (hi) { hi.dataset.buildKey = ''; hi.innerHTML = ''; }
+    // Clear live round for submitted player
+    try {
+      const eid2 = document.getElementById('r-event')?.value;
+      if (eid2 && pid) fetch(`${SUPABASE_URL}/rest/v1/live_rounds?event_id=eq.${eid2}&player_id=eq.${pid}`,{method:'DELETE',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}}).catch(()=>{});
     } catch(e) {}
     document.getElementById('round-summary').classList.remove('show');
     await loadAll(); renderAll();
