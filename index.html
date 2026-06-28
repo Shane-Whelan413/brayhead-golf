@@ -4462,42 +4462,54 @@ function viewEventResults(eid) {
     if (parts.length) extrasHtml = `<div style="margin-bottom:1rem">${parts.join('')}</div>`;
   }
 
-  // Player rows
-  const rowsHtml = ranked.map((r,i) => {
+  // Split full members and provisionals
+  const fullRanked = ranked.filter(r => !r._provisional);
+  const provisionalRanked = ranked.filter(r => r._provisional);
+
+  const renderRow = (r, i, isProvis) => {
     const p = db.players.find(x=>x.id===r.player_id);
-    const isTop3 = i < 3;
+    const isTop3 = !isProvis && i < 3;
     const medals = ['🥇','🥈','🥉'];
     const rankBgs = ['rgba(201,168,76,0.12)','rgba(211,209,199,0.1)','rgba(240,153,123,0.1)'];
     const rankBorderColors = ['rgba(201,168,76,0.4)','rgba(211,209,199,0.3)','rgba(240,153,123,0.3)'];
     const hcpChange = r.handicap_after && r.handicap_before
-      ? parseFloat(r.handicap_after) - parseFloat(r.handicap_before)
-      : null;
+      ? parseFloat(r.handicap_after) - parseFloat(r.handicap_before) : null;
     const hcpChangeStr = hcpChange !== null
-      ? (hcpChange > 0 ? `+${hcpChange.toFixed(1)}` : hcpChange.toFixed(1))
-      : null;
+      ? (hcpChange > 0 ? `+${hcpChange.toFixed(1)}` : hcpChange.toFixed(1)) : null;
     const hcpCol = hcpChange !== null ? (hcpChange > 0 ? '#A32D2D' : '#2a6b1a') : 'var(--text-3)';
+    const provRounds = p?.provisional_rounds || 0;
 
-    return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border);${isTop3?`background:${rankBgs[i]};border-radius:8px;padding:10px;margin-bottom:4px;border:1px solid ${rankBorderColors[i]};`:'' }">
+    return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border);${isTop3?`background:${rankBgs[i]};border-radius:8px;padding:10px;margin-bottom:4px;border:1px solid ${rankBorderColors[i]};`:''}">
       <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:30px;height:30px;border-radius:50%;background:${isTop3?'transparent':'var(--bg)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:${isTop3?'20':'13'}px;font-weight:600;color:var(--text-3)">${isTop3?medals[i]:i+1}</div>
+        <div style="width:30px;height:30px;border-radius:50%;background:${isTop3?'transparent':isProvis?'rgba(0,0,0,0.04)':'var(--bg)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:${isTop3?'20':'13'}px;font-weight:600;color:var(--text-3)">${isTop3?medals[i]:isProvis?'—':i+1}</div>
         ${avatarHtml(p||{name:'?'}, 34, 12)}
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:${isTop3?'600':'500'};color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p?p.name:'Unknown'}</div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:3px;flex-wrap:wrap">
+            ${isProvis ? `<span style="font-size:11px;font-weight:600;color:#9a9080;background:var(--bg);padding:1px 7px;border-radius:99px">Provisional · ${provRounds}/3 rounds</span>` : `
             <span style="font-size:11px;color:var(--text-3)">Gross ${r.gross_score||'—'}</span>
             <span style="font-size:11px;color:var(--text-3)">·</span>
             <span style="font-size:11px;color:var(--text-3)">Hcp ${r.course_handicap}</span>
-            ${hcpChangeStr ? `<span style="font-size:11px;color:var(--text-3)">·</span><span style="font-size:11px;font-weight:600;color:${hcpCol}">Hcp ${hcpChangeStr}</span>` : ''}
+            ${hcpChangeStr ? `<span style="font-size:11px;color:var(--text-3)">·</span><span style="font-size:11px;font-weight:600;color:${hcpCol}">Hcp ${hcpChangeStr}</span>` : ''}`}
           </div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:18px;font-weight:700;color:${isTop3?'#C9A84C':'var(--text-2)'}">${r.stableford_points}</div>
+          <div style="font-size:18px;font-weight:700;color:${isTop3?'#C9A84C':isProvis?'var(--text-3)':'var(--text-2)'}">${r.stableford_points}</div>
           <div style="font-size:9px;color:var(--text-3)">pts</div>
-          <div style="font-size:11px;font-weight:600;color:var(--text-3);margin-top:2px">${r._lp} lp</div>
+          ${!isProvis ? `<div style="font-size:11px;font-weight:600;color:var(--text-3);margin-top:2px">${r._lp} lp</div>` : ''}
         </div>
       </div>
     </div>`;
-  }).join('');
+  };
+
+  const rowsHtml = fullRanked.map((r,i) => renderRow(r, i, false)).join('')
+    + (provisionalRanked.length ? `
+      <div style="display:flex;align-items:center;gap:8px;margin:12px 0 8px">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font-size:10px;font-weight:600;color:var(--text-3);letter-spacing:.06em;text-transform:uppercase">Provisional</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      ` + provisionalRanked.map((r,i) => renderRow(r, i, true)).join('') : '');
 
   document.getElementById('modal-body').innerHTML = summaryHtml + extrasHtml + rowsHtml;
 
@@ -4909,14 +4921,10 @@ function renderHome() {
 
     const top3 = ranked.map((r, i) => {
       const p = db.players.find(x => x.id === r.player_id);
-      const isProvis = p && p.provisional === true;
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid #f0ece5">'
         + '<div style="width:28px;height:28px;border-radius:50%;background:'+medalBg[i]+';color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>'
         + avatarHtml(p||{name:'?'}, 30, 10)
-        + '<div style="flex:1;min-width:0">'
-        + '<div style="font-size:13px;font-weight:'+(i===0?'700':'400')+';color:'+(i===0?'#0a1628':'#444441')+'">'+(p?p.name:'?')+'</div>'
-        + (isProvis ? '<div style="font-size:10px;color:#9a9080">Provisional</div>' : '')
-        + '</div>'
+        + '<div style="flex:1;font-size:13px;font-weight:'+(i===0?'700':'400')+';color:'+(i===0?'#0a1628':'#444441')+'">'+(p?p.name:'?')+'</div>'
         + '<div style="font-size:16px;font-weight:800;color:'+medalCol[i]+'">'+r.stableford_points+'<span style="font-size:10px;font-weight:400;color:#b4b2a9"> pts</span></div>'
         + '</div>';
     }).join('');
