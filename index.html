@@ -863,6 +863,7 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:10px">
         <span class="card-title" style="margin:0">Season standings</span>
         <div style="display:flex;gap:6px">
+          <button id="lb-share-btn" onclick="shareLeaderboard()" style="display:none;padding:6px 12px;border-radius:99px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">📤 Share</button>
           <button id="lbf-all" onclick="setLbFilter('all')" style="padding:6px 12px;border-radius:99px;border:1px solid var(--border-strong);background:#0a1628;color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">All</button>
           <button id="lbf-sunday_9" onclick="setLbFilter('sunday_9')" style="padding:6px 12px;border-radius:99px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Sundays</button>
           <button id="lbf-outing_18" onclick="setLbFilter('outing_18')" style="padding:6px 12px;border-radius:99px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Outings</button>
@@ -1566,6 +1567,54 @@ function getLeaderboardPositions(publishedEids) {
     positions[sorted[i].id] = { pos, lp: sorted[i].lp };
   }
   return positions;
+}
+
+function shareLeaderboard() {
+  const filterValEl = document.getElementById('lb-filter-val');
+  const filter = filterValEl ? filterValEl.value : 'all';
+  const evs = filter === 'all' ? db.events : db.events.filter(e => e.event_type === filter);
+  const publishedEids = new Set(evs.filter(e => e.published).map(e => e.id));
+  const lbPositions = getLeaderboardPositions(publishedEids);
+
+  const filterLabel = filter === 'sunday_9' ? 'Sundays' : filter === 'outing_18' ? 'Outings' : 'All Events';
+  const eventsPlayed = db.events.filter(e => e.published && publishedEids.has(e.id)).length;
+
+  // Build top 10 full members sorted by position
+  const top10 = db.players
+    .filter(p => !p.provisional && lbPositions[p.id]?.lp > 0)
+    .map(p => ({ ...p, pos: lbPositions[p.id]?.pos || 999, lp: lbPositions[p.id]?.lp || 0 }))
+    .sort((a, b) => a.pos - b.pos || b.lp - a.lp)
+    .slice(0, 10);
+
+  if (!top10.length) { toast('No standings to share yet', 'error'); return; }
+
+  const medals = ['🥇', '🥈', '🥉'];
+  const posLabel = i => i < 3 ? medals[i] : `${i + 1}.`;
+
+  const rows = top10.map((p, i) => {
+    const hcp = parseFloat(p.handicap_index).toFixed(1);
+    return `${posLabel(i)}  ${p.name}  ${p.lp}pts  (Hcp ${hcp})`;
+  }).join('\n');
+
+  const today = new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' });
+  const text = `🏌️ Bray Head Golf Society\nSeason Standings — ${filterLabel}\n${today} · ${eventsPlayed} event${eventsPlayed !== 1 ? 's' : ''} played\n\n${rows}\n\nbrayhead-golf.github.io`;
+
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(text).then(() => {
+      toast('Standings copied to clipboard!', 'success');
+    }).catch(() => {
+      // Fallback: show in a modal the user can copy manually
+      document.getElementById('modal-title').textContent = 'Share standings';
+      document.getElementById('modal-body').innerHTML = `
+        <p style="font-size:13px;color:var(--text-3);margin-bottom:10px">Copy and paste into WhatsApp:</p>
+        <textarea readonly onclick="this.select()" style="width:100%;height:220px;font-size:13px;font-family:monospace;padding:10px;border:1px solid var(--border);border-radius:var(--radius);resize:none;background:var(--bg);color:var(--text)">${text}</textarea>
+        <button class="btn primary" style="width:100%;margin-top:10px" onclick="navigator.clipboard.writeText(document.querySelector('#modal-body textarea').value).then(()=>toast('Copied!','success'))">Copy to clipboard</button>
+      `;
+      document.getElementById('modal-overlay').classList.add('open');
+    });
+  }
 }
 
 function setLbFilter(val) {
@@ -8967,6 +9016,8 @@ function updateUIForRole() {
   if (adminLinks) adminLinks.style.display = isAdmin ? '' : 'none';
   const adminMenuBtn = document.getElementById('btn-admin-menu');
   if (adminMenuBtn) adminMenuBtn.style.display = isAdmin ? '' : 'none';
+  const lbShareBtn = document.getElementById('lb-share-btn');
+  if (lbShareBtn) lbShareBtn.style.display = isAdmin ? '' : 'none';
   const addPlayerCard = document.getElementById('add-player-card');
   if (addPlayerCard) addPlayerCard.style.display = isAdmin ? '' : 'none';
   const createEventCard = document.getElementById('create-event-card');
