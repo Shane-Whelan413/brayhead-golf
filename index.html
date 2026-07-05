@@ -1552,8 +1552,9 @@ function getLeaderboardPositions(publishedEids) {
     const rounds = allPlayerRounds[pid].sort((a,b)=>b._lp-a._lp).slice(0,33);
     totals[pid] = rounds.reduce((s,r)=>s+r._lp, 0);
   }
-  // Sort all players by total lp — include all players even those with 0
-  const sorted = db.players
+  // Sort full members only — provisionals are excluded from standings
+  const fullMembers = db.players.filter(p => !p.provisional);
+  const sorted = fullMembers
     .map(p => ({ id: p.id, lp: totals[p.id] || 0 }))
     .sort((a,b) => b.lp - a.lp);
 
@@ -1697,7 +1698,7 @@ function renderLeaderboard() {
   const lbPositions = getLeaderboardPositions(publishedEids);
   const outingPenalties = filter !== 'sunday_9' ? getPreviousOutingPositions() : {};
   const prevPositions = filter === 'all' ? getPreviousLeaderboardPositions(publishedEids) : {};
-  const rows = db.players.map(p => {
+  const rows = db.players.filter(p => !p.provisional).map(p => {
     const pos = lbPositions[p.id]?.pos || 0;
     const lp  = lbPositions[p.id]?.lp  || 0;
     const playerRounds = db.rounds.filter(r=>r.player_id===p.id && r.verified && publishedEids.has(r.event_id));
