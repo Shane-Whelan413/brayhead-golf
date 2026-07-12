@@ -2049,9 +2049,12 @@ function buildHoleInputs(n) {
       </div>
 
       <!-- Round total bar -->
-      <div id="hse-round-total" style="background:rgba(201,168,76,0.08);border-top:0.5px solid rgba(201,168,76,0.2);border-bottom:0.5px solid rgba(201,168,76,0.2);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-        <div style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Round total</div>
-        <div style="display:flex;gap:20px;align-items:center">
+      <div id="hse-round-total" style="background:rgba(201,168,76,0.08);border-top:0.5px solid rgba(201,168,76,0.2);border-bottom:0.5px solid rgba(201,168,76,0.2);padding:8px 12px;flex-shrink:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Round total</div>
+          <div id="hse-hcp-label" style="font-size:11px;color:rgba(201,168,76,0.7);font-weight:600"></div>
+        </div>
+        <div style="display:flex;gap:16px;align-items:center;justify-content:space-between">
           <div style="text-align:center">
             <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em">Gross</div>
             <div style="font-size:18px;font-weight:800;color:white;line-height:1" id="hse-gross-total">—</div>
@@ -2065,6 +2068,16 @@ function buildHoleInputs(n) {
           <div style="text-align:center">
             <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em">Holes</div>
             <div style="font-size:18px;font-weight:800;color:white;line-height:1" id="hse-holes-done">0/${n}</div>
+          </div>
+          <div style="width:0.5px;height:28px;background:rgba(255,255,255,0.15)"></div>
+          <div style="text-align:center">
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em">F9 pts</div>
+            <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,0.6);line-height:1" id="hse-f9-pts">—</div>
+          </div>
+          <div style="width:0.5px;height:28px;background:rgba(255,255,255,0.15)"></div>
+          <div style="text-align:center">
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em">B9 pts</div>
+            <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,0.6);line-height:1" id="hse-b9-pts">—</div>
           </div>
         </div>
       </div>
@@ -2246,6 +2259,49 @@ function hseRenderStrip() {
     ptsEl.style.color = ptsTotal > 0 ? '#a3e635' : ptsTotal < 0 ? '#f87171' : 'rgba(255,255,255,0.4)';
   }
   if (holesEl) holesEl.textContent = `${holesDone}/${hseState.n}`;
+
+  // F9 / B9 sub-totals (18-hole only)
+  const f9El = document.getElementById('hse-f9-pts');
+  const b9El = document.getElementById('hse-b9-pts');
+  if (f9El && b9El) {
+    if (hseState.n === 18 && ev && pl) {
+      const isOuting = ev.event_type === 'outing_18';
+      const courseHcp18 = isOuting
+        ? calcOutingCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par, pl.id)
+        : calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
+      const parValsAll = getParValues(18, ev, pl);
+      const siValsAll = getSIValues(18, ev, pl);
+      let f9pts = 0, b9pts = 0, f9done = false, b9done = false;
+      for (let i = 1; i <= 18; i++) {
+        const inp = document.getElementById('h'+i);
+        if (inp?.value) {
+          const sc = parseInt(inp.value);
+          const shots = getStrokeAllowance(courseHcp18, siValsAll[i-1], 18);
+          const pts = calcStableford(sc, parValsAll[i-1], shots);
+          if (i <= 9) { f9pts += pts; f9done = true; }
+          else { b9pts += pts; b9done = true; }
+        }
+      }
+      f9El.textContent = f9done ? f9pts : '—';
+      b9El.textContent = b9done ? b9pts : '—';
+      f9El.style.display = ''; b9El.style.display = '';
+    } else {
+      f9El.style.display = 'none'; b9El.style.display = 'none';
+      // Also hide their separator dividers for 9-hole events
+    }
+  }
+
+  // Course handicap label
+  const hcpLabel = document.getElementById('hse-hcp-label');
+  if (hcpLabel && ev && pl) {
+    const isOuting = ev.event_type === 'outing_18';
+    const courseHcp = isOuting
+      ? calcOutingCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par, pl.id)
+      : calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
+    hcpLabel.textContent = `${pl.name.split(' ')[0]} · Course Hcp ${courseHcp}`;
+  } else if (hcpLabel) {
+    hcpLabel.textContent = '';
+  }
 }
 
 function hseSelectHole(h) {
