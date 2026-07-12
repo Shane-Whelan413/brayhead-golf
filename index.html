@@ -2203,7 +2203,9 @@ function hseRenderStrip() {
     if (score !== null && ev && pl) {
       const parVals = getParValues(n, ev, pl);
       const siVals = getSIValues(n, ev, pl);
-      const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
+      const courseHcp = ev.event_type === 'outing_18'
+        ? calcOutingCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par, pl.id)
+        : calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
       const shots = getStrokeAllowance(courseHcp, siVals[h-1], n);
       pts = calcStableford(score, parVals[h-1], shots);
       grossTotal += score;
@@ -2265,7 +2267,11 @@ function hseSelectHole(h) {
   const par = parVals[h-1] || '—';
   const si  = siVals[h-1]  || '—';
 
-  const courseHcp = ev && pl ? calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par) : 0;
+  const courseHcp = ev && pl ? (
+    ev.event_type === 'outing_18'
+      ? calcOutingCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par, pl.id)
+      : calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par)
+  ) : 0;
   const shotsRaw = ev && pl ? getStrokeAllowance(courseHcp, si, n) : 0;
 
   const hNum = document.getElementById('hse-hole-num');
@@ -2412,7 +2418,9 @@ function hseScore(h, val) {
     if (ev && pl) {
       const parVals = getParValues(n, ev, pl);
       const siVals = getSIValues(n, ev, pl);
-      const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
+      const courseHcp = ev.event_type === 'outing_18'
+        ? calcOutingCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par, pl.id)
+        : calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
       const shots = getStrokeAllowance(courseHcp, siVals[h-1], n);
       score = (parVals[h-1]||4) + shots + 2;
     } else { score = 8; }
@@ -2462,7 +2470,9 @@ async function upsertLiveRound(eid, pid) {
     let totalPts = 0, holesDone = 0, grossScore = 0;
     const siVals = getSIValues(n, ev, pl);
     const parVals = getParValues(n, ev, pl);
-    const courseHcp = calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
+    const courseHcp = ev.event_type === 'outing_18'
+      ? calcOutingCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par, pl.id)
+      : calcCourseHcp(parseFloat(pl.handicap_index)||0, ev.slope_rating, ev.course_rating, ev.par);
     for (let i = 1; i <= n; i++) {
       const inp = document.getElementById('h'+i);
       if (inp?.value) {
