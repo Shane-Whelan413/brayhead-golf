@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "ie.bhgs.app",
+        "sha256_cert_fingerprints": ["B8:6D:E6:8C:2A:90:14:AC:68:4C:15:84:F9:B3:AF:3C:CE:58:7D:95:76:06:0F:BB:36:D0:41:51:8B:46:74:A3"]
+      }
+    }]
