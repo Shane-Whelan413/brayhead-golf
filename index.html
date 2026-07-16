@@ -4761,7 +4761,7 @@ function renderSchedule() {
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${typeLabel}
           ${ev?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋</button>`:''}
-          ${ev?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="font-size:11px">Results</button>`:''}
+          ${ev?.published?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="font-size:11px">Results</button>`:''}
         </div>
       </div>`;
     }
@@ -4792,7 +4792,7 @@ function renderSchedule() {
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
         ${ev?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋 Hcp sheet</button>`:''}
-        ${ev?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0">Results</button>`:''}
+        ${ev?.published?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0">Results</button>`:''}
       </div>
     </div>`;
   };
