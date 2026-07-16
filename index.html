@@ -4755,7 +4755,8 @@ function renderSchedule() {
           ${courseName?`<div style="font-size:14px;font-weight:500;color:var(--text-2);margin-top:1px">${courseName}</div>`:''}
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          ${typeLabel}${captainsBadge}
+          ${typeLabel}
+          ${captainsBadge ? `<div style="margin-top:3px">${captainsBadge}</div>` : ''}
           ${ev?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋</button>`:''}
           ${ev?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="font-size:11px">Results</button>`:''}
         </div>
@@ -4767,7 +4768,8 @@ function renderSchedule() {
         ${numLabel}
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-            ${typeLabel}${captainsBadge}
+            ${typeLabel}
+            ${captainsBadge ? `<div style="margin-top:3px">${captainsBadge}</div>` : ''}
             <span style="font-size:10px;font-weight:700;color:#2a6b1a;background:#d4edcc;padding:2px 8px;border-radius:99px">Next round</span>
           </div>
           <div style="font-size:13px;color:#2a6b1a;font-weight:500">${fmtDate(d)}</div>
@@ -4780,7 +4782,7 @@ function renderSchedule() {
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">
       ${numLabel}
       <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">${typeLabel}${captainsBadge}</div>
+        <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:3px">${typeLabel}${captainsBadge}</div>
         <div style="font-size:13px;color:var(--text-2)">${fmtDate(d)}</div>
         ${courseName?`<div style="font-size:15px;font-weight:600;color:var(--text);margin-top:2px">${courseName}</div>`:''}
       </div>
