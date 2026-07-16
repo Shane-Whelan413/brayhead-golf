@@ -1907,6 +1907,16 @@ function updateCaptainsDayToggle() {
   thumb.style.transform = on ? 'translateX(18px)' : 'translateX(0)';
 }
 
+function updateEECaptainsDayToggle() {
+  const cb = document.getElementById('ee-captains-day');
+  const track = document.getElementById('ee-captains-day-track');
+  const thumb = document.getElementById('ee-captains-day-thumb');
+  if (!cb || !track || !thumb) return;
+  const on = cb.checked;
+  track.style.background = on ? '#C9A84C' : 'var(--border-strong)';
+  thumb.style.transform = on ? 'translateX(18px)' : 'translateX(0)';
+}
+
 function toggleCreateEvent() {
   const form = document.getElementById('create-event-form');
   const chev = document.getElementById('create-event-chevron');
@@ -3367,7 +3377,20 @@ function editEvent(eid) {
     ${holeRow('ee-si', si, (i)=>String(i), 1, n)}
     <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Women's stroke index</div>
     ${holeRow('ee-wsi', wsi, (i)=>String(i), 1, n)}
-    <button class="btn primary" onclick="saveEditedEvent('${eid}')" style="width:100%">Save changes</button>
+    <div style="padding-top:12px;border-top:1px solid var(--border);margin-top:4px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+        <div style="position:relative;width:42px;height:24px;flex-shrink:0">
+          <input type="checkbox" id="ee-captains-day" ${ev.is_captains_day?'checked':''} style="opacity:0;width:0;height:0;position:absolute">
+          <span onclick="document.getElementById('ee-captains-day').click();updateEECaptainsDayToggle()" id="ee-captains-day-track" style="position:absolute;inset:0;border-radius:99px;background:${ev.is_captains_day?'#C9A84C':'var(--border-strong)'};transition:background 0.2s;cursor:pointer"></span>
+          <span id="ee-captains-day-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:white;transition:transform 0.2s;transform:${ev.is_captains_day?'translateX(18px)':'translateX(0)'};pointer-events:none"></span>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">👑 Captain's Day</div>
+          <div style="font-size:11px;color:var(--text-3)">Marks this as the flagship event of the season</div>
+        </div>
+      </label>
+    </div>
+    <button class="btn primary" onclick="saveEditedEvent('${eid}')" style="width:100%;margin-top:12px">Save changes</button>
   `;
   document.getElementById('modal-overlay').classList.add('open');
 }
@@ -3392,13 +3415,15 @@ async function saveEditedEvent(eid) {
     const pv  = parseInt(document.getElementById('ee-ph'+i)?.value);  parVals.push(isNaN(pv)?4:pv);
     const wpv = parseInt(document.getElementById('ee-wph'+i)?.value); wparVals.push(isNaN(wpv)?parVals[i-1]:wpv);
   }
+  const isCaptainsDay = document.getElementById('ee-captains-day')?.checked || false;
   try {
     await patch(`events?id=eq.${eid}`, {
       course_name:name, event_date:date, par,
       course_rating:cr, slope_rating:slope,
       womens_course_rating:wcr, womens_slope_rating:wslope, womens_par:wpar,
       stroke_index:siVals, womens_stroke_index:wsiVals,
-      par_values:parVals, womens_par_values:wparVals
+      par_values:parVals, womens_par_values:wparVals,
+      is_captains_day: isCaptainsDay
     });
     toast('Event updated!', 'success');
     closeModal();
