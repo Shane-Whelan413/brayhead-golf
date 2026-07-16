@@ -4965,10 +4965,29 @@ function renderHome() {
   let countdownHtml = '';
   const t = new Date();
   const todayStr = t.toISOString().slice(0,10);
-  const nextEvent = [...db.events]
-    .filter(e => e.event_date > todayStr)
-    .sort((a,b) => a.event_date.localeCompare(b.event_date))[0];
-  if (nextEvent) {
+  const upcomingEvents = [...db.events]
+    .filter(e => e.event_date >= todayStr)
+    .sort((a,b) => a.event_date.localeCompare(b.event_date));
+  const nextEvent = upcomingEvents[0];
+
+  // Check if there's a Captain's Day within 14 days — if so, it takes over the countdown
+  const captainsEvent = upcomingEvents.find(e => e.is_captains_day);
+  const captainsDiff = captainsEvent ? Math.round((new Date(...captainsEvent.event_date.split('-').map((v,i)=>i===1?v-1:+v)) - new Date(t.getFullYear(),t.getMonth(),t.getDate())) / 86400000) : null;
+  const showCaptainsCountdown = captainsEvent && captainsDiff !== null && captainsDiff <= 14;
+
+  if (showCaptainsCountdown) {
+    const daysLabel = captainsDiff === 0 ? 'Today!' : captainsDiff === 1 ? 'Tomorrow' : `${captainsDiff} days to go`;
+    countdownHtml = '<div style="background:linear-gradient(135deg,#0a1628,#1a2f50);border:1.5px solid #C9A84C;border-radius:var(--radius-lg);padding:16px;margin-bottom:1rem">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+      + '<div>'
+      + '<div style="font-size:10px;color:#C9A84C;text-transform:uppercase;letter-spacing:.09em;font-weight:700;margin-bottom:4px">👑 Captain\'s Day</div>'
+      + '<div style="font-size:16px;font-weight:700;color:white;margin-bottom:2px">' + (captainsEvent.course_name||'') + '</div>'
+      + '<div style="font-size:11px;color:rgba(255,255,255,0.45)">' + fmtDate(captainsEvent.event_date) + '</div>'
+      + '</div>'
+      + '<div class="bhgs-countdown"><div class="bhgs-countdown-inner" style="background:#C9A84C;color:#0a1628;font-weight:800">' + daysLabel + '</div></div>'
+      + '</div>'
+      + '</div>';
+  } else if (nextEvent) {
     const [y,mo,d] = nextEvent.event_date.split('-').map(Number);
     const diff = Math.round((new Date(y,mo-1,d) - new Date(t.getFullYear(),t.getMonth(),t.getDate())) / 86400000);
     const daysLabel = diff===0?'Today!':diff===1?'Tomorrow':(diff+' days to go');
