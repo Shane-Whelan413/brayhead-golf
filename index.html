@@ -982,6 +982,19 @@
           <button class="btn primary" id="btn-add-event" onclick="addEvent()">Create event</button>
           <button class="btn" onclick="saveCourse()" style="background:#EEEDFE;color:#3C3489;border-color:#AFA9EC">Save this course</button>
         </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+            <div style="position:relative;width:42px;height:24px;flex-shrink:0">
+              <input type="checkbox" id="e-captains-day" style="opacity:0;width:0;height:0;position:absolute">
+              <span onclick="document.getElementById('e-captains-day').click();updateCaptainsDayToggle()" id="e-captains-day-track" style="position:absolute;inset:0;border-radius:99px;background:var(--border-strong);transition:background 0.2s;cursor:pointer"></span>
+              <span id="e-captains-day-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:white;transition:transform 0.2s;pointer-events:none"></span>
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--text)">👑 Captain's Day</div>
+              <div style="font-size:11px;color:var(--text-3)">Marks this as the flagship event of the season</div>
+            </div>
+          </label>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -1882,6 +1895,16 @@ function renderPlayers() {
       </div>` : ''}
     </div>`;
   }).join('');
+}
+
+function updateCaptainsDayToggle() {
+  const cb = document.getElementById('e-captains-day');
+  const track = document.getElementById('e-captains-day-track');
+  const thumb = document.getElementById('e-captains-day-thumb');
+  if (!cb || !track || !thumb) return;
+  const on = cb.checked;
+  track.style.background = on ? '#C9A84C' : 'var(--border-strong)';
+  thumb.style.transform = on ? 'translateX(18px)' : 'translateX(0)';
 }
 
 function toggleCreateEvent() {
@@ -3258,9 +3281,10 @@ async function addEvent() {
     const wpv = parseInt(document.getElementById('e-wpar-h'+i)?.value);
     wparVals.push(isNaN(wpv) ? (isNaN(pv) ? 4 : pv) : wpv);
   }
+  const isCaptainsDay = document.getElementById('e-captains-day')?.checked || false;
   const btn = document.getElementById('btn-add-event'); btn.disabled=true;
   try {
-    await post('events',{ event_date:date, event_type:type, course_name:course, course_rating:cr, slope_rating:slope, par, womens_course_rating:wcr, womens_slope_rating:wslope, womens_par:wpar, stroke_index:siVals, womens_stroke_index:wsiVals, par_values:parVals, womens_par_values:wparVals });
+    await post('events',{ event_date:date, event_type:type, course_name:course, course_rating:cr, slope_rating:slope, par, womens_course_rating:wcr, womens_slope_rating:wslope, womens_par:wpar, stroke_index:siVals, womens_stroke_index:wsiVals, par_values:parVals, womens_par_values:wparVals, is_captains_day:isCaptainsDay });
     await loadAll();
     // Notify all members of new fixture
     const allPlayerIds = db.players.map(p=>p.id);
@@ -4686,6 +4710,9 @@ function renderSchedule() {
     const typeLabel = isOutingRow
       ? `<span style="font-size:10px;font-weight:600;color:#3C3489;background:#EEEDFE;padding:2px 8px;border-radius:99px">Outing ${outingNum}</span>`
       : `<span style="font-size:10px;font-weight:600;color:#1a3c6e;background:#edf2fa;padding:2px 8px;border-radius:99px">Sunday 9</span>`;
+    const captainsBadge = ev?.is_captains_day
+      ? `<span style="font-size:10px;font-weight:700;color:#7a5500;background:linear-gradient(135deg,#fff8e6,#fdefc0);border:1px solid #C9A84C;padding:2px 8px;border-radius:99px;margin-left:4px">👑 Captain's Day</span>`
+      : '';
 
     const numLabel = `<div style="flex-shrink:0;text-align:center;min-width:36px">
         <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
@@ -4705,7 +4732,7 @@ function renderSchedule() {
           ${courseName?`<div style="font-size:14px;font-weight:500;color:var(--text-2);margin-top:1px">${courseName}</div>`:''}
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          ${typeLabel}
+          ${typeLabel}${captainsBadge}
           ${ev?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋</button>`:''}
           ${ev?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="font-size:11px">Results</button>`:''}
         </div>
@@ -4717,7 +4744,7 @@ function renderSchedule() {
         ${numLabel}
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-            ${typeLabel}
+            ${typeLabel}${captainsBadge}
             <span style="font-size:10px;font-weight:700;color:#2a6b1a;background:#d4edcc;padding:2px 8px;border-radius:99px">Next round</span>
           </div>
           <div style="font-size:13px;color:#2a6b1a;font-weight:500">${fmtDate(d)}</div>
@@ -4730,7 +4757,7 @@ function renderSchedule() {
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">
       ${numLabel}
       <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">${typeLabel}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">${typeLabel}${captainsBadge}</div>
         <div style="font-size:13px;color:var(--text-2)">${fmtDate(d)}</div>
         ${courseName?`<div style="font-size:15px;font-weight:600;color:var(--text);margin-top:2px">${courseName}</div>`:''}
       </div>
@@ -5054,21 +5081,40 @@ function renderHome() {
         + '</div>'
       : '';
 
+    // Captain's Day winner card
+    const captainsCard = n.captains_winner
+      ? '<div style="margin:0 12px 12px;border:2px solid #C9A84C;border-radius:10px;overflow:hidden">'
+        + '<div style="background:linear-gradient(135deg,#0a1628,#1a2f50);padding:12px 14px">'
+        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:'+(n.captains_outgoing?'10':'0')+'px">'
+        + '<div style="font-size:26px">👑</div>'
+        + '<div><div style="font-size:14px;font-weight:700;color:#C9A84C">Captain\'s Day Winner</div>'
+        + '<div style="font-size:13px;color:white;font-weight:600;margin-top:1px">'+n.captains_winner+'</div></div>'
+        + '</div>'
+        + (n.captains_outgoing||n.captains_incoming ? '<div style="height:0.5px;background:rgba(201,168,76,0.3);margin-bottom:10px"></div>' : '')
+        + (n.captains_outgoing ? '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:2px">Outgoing captain</div><div style="font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;margin-bottom:8px">'+n.captains_outgoing+'</div>' : '')
+        + (n.captains_incoming ? '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:2px">New captain</div><div style="font-size:13px;color:#C9A84C;font-weight:700;margin-bottom:8px">'+n.captains_incoming+'</div>' : '')
+        + (n.captains_vice_captain ? '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:2px">New vice captain</div><div style="font-size:13px;color:rgba(255,255,255,0.85);font-weight:600">'+n.captains_vice_captain+'</div>' : '')
+        + '</div>'
+        + (n.captains_winner_photo_url ? '<img src="'+n.captains_winner_photo_url+'" style="width:100%;max-height:280px;object-fit:cover;display:block">' : '')
+        + '</div>'
+      : '';
+
     const customMsg = n.custom_text
       ? '<div style="padding:10px 16px;border-top:0.5px solid #e8e4de;font-size:13px;color:#444441;line-height:1.5;font-style:italic">"'+n.custom_text+'"</div>'
       : '';
 
+    const isCaptainsDayPost = ev?.is_captains_day === true;
     const uid2 = 'f'+Math.random().toString(36).slice(2);
-    return '<div style="background:white;border:1px solid #e8e4de;border-radius:14px;overflow:hidden;margin-bottom:10px">'
+    return '<div style="background:white;border:'+(isCaptainsDayPost?'2px solid #C9A84C':'1px solid #e8e4de')+';border-radius:14px;overflow:hidden;margin-bottom:10px">'
       // Header
       + '<div style="background:#0a1628;padding:14px 16px;position:relative">'
-      + '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5500,#C9A84C,#e8c04a,#C9A84C,#7a5500)"></div>'
+      + '<div style="position:absolute;top:0;left:0;right:0;height:'+(isCaptainsDayPost?'4':'3')+'px;background:linear-gradient(90deg,#7a5500,#C9A84C,#e8c04a,#C9A84C,#7a5500)"></div>'
       + '<div style="display:flex;align-items:center;gap:12px">'
       + '<img src="icon-192.png" style="width:40px;height:40px;border-radius:50%;border:1.5px solid rgba(201,168,76,0.5);flex-shrink:0;object-fit:cover" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
       + '<div style="width:40px;height:40px;border-radius:50%;background:rgba(201,168,76,0.15);border:1.5px solid rgba(201,168,76,0.4);display:none;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">⛳</div>'
       + '<div style="flex:1;min-width:0">'
-      + '<div style="font-family:\'DM Serif Display\',serif;font-size:17px;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(ev?ev.course_name:'Event')+'</div>'
-      + '<div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span style="font-size:11px;color:rgba(255,255,255,0.45)">'+(ev?fmtDate(ev.event_date):'')+'</span>'+typeTag+'</div>'
+      + '<div style="font-family:\'DM Serif Display\',serif;font-size:17px;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(isCaptainsDayPost?'👑 ':'')+(ev?ev.course_name:'Event')+'</div>'
+      + '<div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span style="font-size:11px;color:rgba(255,255,255,0.45)">'+(ev?fmtDate(ev.event_date):'')+'</span>'+typeTag+(isCaptainsDayPost?'<span style="font-size:10px;font-weight:700;color:#C9A84C;background:rgba(201,168,76,0.15);padding:2px 8px;border-radius:99px">Captain\'s Day</span>':'')+'</div>'
       + '</div></div></div>'
       // Podium
       + '<div style="padding:4px 16px 0">'+top3+'</div>'
@@ -5076,6 +5122,8 @@ function renderHome() {
       + extrasStrip
       // Hole in one
       + hioCard
+      // Captain's Day winner
+      + captainsCard
       // Custom message
       + customMsg
       // Footer
@@ -5928,7 +5976,7 @@ function maybeClosePostModal(e) { if(e.target===document.getElementById('post-up
 let wizardEid = null;
 let wizardStep = 1;
 const selectedBirdies = new Set();
-const wizardCache = { ctp: null, front: null, back: null, hioPlayer: null, hioHole: null, hioPhotoFile: null, hioPhotoUrl: null };
+const wizardCache = { ctp: null, front: null, back: null, hioPlayer: null, hioHole: null, hioPhotoFile: null, hioPhotoUrl: null, captainsWinner: null, captainsWinnerPhotoFile: null, captainsWinnerPhotoUrl: null, captainsOutgoing: null, captainsIncoming: null, captainsViceCaptain: null };
 
 function previewHioPhoto(event) {
   const file = event.target.files[0];
@@ -5940,6 +5988,19 @@ function previewHioPhoto(event) {
     const preview = document.getElementById('wiz-hio-photo-preview');
     const container = preview?.parentElement || document.querySelector('[onclick*="wiz-hio-photo-input"]');
     if (container) container.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:cover">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function previewCaptainsWinnerPhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  wizardCache.captainsWinnerPhotoFile = file;
+  wizardCache.captainsWinnerPhotoUrl = null;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const container = document.getElementById('wiz-cap-photo-area');
+    if (container) container.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:220px;border-radius:8px;object-fit:cover;border:2px solid #C9A84C">`;
   };
   reader.readAsDataURL(file);
 }
@@ -5985,6 +6046,14 @@ function showWizardStep(step) {
    if (backEl)  wizardCache.back      = backEl.value   || null;
    if (hioPlEl) wizardCache.hioPlayer = hioPlEl.value  || null;
    if (hioHlEl) wizardCache.hioHole   = hioHlEl.value  || null;
+   const capWinEl  = document.getElementById('wiz-cap-winner');
+   const capOutEl  = document.getElementById('wiz-cap-outgoing');
+   const capInEl   = document.getElementById('wiz-cap-incoming');
+   const capVcEl   = document.getElementById('wiz-cap-vicecaptain');
+   if (capWinEl)  wizardCache.captainsWinner      = capWinEl.value  || null;
+   if (capOutEl)  wizardCache.captainsOutgoing    = capOutEl.value  || null;
+   if (capInEl)   wizardCache.captainsIncoming    = capInEl.value   || null;
+   if (capVcEl)   wizardCache.captainsViceCaptain = capVcEl.value   || null;
   haptic();
   wizardStep = step;
   const eid = wizardEid;
@@ -5992,7 +6061,8 @@ function showWizardStep(step) {
   if (!ev) return;
   const isOuting = ev.event_type === 'outing_18';
   const existing = db.noticeboard.find(n=>n.event_id===eid);
-  const totalSteps = 5;
+  const isCaptainsDay = ev.is_captains_day === true;
+  const totalSteps = isCaptainsDay ? 6 : 5;
   const allRounds = db.rounds.filter(r=>r.event_id===eid);
   const ranked = assignLeaguePts(allRounds.map(r=>({...r})));
   const playerOptions = '<option value="">— none —</option>' + db.players.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
@@ -6157,7 +6227,53 @@ function showWizardStep(step) {
       if (sel && hioPlayer) sel.value = hioPlayer;
     }, 50);
 
-  } else if (step === 5) {
+  } else if (step === 5 && isCaptainsDay) {
+    document.getElementById('post-update-title').textContent = "👑 Captain's Day";
+    const existingWinnerPhoto = existing?.captains_winner_photo_url || '';
+    body += `
+      <div style="background:linear-gradient(135deg,#0a1628,#1a2f50);border:1px solid #C9A84C;border-radius:10px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+        <div style="font-size:28px">👑</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#C9A84C">Captain's Day handover</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6)">Record the winner and captaincy change</div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px">Competition winner</div>
+      <select id="wiz-cap-winner" style="width:100%;height:44px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;padding:0 11px;margin-bottom:14px">${playerOptions}</select>
+
+      <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px">Winner photo (optional)</div>
+      <div id="wiz-cap-photo-area" style="border:2px dashed #C9A84C;border-radius:var(--radius);padding:20px;text-align:center;margin-bottom:14px;cursor:pointer;background:rgba(201,168,76,0.04)" onclick="document.getElementById('wiz-cap-photo-input').click()">
+        ${existingWinnerPhoto
+          ? `<img src="${existingWinnerPhoto}" style="max-width:100%;max-height:220px;border-radius:8px;object-fit:cover;border:2px solid #C9A84C">`
+          : `<div style="font-size:28px;margin-bottom:6px">📸</div>
+             <div style="font-size:13px;color:var(--text-3)">Tap to add from camera roll</div>`}
+      </div>
+      <input type="file" id="wiz-cap-photo-input" accept="image/*" style="display:none" onchange="previewCaptainsWinnerPhoto(event)">
+
+      <div style="height:1px;background:var(--border);margin:14px 0"></div>
+      <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:4px">Outgoing captain</div>
+      <input id="wiz-cap-outgoing" placeholder="e.g. Willie" value="${wizardCache.captainsOutgoing||existing?.captains_outgoing||''}"
+        style="width:100%;height:44px;padding:0 12px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:10px">
+      <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:4px">New captain</div>
+      <input id="wiz-cap-incoming" placeholder="e.g. Billy" value="${wizardCache.captainsIncoming||existing?.captains_incoming||''}"
+        style="width:100%;height:44px;padding:0 12px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:10px">
+      <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:4px">New vice captain</div>
+      <input id="wiz-cap-vicecaptain" placeholder="e.g. Name" value="${wizardCache.captainsViceCaptain||existing?.captains_vice_captain||''}"
+        style="width:100%;height:44px;padding:0 12px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:1.25rem">
+
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="showWizardStep(4)" style="flex:1">← Back</button>
+        <button class="btn primary" onclick="showWizardStep(6)" style="flex:2">Next →</button>
+      </div>`;
+    setTimeout(()=>{
+      const sel = document.getElementById('wiz-cap-winner');
+      if (sel && (wizardCache.captainsWinner||existing?.captains_winner)) sel.value = wizardCache.captainsWinner||existing.captains_winner;
+    }, 50);
+
+  } else if (step === 5 || step === 6) {
+    // Step 5 for non-captains-day events, step 6 for captains-day events
+    const prevStep = isCaptainsDay ? 5 : 4;
     document.getElementById('post-update-title').textContent = 'Post & Publish';
     body += `
       <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Custom announcement</div>
@@ -6176,7 +6292,7 @@ function showWizardStep(step) {
         </div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn" onclick="showWizardStep(4)" style="flex:1">← Back</button>
+        <button class="btn" onclick="showWizardStep(${prevStep})" style="flex:1">← Back</button>
         <button class="btn primary" id="wiz-post-btn" onclick="saveWizard()" style="flex:2">✓ Post to home page</button>
       </div>`;
   }
@@ -6254,8 +6370,28 @@ async function saveWizard() {
   const hioPlayer = wizardCache.hioPlayer || null;
   const hioHole   = wizardCache.hioHole   ? parseInt(wizardCache.hioHole) : null;
 
+  // Upload Captain's Day winner photo if provided
+  let captainsWinnerPhotoUrl = existing?.captains_winner_photo_url || null;
+  if (wizardCache.captainsWinnerPhotoFile) {
+    try {
+      const file = wizardCache.captainsWinnerPhotoFile;
+      const ext = file.name.split('.').pop();
+      const path = `captains/${eid}_${Date.now()}.${ext}`;
+      const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': file.type },
+        body: file
+      });
+      if (uploadRes.ok) captainsWinnerPhotoUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
+    } catch(e) {}
+  }
+  const captainsWinner      = wizardCache.captainsWinner      || null;
+  const captainsOutgoing    = wizardCache.captainsOutgoing    || null;
+  const captainsIncoming    = wizardCache.captainsIncoming    || null;
+  const captainsViceCaptain = wizardCache.captainsViceCaptain || null;
+
   try {
-    const payload = { closest_to_pin:ctp, birdies, custom_text:custom, best_front_9, best_back_9, hole_in_one_player: hioPlayer, hole_in_one_hole: hioHole, hole_in_one_photo_url: hioPhotoUrl };
+    const payload = { closest_to_pin:ctp, birdies, custom_text:custom, best_front_9, best_back_9, hole_in_one_player: hioPlayer, hole_in_one_hole: hioHole, hole_in_one_photo_url: hioPhotoUrl, captains_winner: captainsWinner, captains_winner_photo_url: captainsWinnerPhotoUrl, captains_outgoing: captainsOutgoing, captains_incoming: captainsIncoming, captains_vice_captain: captainsViceCaptain };
     if (existing) {
       await patch(`noticeboard?id=eq.${existing.id}`, payload);
     } else {
