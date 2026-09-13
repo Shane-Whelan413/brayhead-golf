@@ -9611,10 +9611,12 @@ async function init() {
   try {
     const session = getStoredSession();
     if (session) {
-      if (session.role === 'admin') {
+      if (session.role === 'admin' && !session.playerId) {
+        // Password-only admin — no player, no welcome screen
         currentUser = session; isAdmin = true;
         hideLoginScreen(); updateUIForRole();
-      } else if (session.role === 'member') {
+      } else if (session.playerId) {
+        // Any PIN-based login (member or admin player)
         const p = db.players.find(x=>x.id===session.playerId);
         if (p) {
           const role = p.is_admin ? 'admin' : 'member';
@@ -9622,7 +9624,7 @@ async function init() {
           isAdmin = role === 'admin';
           hideLoginScreen(); updateUIForRole();
           renderAll();
-          if (p) showWelcomeScreen(p);
+          showWelcomeScreen(p);
         } else { showLoginScreen(); renderAll(); }
       } else {
         currentUser = session; hideLoginScreen(); updateUIForRole();
