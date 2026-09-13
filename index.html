@@ -4899,8 +4899,8 @@ function renderHome() {
   const feed  = document.getElementById('noticeboard-feed');
   const ql    = document.getElementById('admin-quick-links');
 
-  // Skip full re-render if data unchanged
-  const homeHash = JSON.stringify([db.events.length, db.rounds.filter(r=>!r.verified).length, db.rounds.length]);
+  // Skip full re-render if data unchanged (include _feedShowAll so accordion toggle forces re-render)
+  const homeHash = JSON.stringify([db.events.length, db.rounds.filter(r=>!r.verified).length, db.rounds.length, window._feedShowAll||false]);
   if (window._homeHash === homeHash && feed && feed.innerHTML.length > 100) return;
   window._homeHash = homeHash;
 
@@ -5186,17 +5186,33 @@ function renderHome() {
 
   let feedHtml = '';
   if (sorted.length) {
-    // Latest result — always expanded
+    // Latest result — always fully expanded
     feedHtml += renderResultCard(sorted[0], true);
-    // Older results — collapsed, hidden behind button
+    // Older results — each one an accordion: collapsed by default, tap header to expand
     if (sorted.length > 1) {
-      const showOlder = window._feedShowAll || false;
-      if (showOlder) {
-        feedHtml += sorted.slice(1).map(function(n){ return renderResultCard(n, false); }).join('');
-        feedHtml += '<button onclick="window._feedShowAll=false;renderHome()" style="width:100%;padding:10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text-3);font-size:12px;font-family:\'DM Sans\',sans-serif;cursor:pointer;margin-top:4px">Hide older ▲</button>';
-      } else {
-        feedHtml += '<button onclick="window._feedShowAll=true;renderHome()" style="width:100%;padding:10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-size:13px;font-family:\'DM Sans\',sans-serif;cursor:pointer;margin-top:4px">Show '+(sorted.length-1)+' older result'+(sorted.length>2?'s':'')+'</button>';
-      }
+      feedHtml += sorted.slice(1).map(function(n) {
+        const ev = db.events.find(e => e.id === n.event_id);
+        const eventRounds = db.rounds.filter(r => r.event_id === n.event_id && r.verified);
+        const top = eventRounds.sort((a,b) => (b.stableford_points||0)-(a.stableford_points||0))[0];
+        const winner = top ? (db.players.find(p => p.id === top.player_id)||{}).name || '—' : '—';
+        const dateStr = ev ? fmtDate(ev.event_date) : '';
+        const courseName = ev ? ev.course_name : 'Event';
+        const uid = 'acc_' + Math.random().toString(36).slice(2);
+        const fullCard = renderResultCard(n, false);
+        // Wrap full card in a collapsible div; collapsed summary row is the tap target
+        return '<div style="margin-bottom:10px">'
+          + '<div onclick="(function(){var b=document.getElementById(\''+uid+'\');var a=document.getElementById(\''+uid+'_arr\');if(b.style.display===\'none\'){b.style.display=\'block\';a.style.transform=\'rotate(180deg)\'}else{b.style.display=\'none\';a.style.transform=\'rotate(0deg)\'}})()" style="display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent">'
+          + '<div style="display:flex;align-items:center;gap:10px;min-width:0">'
+          + '<div style="width:32px;height:32px;border-radius:50%;background:#0a1628;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">⛳</div>'
+          + '<div style="min-width:0">'
+          + '<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+courseName+'</div>'
+          + '<div style="font-size:11px;color:var(--text-3);margin-top:1px">'+dateStr+' · 🏆 '+winner+'</div>'
+          + '</div></div>'
+          + '<span id="'+uid+'_arr" style="font-size:11px;color:var(--text-3);flex-shrink:0;transition:transform 0.2s;display:inline-block">▼</span>'
+          + '</div>'
+          + '<div id="'+uid+'" style="display:none;margin-top:4px">'+fullCard+'</div>'
+          + '</div>';
+      }).join('');
     }
   }
 
