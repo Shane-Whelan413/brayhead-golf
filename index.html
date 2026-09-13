@@ -860,20 +860,20 @@
   <div id="leaderboard" class="section">
     <div id="lb-live-section" style="display:none"></div>
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;gap:8px">
-        <span class="card-title" style="margin:0">Season standings</span>
-        <select id="lb-filter-select" onchange="setLbFilter(this.value)" style="padding:6px 10px;border-radius:8px;border:1px solid #0a1628;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"6\"><path d=\"M0 0l5 6 5-6z\" fill=\"%23C9A84C\"/></svg>');background-repeat:no-repeat;background-position:right 8px center;padding-right:24px">
-          <option value="all">Overall</option>
-          <option value="sunday_9">Sundays</option>
-          <option value="outing_18">Outings</option>
-          <option value="dropped_now">If dropped now</option>
-          <option value="bracket">🏆 Bracket</option>
-          <option value="share" id="lb-share-option" style="display:none">📤 Share</option>
-        </select>
+      <div style="margin-bottom:1rem">
+        <div style="display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px">
+          <button id="lbt-all" onclick="switchLbTab('all')" style="flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Overall</button>
+          <button id="lbt-sunday_9" onclick="switchLbTab('sunday_9')" style="flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Sundays</button>
+          <button id="lbt-outing_18" onclick="switchLbTab('outing_18')" style="flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Outings</button>
+          <button id="lbt-dropped_now" onclick="switchLbTab('dropped_now')" style="flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">If dropped now</button>
+          <button id="lbt-stats" onclick="switchLbTab('stats')" style="flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Season stats</button>
+          <button id="lbt-penalties" onclick="switchLbTab('penalties')" style="flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Penalties</button>
+          <button id="lbt-share" onclick="shareLeaderboard()" style="display:none;flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Share</button>
+        </div>
       </div>
       <div id="lb-season-sub" style="font-size:11px;color:var(--text-3);margin-bottom:1rem"></div>
       <input type="hidden" id="lb-filter-val" value="all" />
-      <div id="lb-season-summary" style="margin-bottom:1rem"></div>
+      <div id="lb-season-summary" style="display:none;margin-bottom:1rem"></div>
       <div id="lb-penalty-box" style="display:none;margin-bottom:1rem"></div>
       <div class="pts-bar" id="pts-bar"></div>
       <div class="tbl-wrap" id="lb-table"><div class="skeleton-card"><div class="skeleton-row">
@@ -1630,27 +1630,57 @@ function shareLeaderboard() {
   }
 }
 
-function setLbFilter(val) {
+function switchLbTab(tab) {
   haptic();
-  // Bracket and Share are actions, not filters — handle and reset dropdown
-  if (val === 'bracket') {
-    const sel = document.getElementById('lb-filter-select');
-    if (sel) sel.value = document.getElementById('lb-filter-val')?.value || 'all';
-    showTab('knockout');
+  const tabs = ['all','sunday_9','outing_18','dropped_now','stats','penalties'];
+  tabs.forEach(t => {
+    const btn = document.getElementById('lbt-'+t);
+    if (!btn) return;
+    const isActive = t === tab;
+    btn.style.background = isActive ? '#0a1628' : 'var(--surface)';
+    btn.style.color = isActive ? '#C9A84C' : 'var(--text-2)';
+    btn.style.fontWeight = isActive ? '700' : '600';
+  });
+
+  const summaryEl  = document.getElementById('lb-season-summary');
+  const penaltyBox = document.getElementById('lb-penalty-box');
+  const lbTable    = document.getElementById('lb-table');
+  const ptsBar     = document.getElementById('pts-bar');
+  const seasonSub  = document.getElementById('lb-season-sub');
+
+  if (tab === 'stats') {
+    if (summaryEl)  { summaryEl.style.display  = 'block'; }
+    if (penaltyBox) { penaltyBox.style.display  = 'none'; }
+    if (lbTable)    { lbTable.style.display     = 'none'; }
+    if (ptsBar)     { ptsBar.style.display      = 'none'; }
+    if (seasonSub)  { seasonSub.style.display   = 'none'; }
+    renderLeaderboard();
     return;
   }
-  if (val === 'share') {
-    const sel = document.getElementById('lb-filter-select');
-    if (sel) sel.value = document.getElementById('lb-filter-val')?.value || 'all';
-    shareLeaderboard();
+
+  if (tab === 'penalties') {
+    if (summaryEl)  { summaryEl.style.display  = 'none'; }
+    if (penaltyBox) { penaltyBox.style.display  = 'block'; }
+    if (lbTable)    { lbTable.style.display     = 'none'; }
+    if (ptsBar)     { ptsBar.style.display      = 'none'; }
+    if (seasonSub)  { seasonSub.style.display   = 'none'; }
+    renderLeaderboard();
     return;
   }
-  const sel = document.getElementById('lb-filter-select');
-  if (sel && sel.value !== val) sel.value = val;
+
+  // All leaderboard views
+  if (summaryEl)  { summaryEl.style.display  = 'none'; }
+  if (penaltyBox) { penaltyBox.style.display  = 'none'; }
+  if (lbTable)    { lbTable.style.display     = ''; }
+  if (ptsBar)     { ptsBar.style.display      = ''; }
+  if (seasonSub)  { seasonSub.style.display   = ''; }
+
   const existing = document.getElementById('lb-filter-val');
-  if (existing) existing.value = val;
+  if (existing) existing.value = tab;
   renderLeaderboard();
 }
+
+function setLbFilter(val) { switchLbTab(val); }
 
 function renderLeaderboard() {
   const filterValEl = document.getElementById('lb-filter-val');
@@ -1676,7 +1706,7 @@ function renderLeaderboard() {
     summaryEl.innerHTML = dropping > 0
       ? `<div style="background:#fef8e6;border:1px solid #C9A84C;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center"><span style="font-size:15px">⚠️</span><div><div style="font-size:12px;font-weight:700;color:#8a6a1a">Best 33 of ${played} events counting</div><div style="font-size:11px;color:#a07820;margin-top:1px">Each player's lowest ${dropping} result${dropping!==1?'s are':' is'} being dropped — missed rounds count as 0 pts</div></div></div>`
       : `<div style="background:#eaf3de;border:1px solid #639922;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center"><span style="font-size:15px">ℹ️</span><div><div style="font-size:12px;font-weight:700;color:#3B6D11">${played} of 37 events played — no drops yet</div><div style="font-size:11px;color:#3B6D11;margin-top:1px">Drops kick in after 33 events · missed rounds count as 0 pts</div></div></div>`;
-  } else if (summaryEl && !isDroppedNow) {
+  } else if (summaryEl) {
     const todayStr      = new Date().toISOString().split('T')[0];
     const totalEvents   = db.events.filter(e=>e.published).length;
     const totalSundays  = db.events.filter(e=>e.published && e.event_type==='sunday_9').length;
@@ -1766,8 +1796,6 @@ function renderLeaderboard() {
         <div style="display:flex;border-bottom:0.5px solid rgba(255,255,255,0.1);padding:0 14px">${tabBtns}</div>
         <div style="padding:4px 14px 14px;max-height:280px;overflow-y:auto">${tabPanels}</div>
       </div>`;
-  } else if (summaryEl) {
-    summaryEl.innerHTML = '';
   }
 
   // For dropped_now: recalculate each player's total using best 33 of events played so far,
@@ -1832,9 +1860,8 @@ function renderLeaderboard() {
   // Penalty callout box — collapsible pill
   const penaltyBox = document.getElementById('lb-penalty-box');
   const penaltyPlayers = rows.filter(p => p.penalty > 0).sort((a,b) => b.penalty - a.penalty);
-  if (penaltyPlayers.length && filter !== 'sunday_9') {
+  if (penaltyPlayers.length) {
     const posLabel = p => p.penalty === 4 ? '1st at last outing' : p.penalty === 3 ? '2nd at last outing' : '3rd at last outing';
-    penaltyBox.style.display = 'block';
     penaltyBox.innerHTML = `
       <div style="border-radius:var(--radius-lg);overflow:hidden;border:1px solid #C9A84C">
         <button onclick="togglePenaltyBox()" style="width:100%;background:#fef8e6;border:none;cursor:pointer;padding:9px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'DM Sans',sans-serif">
@@ -1858,8 +1885,7 @@ function renderLeaderboard() {
         </div>
       </div>`;
   } else {
-    penaltyBox.style.display = 'none';
-    penaltyBox.innerHTML = '';
+    penaltyBox.innerHTML = '<div class="empty" style="padding:1rem;font-size:13px">No penalties currently active</div>';
   }
 
 
@@ -9240,7 +9266,7 @@ function safeRender(fn) { try { fn(); } catch(e) { console.error('Render error i
 function renderAll() {
   // Always render home and leaderboard as they're the most accessed
   safeRender(renderHome);
-  safeRender(renderLeaderboard);
+  switchLbTab(document.getElementById('lb-filter-val')?.value || 'all');
   // Only render other tabs if they're currently active
   const activeSection = document.querySelector('.section.active');
   const activeName = activeSection ? activeSection.id : 'home';
@@ -9538,8 +9564,8 @@ function updateUIForRole() {
   if (adminLinks) adminLinks.style.display = isAdmin ? '' : 'none';
   const adminMenuBtn = document.getElementById('btn-admin-menu');
   if (adminMenuBtn) adminMenuBtn.style.display = isAdmin ? '' : 'none';
-  const lbShareOpt = document.getElementById('lb-share-option');
-  if (lbShareOpt) lbShareOpt.style.display = isAdmin ? '' : 'none';
+  const lbShareBtn2 = document.getElementById('lbt-share');
+  if (lbShareBtn2) lbShareBtn2.style.display = isAdmin ? 'flex' : 'none';
   const addPlayerCard = document.getElementById('add-player-card');
   if (addPlayerCard) addPlayerCard.style.display = isAdmin ? '' : 'none';
   const createEventCard = document.getElementById('create-event-card');
