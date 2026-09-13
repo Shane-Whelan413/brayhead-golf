@@ -860,15 +860,22 @@
   <div id="leaderboard" class="section">
     <div id="lb-live-section" style="display:none"></div>
     <div class="card">
-      <div style="margin-bottom:1rem">
-        <div style="display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px">
-          <button id="lbt-all" onclick="switchLbTab('all')" style="flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Overall</button>
-          <button id="lbt-sunday_9" onclick="switchLbTab('sunday_9')" style="flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Sundays</button>
-          <button id="lbt-outing_18" onclick="switchLbTab('outing_18')" style="flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Outings</button>
-          <button id="lbt-dropped_now" onclick="switchLbTab('dropped_now')" style="flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">If dropped now</button>
-          <button id="lbt-stats" onclick="switchLbTab('stats')" style="flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Season stats</button>
-          <button id="lbt-penalties" onclick="switchLbTab('penalties')" style="flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Penalties</button>
-          <button id="lbt-share" onclick="shareLeaderboard()" style="display:none;flex-shrink:0;padding:8px 14px;border-radius:8px;border:none;background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Share</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;gap:8px">
+        <span class="card-title" style="margin:0">Season standings</span>
+        <div style="position:relative">
+          <button onclick="toggleLbDropdown()" id="lb-dropdown-btn" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:none;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent">
+            <span id="lb-dropdown-label">Overall</span>
+            <span style="font-size:9px">▼</span>
+          </button>
+          <div id="lb-dropdown-menu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:white;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:100;min-width:160px;overflow:hidden">
+            <button onclick="switchLbTab('all')" class="lb-dd-item" style="width:100%;padding:11px 14px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:600;color:#0a1628;font-family:'DM Sans',sans-serif;cursor:pointer;display:block">Overall</button>
+            <button onclick="switchLbTab('sunday_9')" class="lb-dd-item" style="width:100%;padding:11px 14px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block">Sundays</button>
+            <button onclick="switchLbTab('outing_18')" class="lb-dd-item" style="width:100%;padding:11px 14px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block">Outings</button>
+            <button onclick="switchLbTab('dropped_now')" class="lb-dd-item" style="width:100%;padding:11px 14px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block">If dropped now</button>
+            <button onclick="switchLbTab('stats')" class="lb-dd-item" style="width:100%;padding:11px 14px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block">Season stats</button>
+            <button onclick="switchLbTab('penalties')" class="lb-dd-item" style="width:100%;padding:11px 14px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block">Penalties</button>
+            <button id="lbt-share" onclick="shareLeaderboard();closeLbDropdown()" style="display:none;width:100%;padding:11px 14px;text-align:left;border:none;background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer">Share leaderboard</button>
+          </div>
         </div>
       </div>
       <div id="lb-season-sub" style="font-size:11px;color:var(--text-3);margin-bottom:1rem"></div>
@@ -1630,17 +1637,33 @@ function shareLeaderboard() {
   }
 }
 
+function toggleLbDropdown() {
+  const menu = document.getElementById('lb-dropdown-menu');
+  if (!menu) return;
+  const isOpen = menu.style.display !== 'none';
+  menu.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    setTimeout(() => document.addEventListener('click', closeLbDropdownOutside, { once: true }), 0);
+  }
+}
+function closeLbDropdown() {
+  const menu = document.getElementById('lb-dropdown-menu');
+  if (menu) menu.style.display = 'none';
+}
+function closeLbDropdownOutside(e) {
+  const menu = document.getElementById('lb-dropdown-menu');
+  const btn  = document.getElementById('lb-dropdown-btn');
+  if (menu && !menu.contains(e.target) && !btn.contains(e.target)) menu.style.display = 'none';
+}
+
 function switchLbTab(tab) {
   haptic();
-  const tabs = ['all','sunday_9','outing_18','dropped_now','stats','penalties'];
-  tabs.forEach(t => {
-    const btn = document.getElementById('lbt-'+t);
-    if (!btn) return;
-    const isActive = t === tab;
-    btn.style.background = isActive ? '#0a1628' : 'var(--surface)';
-    btn.style.color = isActive ? '#C9A84C' : 'var(--text-2)';
-    btn.style.fontWeight = isActive ? '700' : '600';
-  });
+  closeLbDropdown();
+
+  // Update dropdown label
+  const labels = { all:'Overall', sunday_9:'Sundays', outing_18:'Outings', dropped_now:'If dropped now', stats:'Season stats', penalties:'Penalties' };
+  const labelEl = document.getElementById('lb-dropdown-label');
+  if (labelEl && labels[tab]) labelEl.textContent = labels[tab];
 
   const summaryEl  = document.getElementById('lb-season-summary');
   const penaltyBox = document.getElementById('lb-penalty-box');
@@ -9565,7 +9588,7 @@ function updateUIForRole() {
   const adminMenuBtn = document.getElementById('btn-admin-menu');
   if (adminMenuBtn) adminMenuBtn.style.display = isAdmin ? '' : 'none';
   const lbShareBtn2 = document.getElementById('lbt-share');
-  if (lbShareBtn2) lbShareBtn2.style.display = isAdmin ? 'flex' : 'none';
+  if (lbShareBtn2) lbShareBtn2.style.display = isAdmin ? 'block' : 'none';
   const addPlayerCard = document.getElementById('add-player-card');
   if (addPlayerCard) addPlayerCard.style.display = isAdmin ? '' : 'none';
   const createEventCard = document.getElementById('create-event-card');
