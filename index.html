@@ -860,14 +860,17 @@
   <div id="leaderboard" class="section">
     <div id="lb-live-section" style="display:none"></div>
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;gap:8px">
         <span class="card-title" style="margin:0">Season standings</span>
-        <div style="display:flex;gap:6px">
-          <button id="lb-share-btn" onclick="shareLeaderboard()" style="display:none;padding:6px 12px;border-radius:99px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">📤 Share</button>
-          <button id="lbf-all" onclick="setLbFilter('all')" style="padding:6px 12px;border-radius:99px;border:1px solid #0a1628;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">All</button>
-          <button id="lbf-sunday_9" onclick="setLbFilter('sunday_9')" style="padding:6px 12px;border-radius:99px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Sundays</button>
-          <button id="lbf-outing_18" onclick="setLbFilter('outing_18')" style="padding:6px 12px;border-radius:99px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Outings</button>
-          <button onclick="showTab('knockout')" style="padding:6px 12px;border-radius:99px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">🏆 Bracket</button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button id="lb-share-btn" onclick="shareLeaderboard()" style="display:none;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">📤</button>
+          <select id="lb-filter-select" onchange="setLbFilter(this.value)" style="padding:6px 10px;border-radius:8px;border:1px solid #0a1628;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"6\"><path d=\"M0 0l5 6 5-6z\" fill=\"%23C9A84C\"/></svg>');background-repeat:no-repeat;background-position:right 8px center;padding-right:24px">
+            <option value="all">Overall</option>
+            <option value="sunday_9">Sundays</option>
+            <option value="outing_18">Outings</option>
+            <option value="dropped_now">If dropped now</option>
+          </select>
+          <button onclick="showTab('knockout')" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">🏆</button>
         </div>
       </div>
       <div id="lb-season-sub" style="font-size:11px;color:var(--text-3);margin-bottom:1rem"></div>
@@ -1631,38 +1634,42 @@ function shareLeaderboard() {
 
 function setLbFilter(val) {
   haptic();
-  ['all','sunday_9','outing_18'].forEach(v => {
-    const btn = document.getElementById('lbf-'+v);
-    if (!btn) return;
-    btn.style.background = v===val ? '#0a1628' : 'var(--surface)';
-    btn.style.color = v===val ? '#C9A84C' : 'var(--text-2)';
-    btn.style.borderColor = v===val ? '#0a1628' : 'var(--border-strong)';
-  });
-  // Store in hidden input for renderLeaderboard to read
+  const sel = document.getElementById('lb-filter-select');
+  if (sel && sel.value !== val) sel.value = val;
   const existing = document.getElementById('lb-filter-val');
   if (existing) existing.value = val;
   renderLeaderboard();
 }
 
 function renderLeaderboard() {
-  // Read active filter from pill buttons
   const filterValEl = document.getElementById('lb-filter-val');
   const filter = filterValEl ? filterValEl.value : 'all';
-  const evs = filter === 'all' ? db.events : db.events.filter(e=>e.event_type===filter);
+  const isDroppedNow = filter === 'dropped_now';
+  const evs = (filter === 'all' || isDroppedNow) ? db.events : db.events.filter(e=>e.event_type===filter);
   const publishedEids = new Set(evs.filter(e=>e.published).map(e=>e.id));
 
-  // Update season sub line with sundays remaining
+  // Update season sub line
   const sub = document.getElementById('lb-season-sub');
   if (sub) {
     const today = new Date().toISOString().split('T')[0];
     const remaining = db.events.filter(e=>e.event_type==='sunday_9' && e.event_date > today).length;
-    const filterLabel = filter==='all' ? 'All events' : filter==='sunday_9' ? 'Sundays only' : 'Outings only';
+    const played = db.events.filter(e=>e.published).length;
+    const filterLabel = filter==='all' ? 'All events'
+      : filter==='sunday_9' ? 'Sundays only'
+      : filter==='outing_18' ? 'Outings only'
+      : `If best 33 of ${played} dropped now`;
     sub.textContent = `${filterLabel} · ${remaining} Sunday${remaining!==1?'s':''} remaining this season`;
   }
 
-  // Season summary card
+  // Season summary card — hide for dropped_now view
   const summaryEl = document.getElementById('lb-season-summary');
-  if (summaryEl && filter === 'all') {
+  if (summaryEl && isDroppedNow) {
+    const played = db.events.filter(e=>e.published).length;
+    const dropping = Math.max(0, played - 33);
+    summaryEl.innerHTML = dropping > 0
+      ? `<div style="background:#fef8e6;border:1px solid #C9A84C;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center"><span style="font-size:15px">⚠️</span><div><div style="font-size:12px;font-weight:700;color:#8a6a1a">Best 33 of ${played} events counting</div><div style="font-size:11px;color:#a07820;margin-top:1px">Each player's lowest ${dropping} result${dropping!==1?'s are':' is'} being dropped — missed rounds count as 0 pts</div></div></div>`
+      : `<div style="background:#eaf3de;border:1px solid #639922;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center"><span style="font-size:15px">ℹ️</span><div><div style="font-size:12px;font-weight:700;color:#3B6D11">${played} of 37 events played — no drops yet</div><div style="font-size:11px;color:#3B6D11;margin-top:1px">Drops kick in after 33 events · missed rounds count as 0 pts</div></div></div>`;
+  } else if (summaryEl && filter === 'all') {
     const todayStr      = new Date().toISOString().split('T')[0];
     const totalEvents   = db.events.filter(e=>e.published).length;
     const totalSundays  = db.events.filter(e=>e.published && e.event_type==='sunday_9').length;
@@ -1756,9 +1763,46 @@ function renderLeaderboard() {
     summaryEl.innerHTML = '';
   }
 
-  const lbPositions = getLeaderboardPositions(publishedEids);
+  // For dropped_now: recalculate each player's total using best 33 of events played so far,
+  // counting missed events as 0-point slots just like the profile history tab
+  let lbPositions;
+  if (isDroppedNow) {
+    const allPublishedEvs = db.events.filter(e=>e.published);
+    const allPublishedEids = new Set(allPublishedEvs.map(e=>e.id));
+    const byEventDN = {};
+    for (const r of db.rounds.filter(x=>x.verified && allPublishedEids.has(x.event_id))) {
+      if (!byEventDN[r.event_id]) byEventDN[r.event_id]=[];
+      byEventDN[r.event_id].push({...r});
+    }
+    for (const eid in byEventDN) assignLeaguePts(byEventDN[eid]);
+    const totalsDN = {};
+    for (const p of db.players.filter(x=>!x.provisional)) {
+      const myLpRounds = [];
+      for (const eid in byEventDN) {
+        const r = byEventDN[eid].find(x=>x.player_id===p.id);
+        if (r) myLpRounds.push(r);
+      }
+      const missedCount = allPublishedEvs.filter(e=>!myLpRounds.find(r=>r.event_id===e.id)).length;
+      const missedSlots = Array.from({length: missedCount}, ()=>({ _lp: 0 }));
+      const allSlots = [...myLpRounds, ...missedSlots].sort((a,b)=>b._lp-a._lp).slice(0,33);
+      totalsDN[p.id] = allSlots.reduce((s,r)=>s+r._lp, 0);
+    }
+    const sortedDN = db.players.filter(p=>!p.provisional)
+      .map(p=>({ id: p.id, lp: totalsDN[p.id]||0 }))
+      .sort((a,b)=>b.lp-a.lp);
+    const posDN = {};
+    let posCtr = 1;
+    for (let i=0; i<sortedDN.length; i++) {
+      if (i > 0 && sortedDN[i].lp < sortedDN[i-1].lp) posCtr = i+1;
+      posDN[sortedDN[i].id] = { pos: posCtr, lp: sortedDN[i].lp };
+    }
+    lbPositions = posDN;
+  } else {
+    lbPositions = getLeaderboardPositions(publishedEids);
+  }
+
   const outingPenalties = filter !== 'sunday_9' ? getPreviousOutingPositions() : {};
-  const prevPositions = filter === 'all' ? getPreviousLeaderboardPositions(publishedEids) : {};
+  const prevPositions = (filter === 'all' || isDroppedNow) ? getPreviousLeaderboardPositions(publishedEids) : {};
   const rows = db.players.filter(p => !p.provisional).map(p => {
     const pos = lbPositions[p.id]?.pos || 0;
     const lp  = lbPositions[p.id]?.lp  || 0;
@@ -1781,7 +1825,7 @@ function renderLeaderboard() {
   // Penalty callout box — collapsible pill
   const penaltyBox = document.getElementById('lb-penalty-box');
   const penaltyPlayers = rows.filter(p => p.penalty > 0).sort((a,b) => b.penalty - a.penalty);
-  if (penaltyPlayers.length && filter !== 'sunday_9') {
+  if (penaltyPlayers.length && filter !== 'sunday_9' && !isDroppedNow) {
     const posLabel = p => p.penalty === 4 ? '1st at last outing' : p.penalty === 3 ? '2nd at last outing' : '3rd at last outing';
     penaltyBox.style.display = 'block';
     penaltyBox.innerHTML = `
@@ -1816,7 +1860,7 @@ function renderLeaderboard() {
   lbTableEl.innerHTML = rows.map((p)=>{
     const pos = p.pos || 0;
     const posStr = pos===1?'1st':pos===2?'2nd':pos===3?'3rd':pos+'th';
-    const hasPenalty = p.penalty > 0 && filter !== 'sunday_9';
+    const hasPenalty = p.penalty > 0 && filter !== 'sunday_9' && !isDroppedNow;
     const movHtml = p.movement > 0
       ? `<span style="font-size:11px;font-weight:700;color:#2a6b1a;background:#d4edcc;padding:2px 7px;border-radius:99px;flex-shrink:0">▲${p.movement}</span>`
       : p.movement < 0
