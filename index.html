@@ -9125,40 +9125,50 @@ function clearSession() {
 let currentUser = null;
 
 function showWelcomeScreen(player) {
-  if (sessionStorage.getItem('bhgs_welcomed')) return;
-  sessionStorage.setItem('bhgs_welcomed', '1');
+  try {
+    if (sessionStorage.getItem('bhgs_welcomed')) return;
 
-  const ws = document.getElementById('welcome-screen');
-  if (!ws) return;
+    const ws = document.getElementById('welcome-screen');
+    if (!ws) return;
 
-  // Greeting by time of day
-  const h = new Date().getHours();
-  const greeting = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-  document.getElementById('welcome-greeting').textContent = greeting;
-  document.getElementById('welcome-name').textContent = player.name.split(' ')[0];
-  document.getElementById('welcome-hcp').textContent = parseFloat(player.handicap_index).toFixed(1);
+    // Greeting by time of day
+    const h = new Date().getHours();
+    const greeting = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+    document.getElementById('welcome-greeting').textContent = greeting;
+    document.getElementById('welcome-name').textContent = player.name.split(' ')[0];
+    document.getElementById('welcome-hcp').textContent = parseFloat(player.handicap_index).toFixed(1);
 
-  // Season rank
-  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
-  const lbPos = getLeaderboardPositions(publishedEids)[player.id]?.pos || 0;
-  const rankLabel = lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos>0?(lbPos+'th'):'—';
-  document.getElementById('welcome-rank').textContent = rankLabel;
+    // Season rank
+    try {
+      const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+      const lbPos = getLeaderboardPositions(publishedEids)[player.id]?.pos || 0;
+      const rankLabel = lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos>0?(lbPos+'th'):'—';
+      document.getElementById('welcome-rank').textContent = rankLabel;
+    } catch(e) { document.getElementById('welcome-rank').textContent = '—'; }
 
-  // Next event
-  const todayStr = new Date().toISOString().slice(0,10);
-  const next = [...db.events].filter(e=>e.event_date>=todayStr).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0];
-  const nextEl = document.getElementById('welcome-next');
-  if (next) nextEl.textContent = 'Next up · ' + next.course_name + ' · ' + fmtDate(next.event_date);
+    // Next event
+    try {
+      const todayStr = new Date().toISOString().slice(0,10);
+      const next = [...db.events].filter(e=>e.event_date>=todayStr).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0];
+      const nextEl = document.getElementById('welcome-next');
+      if (next && nextEl) nextEl.textContent = 'Next up · ' + next.course_name + ' · ' + fmtDate(next.event_date);
+    } catch(e) {}
 
-  // Show
-  ws.style.display = 'flex';
-  ws.style.opacity = '1';
+    // Mark as shown only once everything is ready
+    sessionStorage.setItem('bhgs_welcomed', '1');
 
-  // Auto-dismiss after 2.2s with fade
-  setTimeout(() => {
-    ws.style.opacity = '0';
-    setTimeout(() => { ws.style.display = 'none'; }, 500);
-  }, 2200);
+    // Show
+    ws.style.display = 'flex';
+    ws.style.opacity = '1';
+
+    // Auto-dismiss after 2.2s with fade
+    setTimeout(() => {
+      ws.style.opacity = '0';
+      setTimeout(() => { ws.style.display = 'none'; }, 500);
+    }, 2200);
+  } catch(e) {
+    console.error('Welcome screen error:', e);
+  }
 }
 
 function showLoginScreen() {
@@ -9466,6 +9476,7 @@ async function saveNewPin() {
 
 async function logout() {
   clearSession();
+  sessionStorage.removeItem('bhgs_welcomed');
   currentUser = null;
   isAdmin = false;
   // Show login screen immediately with whatever data we have
@@ -9606,6 +9617,7 @@ async function init() {
           currentUser = { role, playerId: p.id, name: p.name };
           isAdmin = role === 'admin';
           hideLoginScreen(); updateUIForRole();
+          renderAll();
           if (role === 'member') showWelcomeScreen(p);
         } else { showLoginScreen(); renderAll(); }
       } else {
