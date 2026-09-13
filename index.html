@@ -9161,11 +9161,16 @@ function showWelcomeScreen(player) {
     ws.style.display = 'flex';
     ws.style.opacity = '1';
 
-    // Auto-dismiss after 2.2s with fade
-    setTimeout(() => {
+    // Tap to dismiss
+    const dismiss = () => {
       ws.style.opacity = '0';
       setTimeout(() => { ws.style.display = 'none'; }, 500);
-    }, 2200);
+      ws.removeEventListener('click', dismiss);
+    };
+    ws.addEventListener('click', dismiss);
+
+    // Auto-dismiss after 5s with fade
+    setTimeout(dismiss, 5000);
   } catch(e) {
     console.error('Welcome screen error:', e);
   }
