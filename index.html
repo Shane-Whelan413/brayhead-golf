@@ -862,16 +862,14 @@
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;gap:8px">
         <span class="card-title" style="margin:0">Season standings</span>
-        <div style="display:flex;gap:6px;align-items:center">
-          <button id="lb-share-btn" onclick="shareLeaderboard()" style="display:none;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:#0a1628;color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">📤 Share</button>
-          <select id="lb-filter-select" onchange="setLbFilter(this.value)" style="padding:6px 10px;border-radius:8px;border:1px solid #0a1628;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"6\"><path d=\"M0 0l5 6 5-6z\" fill=\"%23C9A84C\"/></svg>');background-repeat:no-repeat;background-position:right 8px center;padding-right:24px">
-            <option value="all">Overall</option>
-            <option value="sunday_9">Sundays</option>
-            <option value="outing_18">Outings</option>
-            <option value="dropped_now">If dropped now</option>
-          </select>
-          <button onclick="showTab('knockout')" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">🏆</button>
-        </div>
+        <select id="lb-filter-select" onchange="setLbFilter(this.value)" style="padding:6px 10px;border-radius:8px;border:1px solid #0a1628;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"6\"><path d=\"M0 0l5 6 5-6z\" fill=\"%23C9A84C\"/></svg>');background-repeat:no-repeat;background-position:right 8px center;padding-right:24px">
+          <option value="all">Overall</option>
+          <option value="sunday_9">Sundays</option>
+          <option value="outing_18">Outings</option>
+          <option value="dropped_now">If dropped now</option>
+          <option value="bracket">🏆 Bracket</option>
+          <option value="share" id="lb-share-option" style="display:none">📤 Share</option>
+        </select>
       </div>
       <div id="lb-season-sub" style="font-size:11px;color:var(--text-3);margin-bottom:1rem"></div>
       <input type="hidden" id="lb-filter-val" value="all" />
@@ -1634,6 +1632,19 @@ function shareLeaderboard() {
 
 function setLbFilter(val) {
   haptic();
+  // Bracket and Share are actions, not filters — handle and reset dropdown
+  if (val === 'bracket') {
+    const sel = document.getElementById('lb-filter-select');
+    if (sel) sel.value = document.getElementById('lb-filter-val')?.value || 'all';
+    showTab('knockout');
+    return;
+  }
+  if (val === 'share') {
+    const sel = document.getElementById('lb-filter-select');
+    if (sel) sel.value = document.getElementById('lb-filter-val')?.value || 'all';
+    shareLeaderboard();
+    return;
+  }
   const sel = document.getElementById('lb-filter-select');
   if (sel && sel.value !== val) sel.value = val;
   const existing = document.getElementById('lb-filter-val');
@@ -9527,8 +9538,8 @@ function updateUIForRole() {
   if (adminLinks) adminLinks.style.display = isAdmin ? '' : 'none';
   const adminMenuBtn = document.getElementById('btn-admin-menu');
   if (adminMenuBtn) adminMenuBtn.style.display = isAdmin ? '' : 'none';
-  const lbShareBtn = document.getElementById('lb-share-btn');
-  if (lbShareBtn) lbShareBtn.style.display = isAdmin ? '' : 'none';
+  const lbShareOpt = document.getElementById('lb-share-option');
+  if (lbShareOpt) lbShareOpt.style.display = isAdmin ? '' : 'none';
   const addPlayerCard = document.getElementById('add-player-card');
   if (addPlayerCard) addPlayerCard.style.display = isAdmin ? '' : 'none';
   const createEventCard = document.getElementById('create-event-card');
