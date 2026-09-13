@@ -9288,8 +9288,7 @@ function submitPin() {
     storeSession(currentUser);
     hideLoginScreen();
     updateUIForRole();
-    if (role === 'member') showWelcomeScreen(p);
-    else toast(`Welcome ${p.name.split(' ')[0]} (Admin)!`, 'success');
+    showWelcomeScreen(p);
     // Clear dismissed flag so prompt shows again this session
     localStorage.removeItem('bhgs_push_dismissed');
     setTimeout(() => promptPushPermission(), 2500);
@@ -9623,7 +9622,7 @@ async function init() {
           isAdmin = role === 'admin';
           hideLoginScreen(); updateUIForRole();
           renderAll();
-          if (role === 'member') showWelcomeScreen(p);
+          if (p) showWelcomeScreen(p);
         } else { showLoginScreen(); renderAll(); }
       } else {
         currentUser = session; hideLoginScreen(); updateUIForRole();
