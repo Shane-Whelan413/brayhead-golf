@@ -6786,7 +6786,7 @@ function showPlayerProfile(pid) {
     <div style="display:flex;background:white;border-radius:var(--radius);padding:3px;gap:2px;margin-bottom:1rem;border:0.5px solid var(--border)">
       ${['overview','prizes','history','stats'].map((t,i)=>{
         const labels=['Overview','Prizes','History','Stats'];
-        return `<button id="mptab-${t}" onclick="switchModalProfileTab('${t}')" style="flex:1;padding:11px 4px;border:none;border-bottom:2.5px solid ${i===0?'#C9A84C':'transparent'};font-size:13px;font-weight:${i===0?700:500};font-family:'DM Sans',sans-serif;cursor:pointer;background:none;color:${i===0?'#1a1510':'var(--text-3)'};transition:color 0.15s,border-color 0.15s">${labels[i]}</button>`;
+        return `<button id="mptab-${t}" onclick="switchModalProfileTab('${t}')" style="flex:1;padding:11px 4px;border:none;border-radius:8px;font-size:13px;font-weight:${i===0?700:500};font-family:'DM Sans',sans-serif;cursor:pointer;background:${i===0?'#0a1628':'none'};color:${i===0?'#C9A84C':'var(--text-3)'};transition:color 0.15s,background 0.15s">${labels[i]}</button>`;
       }).join('')}
     </div>
 
@@ -6831,23 +6831,95 @@ function showPlayerProfile(pid) {
     </div>
 
     <div id="mptab-content-history" style="display:none">
-      ${countedRounds.length ? `
-      <div class="card">
-        <div class="card-title">Round history</div>
-        ${[...countedRounds].sort((a,b)=>b.created_at?.localeCompare(a.created_at||'')||0).map(r=>{
-          const ev = db.events.find(e=>e.id===r.event_id);
-          return `<button onclick="showRoundScorecard('${r.id}')" style="width:100%;background:none;border:none;border-bottom:0.5px solid var(--border);padding:10px 0;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px">
-            <div style="min-width:0">
-              <div style="font-size:14px;font-weight:500;color:var(--text)">${ev?ev.course_name:'Unknown'}</div>
-              <div style="font-size:11px;color:var(--text-3);margin-top:2px">${ev?fmtDate(ev.event_date):''} · ${r.stableford_points} pts · Hcp ${r.course_handicap}</div>
+      ${(() => {
+        // Dropped rounds logic — same as profile history tab
+        const publishedEvs = db.events.filter(e=>e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date));
+        const publishedEidsAll = new Set(publishedEvs.map(e=>e.id));
+        const totalPublished = publishedEvs.length;
+
+        const byEventM = {};
+        for (const r of db.rounds.filter(x=>x.verified && publishedEidsAll.has(x.event_id))) {
+          if (!byEventM[r.event_id]) byEventM[r.event_id]=[];
+          byEventM[r.event_id].push({...r});
+        }
+        for (const eid in byEventM) assignLeaguePts(byEventM[eid]);
+
+        const myLpRoundsM = [];
+        for (const eid in byEventM) {
+          const r = byEventM[eid].find(x=>x.player_id===pid);
+          if (r) myLpRoundsM.push(r);
+        }
+
+        const playedEidsM = new Set(myLpRoundsM.map(r=>r.event_id));
+        const missedEvsM  = publishedEvs.filter(e=>!playedEidsM.has(e.id));
+        const missedSlotsM = missedEvsM.map(e=>({ event_id: e.id, _lp: 0, missed: true }));
+
+        const allSlotsM   = [...myLpRoundsM, ...missedSlotsM].sort((a,b)=>b._lp-a._lp);
+        const droppedSlotsM = allSlotsM.slice(33);
+        const droppedEidsM  = new Set(droppedSlotsM.map(s=>s.event_id));
+        const droppedPtsM   = droppedSlotsM.reduce((s,r)=>s+r._lp,0);
+        const numDroppedM   = droppedSlotsM.length;
+
+        const allRowsM = [
+          ...countedRounds.map(r=>({ type:'played', round:r, ev:db.events.find(e=>e.id===r.event_id) })),
+          ...missedEvsM.map(e=>({ type:'missed', round:null, ev:e }))
+        ].sort((a,b)=>(b.ev?.event_date||'').localeCompare(a.ev?.event_date||''));
+
+        const dropSummaryM = numDroppedM > 0 ? `
+          <div style="background:#fef8e6;border:1px solid #C9A84C;border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:16px;flex-shrink:0">⚠️</span>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#8a6a1a">${numDroppedM} round${numDroppedM!==1?'s are':' is'} being dropped</div>
+              <div style="font-size:11px;color:#a07820;margin-top:1px">${droppedPtsM} pts not counting · best 33 of ${totalPublished} events count</div>
             </div>
+          </div>` : totalPublished >= 33 ? `
+          <div style="background:#eaf3de;border:1px solid #639922;border-radius:8px;padding:10px 12px;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:700;color:#3B6D11">All rounds counting ✓</div>
+            <div style="font-size:11px;color:#3B6D11;margin-top:1px">Best 33 of ${totalPublished} events</div>
+          </div>` : '';
+
+        const rowsM = allRowsM.map(({ type, round:r, ev }) => {
+          const isDropped = droppedEidsM.has(ev?.id);
+          const isMissed  = type === 'missed';
+          const lp = isMissed ? 0 : (myLpRoundsM.find(x=>x.event_id===ev?.id)?._lp || 0);
+          const rowOpacity = isDropped ? 'opacity:0.55;' : '';
+
+          const pills = `
             <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-              <span class="badge green" style="font-size:10px">✓</span>
-              <span style="color:var(--text-3);font-size:16px">›</span>
+              ${isMissed
+                ? '<span style="font-size:10px;font-weight:600;color:#888780;background:#f1efe8;border:1px solid #d3d1c7;padding:2px 7px;border-radius:99px">No show</span>'
+                : '<span class="badge green" style="font-size:10px">✓</span>'
+              }
+              ${isDropped ? '<span style="font-size:10px;font-weight:700;color:#A32D2D;background:#FCEBEB;border:1px solid #F7C1C1;padding:2px 7px;border-radius:99px">Dropped</span>' : ''}
+              ${!isMissed ? '<span style="color:var(--text-3);font-size:16px">›</span>' : ''}
+            </div>`;
+
+          if (isMissed) {
+            return `<div style="width:100%;border-bottom:0.5px solid var(--border);padding:10px 0;display:flex;align-items:center;justify-content:space-between;gap:8px;${rowOpacity}">
+              <div style="min-width:0">
+                <div style="font-size:14px;font-weight:500;color:var(--text-3)">${ev?ev.course_name:'Unknown'}</div>
+                <div style="font-size:11px;color:var(--text-3);margin-top:2px">${ev?fmtDate(ev.event_date):''} · 0 pts · Did not play</div>
+              </div>
+              ${pills}
+            </div>`;
+          }
+
+          return `<button onclick="showRoundScorecard('${r.id}')" style="width:100%;background:none;border:none;border-bottom:0.5px solid var(--border);padding:10px 0;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;${rowOpacity}">
+            <div style="min-width:0">
+              <div style="font-size:14px;font-weight:500;color:${isDropped?'var(--text-2)':'var(--text)'}">${ev?ev.course_name:'Unknown'}</div>
+              <div style="font-size:11px;color:var(--text-3);margin-top:2px">${ev?fmtDate(ev.event_date):''} · ${r.stableford_points} pts · ${lp} lp · Hcp ${r.course_handicap}</div>
             </div>
+            ${pills}
           </button>`;
-        }).join('')}
-      </div>` : '<div class="card"><div class="empty">No rounds played yet</div></div>'}
+        }).join('');
+
+        return countedRounds.length || missedEvsM.length ? `
+          <div class="card">
+            <div class="card-title" style="margin-bottom:${numDroppedM>0?'10px':'1rem'}">Round history</div>
+            ${dropSummaryM}
+            ${rowsM}
+          </div>` : '<div class="card"><div class="empty">No rounds played yet</div></div>';
+      })()}
     </div>
 
     <div id="mptab-content-stats" style="display:none">
@@ -6914,8 +6986,8 @@ function switchModalProfileTab(tab) {
     const btn = document.getElementById('mptab-'+t);
     const content = document.getElementById('mptab-content-'+t);
     if (btn) {
-      btn.style.borderBottomColor = t===tab ? '#C9A84C' : 'transparent';
-      btn.style.color = t===tab ? '#1a1510' : 'var(--text-3)';
+      btn.style.background = t===tab ? '#0a1628' : 'none';
+      btn.style.color = t===tab ? '#C9A84C' : 'var(--text-3)';
       btn.style.fontWeight = t===tab ? '700' : '500';
     }
     if (content) content.style.display = t===tab ? '' : 'none';
