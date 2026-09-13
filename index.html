@@ -9124,6 +9124,43 @@ function clearSession() {
 
 let currentUser = null;
 
+function showWelcomeScreen(player) {
+  if (sessionStorage.getItem('bhgs_welcomed')) return;
+  sessionStorage.setItem('bhgs_welcomed', '1');
+
+  const ws = document.getElementById('welcome-screen');
+  if (!ws) return;
+
+  // Greeting by time of day
+  const h = new Date().getHours();
+  const greeting = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('welcome-greeting').textContent = greeting;
+  document.getElementById('welcome-name').textContent = player.name.split(' ')[0];
+  document.getElementById('welcome-hcp').textContent = parseFloat(player.handicap_index).toFixed(1);
+
+  // Season rank
+  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+  const lbPos = getLeaderboardPositions(publishedEids)[player.id]?.pos || 0;
+  const rankLabel = lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos>0?(lbPos+'th'):'—';
+  document.getElementById('welcome-rank').textContent = rankLabel;
+
+  // Next event
+  const todayStr = new Date().toISOString().slice(0,10);
+  const next = [...db.events].filter(e=>e.event_date>=todayStr).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0];
+  const nextEl = document.getElementById('welcome-next');
+  if (next) nextEl.textContent = 'Next up · ' + next.course_name + ' · ' + fmtDate(next.event_date);
+
+  // Show
+  ws.style.display = 'flex';
+  ws.style.opacity = '1';
+
+  // Auto-dismiss after 2.2s with fade
+  setTimeout(() => {
+    ws.style.opacity = '0';
+    setTimeout(() => { ws.style.display = 'none'; }, 500);
+  }, 2200);
+}
+
 function showLoginScreen() {
   const ls = document.getElementById('login-screen');
   ls.style.display = 'flex';
@@ -9236,7 +9273,8 @@ function submitPin() {
     storeSession(currentUser);
     hideLoginScreen();
     updateUIForRole();
-    toast(`Welcome ${p.name.split(' ')[0]}${role==='admin'?' (Admin)':''}!`, 'success');
+    if (role === 'member') showWelcomeScreen(p);
+    else toast(`Welcome ${p.name.split(' ')[0]} (Admin)!`, 'success');
     // Clear dismissed flag so prompt shows again this session
     localStorage.removeItem('bhgs_push_dismissed');
     setTimeout(() => promptPushPermission(), 2500);
@@ -9568,6 +9606,7 @@ async function init() {
           currentUser = { role, playerId: p.id, name: p.name };
           isAdmin = role === 'admin';
           hideLoginScreen(); updateUIForRole();
+          if (role === 'member') showWelcomeScreen(p);
         } else { showLoginScreen(); renderAll(); }
       } else {
         currentUser = session; hideLoginScreen(); updateUIForRole();
@@ -10178,6 +10217,35 @@ function roundRect(ctx,x,y,w,h,r){
 
 </script>
   <div id="ko-fs"><canvas id="ko-fs-canvas"></canvas><button id="ko-fs-exit" onclick="koFsExit()">✕ Close</button></div>
+
+  <!-- Welcome screen -->
+  <div id="welcome-screen" style="display:none;position:fixed;inset:0;z-index:9000;background:#0a1628;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;transition:opacity 0.5s ease">
+    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7a5500,#C9A84C,#e8c04a,#C9A84C,#7a5500)"></div>
+    <img src="icon-192.png" id="welcome-logo" style="width:72px;height:72px;border-radius:50%;border:2px solid rgba(201,168,76,0.45);object-fit:cover;margin-bottom:1.75rem" onerror="this.style.display='none'">
+    <div style="font-size:12px;font-weight:600;color:rgba(201,168,76,0.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px" id="welcome-greeting">Good morning</div>
+    <div id="welcome-name" style="font-family:'DM Serif Display',serif;font-size:34px;color:white;font-weight:400;margin-bottom:2rem;line-height:1.2"></div>
+    <div style="width:48px;height:1px;background:rgba(201,168,76,0.3);margin-bottom:2rem"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:260px;margin-bottom:2.5rem">
+      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(201,168,76,0.2);border-radius:12px;padding:14px 10px">
+        <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Season rank</div>
+        <div id="welcome-rank" style="font-size:26px;font-weight:800;color:#C9A84C;line-height:1">—</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 10px">
+        <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Handicap</div>
+        <div id="welcome-hcp" style="font-size:26px;font-weight:800;color:white;line-height:1">—</div>
+      </div>
+    </div>
+    <div id="welcome-next" style="font-size:12px;color:rgba(255,255,255,0.3);margin-bottom:2rem"></div>
+    <div style="display:flex;gap:6px;align-items:center;justify-content:center">
+      <div style="width:6px;height:6px;border-radius:50%;background:#C9A84C"></div>
+      <div style="width:6px;height:6px;border-radius:50%;background:rgba(201,168,76,0.35)"></div>
+      <div style="width:6px;height:6px;border-radius:50%;background:rgba(201,168,76,0.15)"></div>
+    </div>
+    <div style="position:absolute;bottom:0;left:0;right:0;padding:1.25rem;border-top:1px solid rgba(255,255,255,0.06);text-align:center">
+      <div style="font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:.04em">Bray Head Golf Society</div>
+    </div>
+  </div>
+
 </body>
 </html>
 
