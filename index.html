@@ -1818,9 +1818,9 @@ function renderLeaderboard() {
     const posStr = pos===1?'1st':pos===2?'2nd':pos===3?'3rd':pos+'th';
     const hasPenalty = p.penalty > 0 && filter !== 'sunday_9';
     const movHtml = p.movement > 0
-      ? `<span style="font-size:10px;font-weight:700;color:#2a6b1a;background:#eaf3de;padding:2px 5px;border-radius:99px;flex-shrink:0">&#9650;${p.movement}</span>`
+      ? `<span style="font-size:11px;font-weight:700;color:#2a6b1a;background:#d4edcc;padding:2px 7px;border-radius:99px;flex-shrink:0">▲${p.movement}</span>`
       : p.movement < 0
-      ? `<span style="font-size:10px;font-weight:700;color:#A32D2D;background:#FCEBEB;padding:2px 5px;border-radius:99px;flex-shrink:0">&#9660;${Math.abs(p.movement)}</span>`
+      ? `<span style="font-size:11px;font-weight:700;color:#A32D2D;background:#fad8d8;padding:2px 7px;border-radius:99px;flex-shrink:0">▼${Math.abs(p.movement)}</span>`
       : '';
 
     const ptsColor = pos===1?'#B8860B':pos===2?'#666':pos===3?'#8B4513':'var(--green-mid)';
@@ -1839,7 +1839,7 @@ function renderLeaderboard() {
             <div class="lb-card-name">${p.name}</div>
             ${movHtml}
           </div>
-          <div class="lb-card-sub">Hcp ${parseFloat(p.handicap_index).toFixed(1)}</div>
+          <div class="lb-card-sub" style="color:var(--text-2)">Hcp ${parseFloat(p.handicap_index).toFixed(1)} · ${p.rounds} round${p.rounds!==1?'s':''}</div>
         </div>
         <div class="lb-card-pts" style="color:${ptsColor};font-weight:${pos<=3?'700':'600'}">${p.lp}<span style="font-size:11px;font-weight:400;margin-left:2px;opacity:0.7">pts</span></div>
       </button>
@@ -4741,13 +4741,13 @@ function renderSchedule() {
     const captainsBadge = '';
 
     const numLabel = `<div style="flex-shrink:0;text-align:center;min-width:36px">
-        <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
+        <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
         <div style="font-size:16px;font-weight:700;color:${isOutingRow?'#C9A84C':'var(--text-2)'};line-height:1">${weekNum}</div>
        </div>`;
 
     const pastNumLabel = `<div style="flex-shrink:0;text-align:center;min-width:32px">
-        <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
-        <div style="font-size:14px;font-weight:600;color:var(--text-3);line-height:1">${weekNum}</div>
+        <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text-2);line-height:1">${weekNum}</div>
        </div>`;
 
     if (isPastSection || isPublished) {
@@ -4755,7 +4755,7 @@ function renderSchedule() {
         ${pastNumLabel}
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;color:var(--text-3)">${fmtDate(d)}</div>
-          ${courseName?`<div style="font-size:14px;font-weight:500;color:var(--text-2);margin-top:1px">${courseName}</div>`:''}
+          ${courseName?`<div style="font-size:14px;font-weight:600;color:var(--text);margin-top:1px">${courseName}</div>`:''}
           ${captainsDayLabel}
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
@@ -4785,9 +4785,8 @@ function renderSchedule() {
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 10px 10px 12px;border-bottom:0.5px solid var(--border);border-left:3px solid ${rowBorderColor};margin-bottom:4px">
       ${numLabel}
       <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">${typeLabel}</div>
-        <div style="font-size:13px;color:var(--text-2)">${fmtDate(d)}</div>
-        ${courseName?`<div style="font-size:15px;font-weight:600;color:var(--text);margin-top:2px">${courseName}</div>`:''}
+        ${courseName?`<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px">${courseName}</div>`:''}
+        <div style="display:flex;align-items:center;gap:6px">${typeLabel}<span style="font-size:12px;color:var(--text-3)">${fmtDate(d)}</span></div>
         ${captainsDayLabel}
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
@@ -7312,7 +7311,7 @@ function renderProfile() {
     <div style="display:flex;background:white;border-radius:var(--radius);padding:3px;gap:2px;margin-bottom:1rem;border:0.5px solid var(--border)">
       ${['overview','prizes','history','stats'].map((t,i)=>{
         const labels = ['Overview','Prizes','History','Stats'];
-        return `<button id="ptab-${t}" onclick="switchProfileTab('${t}')" style="flex:1;padding:11px 4px;border:none;border-bottom:2.5px solid ${i===0?'#C9A84C':'transparent'};font-size:13px;font-weight:${i===0?700:500};font-family:'DM Sans',sans-serif;cursor:pointer;background:none;color:${i===0?'#1a1510':'var(--text-3)'};transition:color 0.15s,border-color 0.15s">${labels[i]}</button>`;
+        return `<button id="ptab-${t}" onclick="switchProfileTab('${t}')" style="flex:1;padding:11px 4px;border:none;border-radius:8px;font-size:13px;font-weight:${i===0?700:500};font-family:'DM Sans',sans-serif;cursor:pointer;background:${i===0?'#0a1628':'none'};color:${i===0?'#C9A84C':'var(--text-3)'};transition:color 0.15s,background 0.15s">${labels[i]}</button>`;
       }).join('')}
     </div>
 
@@ -7525,8 +7524,8 @@ function switchProfileTab(tab) {
     const btn = document.getElementById('ptab-'+t);
     const content = document.getElementById('ptab-content-'+t);
     if (btn) {
-      btn.style.borderBottomColor = t===tab ? '#C9A84C' : 'transparent';
-      btn.style.color = t===tab ? '#1a1510' : 'var(--text-3)';
+      btn.style.background = t===tab ? '#0a1628' : 'none';
+      btn.style.color = t===tab ? '#C9A84C' : 'var(--text-3)';
       btn.style.fontWeight = t===tab ? '700' : '500';
     }
     if (content) content.style.display = t===tab ? '' : 'none';
