@@ -863,7 +863,7 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;gap:8px">
         <span class="card-title" style="margin:0">Season standings</span>
         <div style="display:flex;gap:6px;align-items:center">
-          <button id="lb-share-btn" onclick="shareLeaderboard()" style="display:none;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">📤</button>
+          <button id="lb-share-btn" onclick="shareLeaderboard()" style="display:none;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:#0a1628;color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">📤 Share</button>
           <select id="lb-filter-select" onchange="setLbFilter(this.value)" style="padding:6px 10px;border-radius:8px;border:1px solid #0a1628;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"6\"><path d=\"M0 0l5 6 5-6z\" fill=\"%23C9A84C\"/></svg>');background-repeat:no-repeat;background-position:right 8px center;padding-right:24px">
             <option value="all">Overall</option>
             <option value="sunday_9">Sundays</option>
@@ -1654,11 +1654,7 @@ function renderLeaderboard() {
     const today = new Date().toISOString().split('T')[0];
     const remaining = db.events.filter(e=>e.event_type==='sunday_9' && e.event_date > today).length;
     const played = db.events.filter(e=>e.published).length;
-    const filterLabel = filter==='all' ? 'All events'
-      : filter==='sunday_9' ? 'Sundays only'
-      : filter==='outing_18' ? 'Outings only'
-      : `If best 33 of ${played} dropped now`;
-    sub.textContent = `${filterLabel} · ${remaining} Sunday${remaining!==1?'s':''} remaining this season`;
+    sub.textContent = `${remaining} Sunday${remaining!==1?'s':''} remaining this season`;
   }
 
   // Season summary card — hide for dropped_now view
@@ -1669,7 +1665,7 @@ function renderLeaderboard() {
     summaryEl.innerHTML = dropping > 0
       ? `<div style="background:#fef8e6;border:1px solid #C9A84C;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center"><span style="font-size:15px">⚠️</span><div><div style="font-size:12px;font-weight:700;color:#8a6a1a">Best 33 of ${played} events counting</div><div style="font-size:11px;color:#a07820;margin-top:1px">Each player's lowest ${dropping} result${dropping!==1?'s are':' is'} being dropped — missed rounds count as 0 pts</div></div></div>`
       : `<div style="background:#eaf3de;border:1px solid #639922;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center"><span style="font-size:15px">ℹ️</span><div><div style="font-size:12px;font-weight:700;color:#3B6D11">${played} of 37 events played — no drops yet</div><div style="font-size:11px;color:#3B6D11;margin-top:1px">Drops kick in after 33 events · missed rounds count as 0 pts</div></div></div>`;
-  } else if (summaryEl && filter === 'all') {
+  } else if (summaryEl && !isDroppedNow) {
     const todayStr      = new Date().toISOString().split('T')[0];
     const totalEvents   = db.events.filter(e=>e.published).length;
     const totalSundays  = db.events.filter(e=>e.published && e.event_type==='sunday_9').length;
@@ -1825,7 +1821,7 @@ function renderLeaderboard() {
   // Penalty callout box — collapsible pill
   const penaltyBox = document.getElementById('lb-penalty-box');
   const penaltyPlayers = rows.filter(p => p.penalty > 0).sort((a,b) => b.penalty - a.penalty);
-  if (penaltyPlayers.length && filter !== 'sunday_9' && !isDroppedNow) {
+  if (penaltyPlayers.length && filter !== 'sunday_9') {
     const posLabel = p => p.penalty === 4 ? '1st at last outing' : p.penalty === 3 ? '2nd at last outing' : '3rd at last outing';
     penaltyBox.style.display = 'block';
     penaltyBox.innerHTML = `
