@@ -1726,9 +1726,7 @@ function renderLeaderboard() {
   if (summaryEl && isDroppedNow) {
     const played = db.events.filter(e=>e.published).length;
     const dropping = Math.max(0, played - 33);
-    summaryEl.innerHTML = dropping > 0
-      ? `<div style="background:#fef8e6;border:1px solid #C9A84C;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center"><span style="font-size:15px">⚠️</span><div><div style="font-size:12px;font-weight:700;color:#8a6a1a">Best 33 of ${played} events counting</div><div style="font-size:11px;color:#a07820;margin-top:1px">Each player's lowest ${dropping} result${dropping!==1?'s are':' is'} being dropped — missed rounds count as 0 pts</div></div></div>`
-      : `<div style="background:#eaf3de;border:1px solid #639922;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center"><span style="font-size:15px">ℹ️</span><div><div style="font-size:12px;font-weight:700;color:#3B6D11">${played} of 37 events played — no drops yet</div><div style="font-size:11px;color:#3B6D11;margin-top:1px">Drops kick in after 33 events · missed rounds count as 0 pts</div></div></div>`;
+    summaryEl.innerHTML = `<div style="background:#fef8e6;border:1px solid #C9A84C;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center"><span style="font-size:15px">⚠️</span><div><div style="font-size:12px;font-weight:700;color:#8a6a1a">Each player's 4 lowest scores dropped</div><div style="font-size:11px;color:#a07820;margin-top:1px">${played} events played · missed rounds count as 0 pts</div></div></div>`;
   } else if (summaryEl) {
     const todayStr      = new Date().toISOString().split('T')[0];
     const totalEvents   = db.events.filter(e=>e.published).length;
@@ -1821,8 +1819,7 @@ function renderLeaderboard() {
       </div>`;
   }
 
-  // For dropped_now: recalculate each player's total using best 33 of events played so far,
-  // counting missed events as 0-point slots just like the profile history tab
+  // For dropped_now: drop each player's 4 lowest scores (including missed rounds as 0pts)
   let lbPositions;
   if (isDroppedNow) {
     const allPublishedEvs = db.events.filter(e=>e.published);
@@ -1842,8 +1839,10 @@ function renderLeaderboard() {
       }
       const missedCount = allPublishedEvs.filter(e=>!myLpRounds.find(r=>r.event_id===e.id)).length;
       const missedSlots = Array.from({length: missedCount}, ()=>({ _lp: 0 }));
-      const allSlots = [...myLpRounds, ...missedSlots].sort((a,b)=>b._lp-a._lp).slice(0,33);
-      totalsDN[p.id] = allSlots.reduce((s,r)=>s+r._lp, 0);
+      // Sort best first, drop the bottom 4 (no-shows fill those slots first)
+      const allSlots = [...myLpRounds, ...missedSlots].sort((a,b)=>b._lp-a._lp);
+      const counting = allSlots.slice(0, Math.max(0, allSlots.length - 4));
+      totalsDN[p.id] = counting.reduce((s,r)=>s+r._lp, 0);
     }
     const sortedDN = db.players.filter(p=>!p.provisional)
       .map(p=>({ id: p.id, lp: totalsDN[p.id]||0 }))
