@@ -860,21 +860,23 @@
   <div id="leaderboard" class="section">
     <div id="lb-live-section" style="display:none"></div>
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;gap:8px">
-        <span class="card-title" style="margin:0">Season standings</span>
+      <div style="margin-bottom:0.75rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span class="card-title" style="margin:0">Season standings</span>
+        </div>
         <div style="position:relative">
-          <button onclick="toggleLbDropdown()" id="lb-dropdown-btn" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:none;background:#0a1628;color:#C9A84C;font-size:12px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          <button onclick="toggleLbDropdown()" id="lb-dropdown-btn" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:8px;border:1px solid rgba(201,168,76,0.3);background:#0a1628;color:#C9A84C;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent;box-sizing:border-box">
             <span id="lb-dropdown-label">Overall</span>
-            <span style="font-size:9px">▼</span>
+            <span style="font-size:9px;opacity:0.7">▼</span>
           </button>
-          <div id="lb-dropdown-menu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:white;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:100;min-width:160px;overflow:hidden">
-            <button onclick="switchLbTab('all')" class="lb-dd-item" style="width:100%;padding:11px 14px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:600;color:#0a1628;font-family:'DM Sans',sans-serif;cursor:pointer;display:block">Overall</button>
-            <button onclick="switchLbTab('sunday_9')" class="lb-dd-item" style="width:100%;padding:11px 14px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block">Sundays</button>
-            <button onclick="switchLbTab('outing_18')" class="lb-dd-item" style="width:100%;padding:11px 14px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block">Outings</button>
-            <button onclick="switchLbTab('dropped_now')" class="lb-dd-item" style="width:100%;padding:11px 14px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block">If dropped now</button>
-            <button onclick="switchLbTab('stats')" class="lb-dd-item" style="width:100%;padding:11px 14px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block">Season stats</button>
-            <button onclick="switchLbTab('penalties')" class="lb-dd-item" style="width:100%;padding:11px 14px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block">Penalties</button>
-            <button id="lbt-share" onclick="shareLeaderboard();closeLbDropdown()" style="display:none;width:100%;padding:11px 14px;text-align:left;border:none;background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer">Share leaderboard</button>
+          <div id="lb-dropdown-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:white;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;overflow:hidden">
+            <button onclick="switchLbTab('all')" class="lb-dd-item" style="width:100%;padding:12px 16px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:700;color:#0a1628;font-family:'DM Sans',sans-serif;cursor:pointer;display:block;-webkit-tap-highlight-color:transparent">Overall</button>
+            <button onclick="switchLbTab('sunday_9')" class="lb-dd-item" style="width:100%;padding:12px 16px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block;-webkit-tap-highlight-color:transparent">Sundays</button>
+            <button onclick="switchLbTab('outing_18')" class="lb-dd-item" style="width:100%;padding:12px 16px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block;-webkit-tap-highlight-color:transparent">Outings</button>
+            <button onclick="switchLbTab('dropped_now')" class="lb-dd-item" style="width:100%;padding:12px 16px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block;-webkit-tap-highlight-color:transparent">If dropped now</button>
+            <button onclick="switchLbTab('stats')" class="lb-dd-item" style="width:100%;padding:12px 16px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block;-webkit-tap-highlight-color:transparent">Season stats</button>
+            <button onclick="switchLbTab('penalties')" class="lb-dd-item" style="width:100%;padding:12px 16px;text-align:left;border:none;border-bottom:0.5px solid var(--border);background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;display:block;-webkit-tap-highlight-color:transparent">Penalties</button>
+            <button id="lbt-share" onclick="shareLeaderboard();closeLbDropdown()" style="display:none;width:100%;padding:12px 16px;text-align:left;border:none;background:none;font-size:13px;font-weight:500;color:var(--text);font-family:'DM Sans',sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent">Share leaderboard</button>
           </div>
         </div>
       </div>
@@ -1716,7 +1718,7 @@ function renderLeaderboard() {
   const sub = document.getElementById('lb-season-sub');
   if (sub) {
     const today = new Date().toISOString().split('T')[0];
-    const remaining = db.events.filter(e=>e.event_type==='sunday_9' && e.event_date > today).length;
+    const remaining = getSeasonDates().filter(e=>!e.isOuting && e.date > today).length;
     const played = db.events.filter(e=>e.published).length;
     sub.textContent = `${remaining} Sunday${remaining!==1?'s':''} remaining this season`;
   }
