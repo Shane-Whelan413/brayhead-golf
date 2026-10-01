@@ -5474,18 +5474,28 @@ function renderHome() {
       ? '<span style="font-size:10px;font-weight:600;color:#C9A84C;background:rgba(201,168,76,0.15);padding:1px 7px;border-radius:99px">Outing</span>'
       : '<span style="font-size:10px;font-weight:600;color:#93c5fd;background:rgba(147,197,253,0.12);padding:1px 7px;border-radius:99px">Sunday</span>';
 
-    const medalBg  = ['#B8860B','#888','#8B4513'];
-    const medalCol = ['#B8860B','#666','#8B4513'];
+    // Week number for this event in the season
+    const allSeasonDates = getSeasonDates();
+    const totalRounds = allSeasonDates.length;
+    const evDate = ev ? ev.event_date : null;
+    const weekNum = evDate ? (allSeasonDates.findIndex(d => d.date === evDate) + 1) : 0;
+    const roundLabel = weekNum ? 'Round ' + weekNum + '/' + totalRounds : '';
 
-    const top3 = ranked.map((r, i) => {
-      const p = db.players.find(x => x.id === r.player_id);
-      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid #f0ece5">'
-        + '<div style="width:28px;height:28px;border-radius:50%;background:'+medalBg[i]+';color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+1)+'</div>'
-        + avatarHtml(p||{name:'?'}, 30, 10)
-        + '<div style="flex:1;font-size:13px;font-weight:'+(i===0?'700':'400')+';color:'+(i===0?'#0a1628':'#444441')+'">'+(p?p.name:'?')+'</div>'
-        + '<div style="font-size:16px;font-weight:800;color:'+medalCol[i]+'">'+r.stableford_points+'<span style="font-size:10px;font-weight:400;color:#b4b2a9"> pts</span></div>'
-        + '</div>';
-    }).join('');
+    // Winner hero row
+    const winner = ranked[0];
+    const winnerPlayer = winner ? db.players.find(x => x.id === winner.player_id) : null;
+    const winnerRow = winner
+      ? '<div style="background:linear-gradient(180deg,#fef8e6 0%,white 100%);padding:12px 14px;border-bottom:0.5px solid #f0ece5">'        + '<div style="display:flex;align-items:center;gap:10px">'        + '<div style="font-size:22px;flex-shrink:0">🥇</div>'        + avatarHtml(winnerPlayer||{name:'?'}, 36, 12)        + '<div style="flex:1;min-width:0">'        + '<div style="font-size:15px;font-weight:800;color:#0a1628;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(winnerPlayer?winnerPlayer.name:'?')+'</div>'        + '<div style="font-size:10px;color:#9a8a70;margin-top:1px">Winner</div>'        + '</div>'        + '<div style="text-align:right;flex-shrink:0">'        + '<div style="font-size:26px;font-weight:800;color:#B8860B;line-height:1">'+winner.stableford_points+'</div>'        + '<div style="font-size:9px;color:#b4a882;text-transform:uppercase;letter-spacing:.05em">pts</div>'        + '</div></div></div>'      : '';
+
+    // 2nd and 3rd
+    const rest = ranked.slice(1);
+    const restRows = rest.length
+      ? '<div style="padding:0 14px">'        + rest.map((r, i) => {
+            const p = db.players.find(x => x.id === r.player_id);
+            const mBg  = ['#707070','#A0522D'];
+            const mCol = ['#666','#8B4513'];
+            return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:'+(i<rest.length-1?'0.5px solid #f0ece5':'none')+'">'              + '<div style="width:22px;height:22px;border-radius:50%;background:'+mBg[i]+';color:white;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(i+2)+'</div>'              + avatarHtml(p||{name:'?'}, 30, 10)              + '<div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:#444441;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p?p.name:'?')+'</div>'              + '<div style="font-size:16px;font-weight:700;color:'+mCol[i]+'">'+r.stableford_points+'<span style="font-size:10px;font-weight:400;color:#b4b2a9"> pts</span></div>'              + '</div>';
+          }).join('')        + '</div>'      : '';
 
     const extras = [];
     if (n.closest_to_pin) extras.push('📍 '+n.closest_to_pin);
@@ -5493,10 +5503,7 @@ function renderHome() {
     if (n.best_front_9) extras.push('Front 9: '+n.best_front_9);
     if (n.best_back_9)  extras.push('Back 9: '+n.best_back_9);
     const extrasStrip = extras.length
-      ? '<div style="padding:8px 14px;background:#f8f5ee;border-top:0.5px solid #e8e4de;display:flex;flex-wrap:wrap;gap:6px">'
-        + extras.map(e => '<div style="font-size:11px;color:#444441;background:white;border:0.5px solid #e8e4de;border-radius:99px;padding:3px 10px">'+e+'</div>').join('')
-        + '</div>'
-      : '';
+      ? '<div style="padding:8px 14px;background:#f8f5ee;border-top:0.5px solid #e8e4de;display:flex;flex-wrap:wrap;gap:5px">'        + extras.map(e => '<div style="font-size:11px;color:#5a4a30;background:white;border:0.5px solid #e0d8c8;border-radius:99px;padding:4px 10px;font-weight:500">'+e+'</div>').join('')        + '</div>'      : '';
 
     // Hole in one card
     const hioCard = n.hole_in_one_player
@@ -5534,38 +5541,17 @@ function renderHome() {
 
     const isCaptainsDayPost = ev?.is_captains_day === true;
     const uid2 = 'f'+Math.random().toString(36).slice(2);
-    return '<div style="background:white;border:'+(isCaptainsDayPost?'2px solid #C9A84C':'1px solid #e8e4de')+';border-radius:14px;overflow:hidden;margin-bottom:10px">'
-      // Header
-      + '<div style="background:#0a1628;padding:14px 16px;position:relative">'
-      + '<div style="position:absolute;top:0;left:0;right:0;height:'+(isCaptainsDayPost?'4':'3')+'px;background:linear-gradient(90deg,#7a5500,#C9A84C,#e8c04a,#C9A84C,#7a5500)"></div>'
-      + '<div style="display:flex;align-items:center;gap:12px">'
-      + '<img src="icon-192.png" style="width:40px;height:40px;border-radius:50%;border:1.5px solid rgba(201,168,76,0.5);flex-shrink:0;object-fit:cover" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
-      + '<div style="width:40px;height:40px;border-radius:50%;background:rgba(201,168,76,0.15);border:1.5px solid rgba(201,168,76,0.4);display:none;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">⛳</div>'
-      + '<div style="flex:1;min-width:0">'
-      + '<div style="font-family:\'DM Serif Display\',serif;font-size:17px;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(isCaptainsDayPost?'👑 ':'')+(ev?ev.course_name:'Event')+'</div>'
-      + '<div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span style="font-size:11px;color:rgba(255,255,255,0.45)">'+(ev?fmtDate(ev.event_date):'')+'</span>'+typeTag+(isCaptainsDayPost?'<span style="font-size:10px;font-weight:700;color:#C9A84C;background:rgba(201,168,76,0.15);padding:2px 8px;border-radius:99px">Captain\'s Day</span>':'')+'</div>'
-      + '</div></div></div>'
-      // Podium
-      + '<div style="padding:4px 16px 0">'+top3+'</div>'
-      // Extras
-      + extrasStrip
-      // Hole in one
-      + hioCard
-      // Captain's Day winner
-      + captainsCard
-      // Custom message
-      + customMsg
-      // Footer
-      + '<div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid #e8e4de">'
-      + '<span style="font-size:11px;color:#b4b2a9">'+eventRounds.length+' round'+(eventRounds.length!==1?'s':'')+' submitted</span>'
-      + '<div style="display:flex;gap:8px;align-items:center">'
-       + (ev?'<button onclick="viewEventResults(\''+ev.id+'\')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer;font-weight:600">Full results →</button>':'')
-       + '<button onclick="generateResultsCard(\''+n.event_id+'\')" style="background:#C9A84C;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;color:#0a1628;font-family:\'DM Sans\',sans-serif;cursor:pointer">Share</button>'
-       + (isAdmin?'<div style="width:0.5px;height:20px;background:#e8e4de;margin:0 2px"></div>':'')
-       + (isAdmin?'<button onclick="showPostUpdate(\''+n.event_id+'\')" style="background:none;border:none;font-size:11px;color:var(--text-3);font-family:\'DM Sans\',sans-serif;cursor:pointer">Edit</button>':'')
-       + (isAdmin?'<button onclick="deleteNotice(\''+n.id+'\')" style="background:none;border:none;font-size:11px;color:#d9a0a0;font-family:\'DM Sans\',sans-serif;cursor:pointer">Remove</button>':'')
-      + '</div></div></div>';
+    return '<div style="background:white;border:'+(isCaptainsDayPost?'2px solid #C9A84C':'1px solid #e8e4de')+';border-radius:14px;overflow:hidden;margin-bottom:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07)">'      // Header
+      + '<div style="background:#0a1628;padding:14px 16px;position:relative">'      + '<div style="position:absolute;top:0;left:0;right:0;height:'+(isCaptainsDayPost?'4':'3')+'px;background:linear-gradient(90deg,#7a5500,#C9A84C,#e8c04a,#C9A84C,#7a5500)"></div>'      + '<div style="display:flex;align-items:center;gap:12px">'      + '<img src="icon-192.png" style="width:38px;height:38px;border-radius:50%;border:1.5px solid rgba(201,168,76,0.5);flex-shrink:0;object-fit:cover" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'      + '<div style="width:38px;height:38px;border-radius:50%;background:rgba(201,168,76,0.15);border:1.5px solid rgba(201,168,76,0.4);display:none;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">⛳</div>'      + '<div style="flex:1;min-width:0">'      + '<div style="font-family:\'DM Serif Display\',serif;font-size:17px;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700">'+(isCaptainsDayPost?'👑 ':'')+(ev?ev.course_name:'Event')+'</div>'      + '<div style="display:flex;align-items:center;gap:6px;margin-top:3px"><span style="font-size:10px;color:rgba(255,255,255,0.45)">'+(ev?fmtDate(ev.event_date):'')+'</span>'+typeTag+(isCaptainsDayPost?'<span style="font-size:10px;font-weight:700;color:#C9A84C;background:rgba(201,168,76,0.15);padding:2px 8px;border-radius:99px">Captain\'s Day</span>':'')+'</div>'      + '</div>'      + (roundLabel ? '<div style="text-align:right;flex-shrink:0"><div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.07em">'+roundLabel.split(' ')[0]+'</div><div style="font-size:17px;font-weight:800;color:#C9A84C;line-height:1">'+roundLabel.split(' ')[1]+'</div></div>' : '')      + '</div></div>'      // Winner hero
+      + winnerRow      // 2nd and 3rd
+      + restRows      // Extras
+      + extrasStrip      // Hole in one
+      + hioCard      // Captain's Day winner
+      + captainsCard      // Custom message
+      + customMsg      // Footer
+      + '<div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid #e8e4de">'      + (ev?'<button onclick="viewEventResults(\''+ev.id+'\')" style="background:none;border:none;font-size:12px;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer;font-weight:600">Full results →</button>':'<span></span>')      + '<div style="display:flex;gap:8px;align-items:center">'      + '<button onclick="generateResultsCard(\''+n.event_id+'\')" style="background:#0a1628;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;color:#C9A84C;font-family:\'DM Sans\',sans-serif;cursor:pointer">Share</button>'      + (isAdmin?'<button onclick="showPostUpdate(\''+n.event_id+'\')" style="background:none;border:none;font-size:11px;color:var(--text-3);font-family:\'DM Sans\',sans-serif;cursor:pointer">Edit</button>':'')      + (isAdmin?'<button onclick="deleteNotice(\''+n.id+'\')" style="background:none;border:none;font-size:11px;color:#d9a0a0;font-family:\'DM Sans\',sans-serif;cursor:pointer">Remove</button>':'')      + '</div></div></div>';
   }
+
 
   let feedHtml = '';
   if (sorted.length) {
