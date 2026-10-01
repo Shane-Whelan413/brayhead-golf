@@ -5557,31 +5557,61 @@ function renderHome() {
   if (sorted.length) {
     // Latest result — always fully expanded
     feedHtml += renderResultCard(sorted[0], true);
-    // Older results — each one an accordion: collapsed by default, tap header to expand
+    // Older results — grouped by month with divider headers
     if (sorted.length > 1) {
-      feedHtml += sorted.slice(1).map(function(n) {
+      const older = sorted.slice(1);
+
+      // Group by month
+      const monthGroups = {};
+      const monthOrder = [];
+      older.forEach(n => {
         const ev = db.events.find(e => e.id === n.event_id);
-        const eventRounds = db.rounds.filter(r => r.event_id === n.event_id && r.verified);
-        const ranked = assignLeaguePts(eventRounds.map(r=>({...r})));
-        const top = ranked[0];
-        const winner = top ? (db.players.find(p => p.id === top.player_id)||{}).name || '—' : '—';
-        const dateStr = ev ? fmtDate(ev.event_date) : '';
-        const courseName = ev ? ev.course_name : 'Event';
-        const uid = 'acc_' + Math.random().toString(36).slice(2);
-        const fullCard = renderResultCard(n, false);
-        const isCap = ev?.is_captains_day === true;
-        // Wrap full card in a collapsible div; collapsed summary row is the tap target
-        return '<div style="margin-bottom:8px">'
-          + '<div onclick="(function(){var b=document.getElementById(\''+uid+'\');var a=document.getElementById(\''+uid+'_arr\');var open=b.style.display!==\'none\';b.style.display=open?\'none\':\'block\';a.style.transform=open?\'rotate(0deg)\':\'rotate(180deg)\';})()" style="display:flex;align-items:center;gap:12px;background:white;border:1px solid #e8e4de;border-radius:12px;padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 1px 4px rgba(0,0,0,0.05)">'
-          + '<div style="width:36px;height:36px;border-radius:50%;background:#0a1628;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px">'+(isCap?'👑':'⛳')+'</div>'
-          + '<div style="flex:1;min-width:0">'
-          + '<div style="font-size:14px;font-weight:700;color:#0a1628;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em">'+courseName+'</div>'
-          + '<div style="font-size:11px;color:#9a8a70;margin-top:2px">'+dateStr+' &nbsp;·&nbsp; 🏆 <strong style="color:#444441;font-weight:600">'+winner+'</strong></div>'
-          + '</div>'
-          + '<span id="'+uid+'_arr" style="font-size:12px;color:#C9A84C;flex-shrink:0;transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1);display:inline-block">▼</span>'
-          + '</div>'
-          + '<div id="'+uid+'" style="display:none">'+fullCard+'</div>'
+        const monthKey = ev ? ev.event_date.slice(0,7) : 'unknown';
+        if (!monthGroups[monthKey]) {
+          monthGroups[monthKey] = [];
+          monthOrder.push(monthKey);
+        }
+        monthGroups[monthKey].push(n);
+      });
+
+      feedHtml += monthOrder.map(monthKey => {
+        const group = monthGroups[monthKey];
+        const monthLabel = monthKey !== 'unknown'
+          ? new Date(monthKey+'-01').toLocaleString('en-IE',{month:'long',year:'numeric'})
+          : 'Earlier';
+
+        const divider = '<div style="display:flex;align-items:center;gap:10px;margin:12px 0 8px">'
+          + '<div style="font-size:11px;font-weight:700;color:#9a8a70;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap">'+monthLabel+'</div>'
+          + '<div style="flex:1;height:0.5px;background:#e8e4de"></div>'
+          + '<div style="font-size:11px;color:#b4b2a9">'+group.length+' round'+(group.length!==1?'s':'')+'</div>'
           + '</div>';
+
+        const cards = group.map(n => {
+          const ev = db.events.find(e => e.id === n.event_id);
+          const eventRounds = db.rounds.filter(r => r.event_id === n.event_id && r.verified);
+          const ranked = assignLeaguePts(eventRounds.map(r=>({...r})));
+          const top = ranked[0];
+          const winner = top ? (db.players.find(p => p.id === top.player_id)||{}).name || '—' : '—';
+          const dateStr = ev ? fmtDate(ev.event_date) : '';
+          const courseName = ev ? ev.course_name : 'Event';
+          const uid = 'acc_' + Math.random().toString(36).slice(2);
+          const fullCard = renderResultCard(n, false);
+          const isCap = ev?.is_captains_day === true;
+
+          return '<div style="margin-bottom:8px">'
+            + '<div onclick="(function(){var b=document.getElementById(\''+uid+'\');var a=document.getElementById(\''+uid+'_arr\');var open=b.style.display!==\'none\';b.style.display=open?\'none\':\'block\';a.style.transform=open?\'rotate(0deg)\':\'rotate(180deg)\';})()" style="display:flex;align-items:center;gap:12px;background:white;border:1px solid #e8e4de;border-radius:12px;padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 1px 4px rgba(0,0,0,0.05)">'
+            + '<div style="width:36px;height:36px;border-radius:50%;background:#0a1628;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px">'+(isCap?'👑':'⛳')+'</div>'
+            + '<div style="flex:1;min-width:0">'
+            + '<div style="font-size:14px;font-weight:700;color:#0a1628;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em">'+courseName+'</div>'
+            + '<div style="font-size:11px;color:#9a8a70;margin-top:2px">'+dateStr+' &nbsp;·&nbsp; 🏆 <strong style="color:#444441;font-weight:600">'+winner+'</strong></div>'
+            + '</div>'
+            + '<span id="'+uid+'_arr" style="font-size:12px;color:#C9A84C;flex-shrink:0;transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1);display:inline-block">▼</span>'
+            + '</div>'
+            + '<div id="'+uid+'" style="display:none">'+fullCard+'</div>'
+            + '</div>';
+        }).join('');
+
+        return divider + cards;
       }).join('');
     }
   }
