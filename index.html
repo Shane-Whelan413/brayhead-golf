@@ -219,9 +219,12 @@
   .toasts { bottom: 90px; left: 50%; transform: translateX(-50%); right: auto; align-items: center; }
   .toast { max-width: 280px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
 
-  .section { display: none; opacity: 0; }
-  .section.active { display: block; animation: sectionFadeIn 0.18s ease forwards; }
-  @keyframes sectionFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .section { display: none; }
+  .section.active { display: block; animation: sectionFadeIn 0.2s ease both; }
+  @keyframes sectionFadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 
   .card {
     background: rgba(255,255,255,0.97);
@@ -10093,6 +10096,10 @@ async function cleanupLiveRounds(eid) {
 }
 
 async function init() {
+  // iOS Safari requires at least one touch listener on the document
+  // for :active CSS states to fire on any element
+  document.addEventListener('touchstart', function(){}, { passive: true });
+
   try {
     await loadAll();
   } catch(e) {
