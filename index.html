@@ -225,6 +225,19 @@
     from { opacity: 0; transform: translateY(5px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+  @keyframes scorePop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.18); }
+    70%  { transform: scale(0.94); }
+    100% { transform: scale(1); }
+  }
+  @keyframes numPress {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(0.88); }
+    100% { transform: scale(1); }
+  }
+  .score-pop { animation: scorePop 0.25s cubic-bezier(0.34,1.56,0.64,1) both; }
+  .num-press { animation: numPress 0.15s ease both; }
 
   .card {
     background: rgba(255,255,255,0.97);
@@ -2580,7 +2593,7 @@ function hseSelectHole(h) {
     let nums = '';
     for (let i = 1; i <= 10; i++) {
       const isSel = !isNR && currentScore === i;
-      nums += `<div onclick="hseScore(${h},${i})" style="background:${isSel?'#0a1628':'#f8f5ee'};border:1px solid ${isSel?'#0a1628':'rgba(0,0,0,0.09)'};border-radius:10px;padding:13px 4px;text-align:center;font-size:18px;font-weight:700;color:${isSel?'#C9A84C':'#5a5040'};cursor:pointer;-webkit-tap-highlight-color:transparent">${i}</div>`;
+      nums += `<div onclick="hseScore(${h},${i})" ontouchstart="this.style.transform='scale(0.88)';this.style.opacity='0.7'" ontouchend="this.style.transform='';this.style.opacity=''" style="background:${isSel?'#0a1628':'#f8f5ee'};border:1px solid ${isSel?'#0a1628':'rgba(0,0,0,0.09)'};border-radius:10px;padding:13px 4px;text-align:center;font-size:18px;font-weight:700;color:${isSel?'#C9A84C':'#5a5040'};cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;transition:transform 0.1s,opacity 0.1s">${i}</div>`;
     }
     grid.innerHTML = nums;
   }
@@ -2693,6 +2706,15 @@ function hseScore(h, val) {
   hseSelectHole(h);
   hseSaveCache();
   updateRoundSummary();
+
+  // Bounce the score display
+  const scoreBig = document.getElementById('hse-score-big');
+  if (scoreBig) {
+    scoreBig.classList.remove('score-pop');
+    scoreBig.offsetWidth; // force reflow
+    scoreBig.classList.add('score-pop');
+  }
+
   if (h < hseState.n) setTimeout(() => hseNav(1), 150);
 }
 
