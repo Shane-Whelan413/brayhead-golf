@@ -7328,13 +7328,35 @@ function showPlayerProfile(pid) {
             <div style="width:28px;text-align:right;font-size:10px;color:var(--text-3)">${h.count}r</div>
           </div>`).join('')}
       </div>` : ''}
-      ${countedRounds.length > 1 ? `
-      <div class="card">
-        <div class="card-title" style="margin-bottom:1rem">Handicap progression</div>
-        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-          <canvas id="modal-hcp-chart" style="width:100%;height:160px;display:block"></canvas>
-        </div>
-      </div>` : '<div class="card"><div class="empty">Play more rounds to see stats</div></div>'}
+      ${(() => {
+        const verRounds = countedRounds.filter(r=>r.verified && r.handicap_after!=null).sort((a,b)=>(db.events.find(e=>e.id===a.event_id)?.event_date||'').localeCompare(db.events.find(e=>e.id===b.event_id)?.event_date||''));
+        if (countedRounds.length < 2) return '<div class="card"><div class="empty">Play more rounds to see stats</div></div>';
+        const startHcpVal = verRounds.length ? parseFloat(verRounds[0].handicap_before).toFixed(1) : '—';
+        const player2 = db.players.find(p=>p.id===pid);
+        const currentHcpVal = player2 ? parseFloat(player2.handicap_index).toFixed(1) : '—';
+        const improvement = verRounds.length && player2 ? (parseFloat(verRounds[0].handicap_before) - parseFloat(player2.handicap_index)).toFixed(1) : null;
+        const improved = improvement !== null && parseFloat(improvement) > 0;
+        const impColor = improved ? '#1D9E75' : parseFloat(improvement) < 0 ? '#E24B4A' : '#9a8a70';
+        const impLabel = improvement !== null ? (improved ? '−' : '+') + Math.abs(improvement) : '—';
+        return `
+        <div style="background:white;border:1px solid #e8e4de;border-radius:14px;overflow:hidden;margin-bottom:1rem">
+          <div style="background:#0a1628;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Handicap progression</div>
+              <div style="font-size:13px;color:rgba(255,255,255,0.7)">Started <span style="color:#C9A84C;font-weight:700">${startHcpVal}</span> &nbsp;·&nbsp; Now <span style="color:#C9A84C;font-weight:700">${currentHcpVal}</span></div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px">Change</div>
+              <div style="font-size:22px;font-weight:800;color:${impColor};line-height:1">${impLabel}</div>
+            </div>
+          </div>
+          <div style="padding:12px 14px">
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+              <canvas id="modal-hcp-chart" style="width:100%;height:160px;display:block"></canvas>
+            </div>
+          </div>
+        </div>`;
+      })()}
     </div>
   `;
 
@@ -7398,15 +7420,17 @@ function drawModalHcpChart() {
   ctx.beginPath(); ctx.moveTo(xPos(0),yPos(allData[0]));
   allData.forEach((v,i)=>ctx.lineTo(xPos(i),yPos(v)));
   ctx.lineTo(xPos(allData.length-1),pad.top+ch); ctx.lineTo(xPos(0),pad.top+ch); ctx.closePath();
-  ctx.fillStyle='rgba(201,168,76,0.12)'; ctx.fill();
-  ctx.beginPath(); ctx.strokeStyle='#C9A84C'; ctx.lineWidth=2.5; ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.fillStyle='rgba(29,158,117,0.08)'; ctx.fill();
+  ctx.beginPath(); ctx.strokeStyle='#1D9E75'; ctx.lineWidth=2.5; ctx.lineJoin='round'; ctx.lineCap='round';
   allData.forEach((v,i)=>i===0?ctx.moveTo(xPos(i),yPos(v)):ctx.lineTo(xPos(i),yPos(v)));
   ctx.stroke();
   allData.forEach((v,i)=>{
-    ctx.beginPath(); ctx.arc(xPos(i),yPos(v),4,0,Math.PI*2); ctx.fillStyle='#C9A84C'; ctx.fill();
+    ctx.beginPath(); ctx.arc(xPos(i),yPos(v),i===allData.length-1?5:4,0,Math.PI*2);
+    ctx.fillStyle = i===allData.length-1 ? '#0a1628' : '#1D9E75'; ctx.fill();
+    if (i===allData.length-1) { ctx.strokeStyle='#1D9E75'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(xPos(i),yPos(v),5,0,Math.PI*2); ctx.stroke(); }
     ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.font='9px sans-serif'; ctx.textAlign='center';
     ctx.fillText(allLabels[i], xPos(i), pad.top+ch+14);
-    ctx.fillStyle='#8a6a1a'; ctx.font='bold 10px sans-serif';
+    ctx.fillStyle='#085041'; ctx.font='bold 10px sans-serif';
     ctx.fillText(v.toFixed(1), xPos(i), yPos(v)-8);
   });
 }
