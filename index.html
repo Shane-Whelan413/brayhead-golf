@@ -7765,13 +7765,35 @@ function renderProfile() {
 
     <!-- OVERVIEW TAB -->
     <div id="ptab-content-overview">
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:1rem">
-        <div class="stat"><div class="stat-label">Handicap</div><div class="stat-value">${parseFloat(player.handicap_index).toFixed(1)}</div></div>
-        <div class="stat"><div class="stat-label">League pts</div><div class="stat-value">${myLeaguePts}</div></div>
-        <div class="stat"><div class="stat-label">Rounds played</div><div class="stat-value">${totalRounds}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">${attendance}% attendance</div></div>
-        <div class="stat"><div class="stat-label">Best score</div><div class="stat-value">${bestScore||'—'}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">Avg: ${avgScore}</div></div>
-        <div class="stat"><div class="stat-label">Best Sunday</div><div class="stat-value">${bestSunday!==null?bestSunday:'—'}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">${sundayRounds.length} round${sundayRounds.length!==1?'s':''}</div></div>
-        <div class="stat"><div class="stat-label">Best outing</div><div class="stat-value">${bestOuting!==null?bestOuting:'—'}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">${outingRounds.length} outing${outingRounds.length!==1?'s':''}</div></div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:1rem">
+        <div style="background:#f8f5ee;border-radius:10px;padding:12px;border-left:3px solid #C9A84C">
+          <div style="font-size:10px;color:#9a8a70;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Handicap</div>
+          <div style="font-size:24px;font-weight:800;color:#0a1628;line-height:1">${parseFloat(player.handicap_index).toFixed(1)}</div>
+        </div>
+        <div style="background:#f8f5ee;border-radius:10px;padding:12px;border-left:3px solid #C9A84C">
+          <div style="font-size:10px;color:#9a8a70;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">League pts</div>
+          <div style="font-size:24px;font-weight:800;color:#0a1628;line-height:1">${myLeaguePts}</div>
+        </div>
+        <div style="background:#f8f5ee;border-radius:10px;padding:12px;border-left:3px solid #C9A84C">
+          <div style="font-size:10px;color:#9a8a70;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Rounds</div>
+          <div style="font-size:24px;font-weight:800;color:#0a1628;line-height:1">${totalRounds}</div>
+          <div style="font-size:10px;color:#9a8a70;margin-top:3px">${attendance}% attendance</div>
+        </div>
+        <div style="background:#f8f5ee;border-radius:10px;padding:12px;border-left:3px solid #C9A84C">
+          <div style="font-size:10px;color:#9a8a70;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Podium finishes</div>
+          <div style="font-size:24px;font-weight:800;color:#0a1628;line-height:1">${first+second+third}</div>
+          <div style="font-size:10px;color:#9a8a70;margin-top:3px">${first} 🥇 · ${second} 🥈 · ${third} 🥉</div>
+        </div>
+        <div style="background:#EAF3DE;border-radius:10px;padding:12px;border-left:3px solid #1D9E75">
+          <div style="font-size:10px;color:#3B6D11;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Best Sunday</div>
+          <div style="font-size:24px;font-weight:800;color:#1D9E75;line-height:1">${bestSunday!==null?bestSunday:'—'}</div>
+          <div style="font-size:10px;color:#3B6D11;margin-top:3px">${sundayRounds.length} round${sundayRounds.length!==1?'s':''}</div>
+        </div>
+        <div style="background:#EAF3DE;border-radius:10px;padding:12px;border-left:3px solid #1D9E75">
+          <div style="font-size:10px;color:#3B6D11;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Best outing</div>
+          <div style="font-size:24px;font-weight:800;color:#1D9E75;line-height:1">${bestOuting!==null?bestOuting:'—'}</div>
+          <div style="font-size:10px;color:#3B6D11;margin-top:3px">${outingRounds.length} outing${outingRounds.length!==1?'s':''}</div>
+        </div>
       </div>
       ${outingEvents.length ? `
       <div class="card">
