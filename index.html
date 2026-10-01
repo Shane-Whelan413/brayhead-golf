@@ -7650,6 +7650,10 @@ function renderProfile() {
   const bestScore = myRounds.length ? Math.max(...myRounds.map(r=>r.stableford_points)) : 0;
   const avgScore  = myRounds.length ? (myRounds.reduce((a,r)=>a+r.stableford_points,0)/myRounds.length).toFixed(1) : '—';
   const attendance = totalEvents > 0 ? Math.round((totalRounds/totalEvents)*100) : 0;
+  const sundayRounds = myRounds.filter(r => { const ev = db.events.find(e=>e.id===r.event_id); return ev && ev.event_type === 'sunday_9'; });
+  const outingRounds = myRounds.filter(r => { const ev = db.events.find(e=>e.id===r.event_id); return ev && ev.event_type === 'outing_18'; });
+  const bestSunday = sundayRounds.length ? Math.max(...sundayRounds.map(r=>r.stableford_points)) : null;
+  const bestOuting = outingRounds.length ? Math.max(...outingRounds.map(r=>r.stableford_points)) : null;
   const byEvent = {};
   for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) { if(!byEvent[r.event_id]) byEvent[r.event_id]=[]; byEvent[r.event_id].push({...r}); }
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
@@ -7766,6 +7770,8 @@ function renderProfile() {
         <div class="stat"><div class="stat-label">League pts</div><div class="stat-value">${myLeaguePts}</div></div>
         <div class="stat"><div class="stat-label">Rounds played</div><div class="stat-value">${totalRounds}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">${attendance}% attendance</div></div>
         <div class="stat"><div class="stat-label">Best score</div><div class="stat-value">${bestScore||'—'}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">Avg: ${avgScore}</div></div>
+        <div class="stat"><div class="stat-label">Best Sunday</div><div class="stat-value">${bestSunday!==null?bestSunday:'—'}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">${sundayRounds.length} round${sundayRounds.length!==1?'s':''}</div></div>
+        <div class="stat"><div class="stat-label">Best outing</div><div class="stat-value">${bestOuting!==null?bestOuting:'—'}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">${outingRounds.length} outing${outingRounds.length!==1?'s':''}</div></div>
       </div>
       ${outingEvents.length ? `
       <div class="card">
