@@ -881,7 +881,9 @@
         </div>
       </div>
       <div id="lb-season-sub" style="font-size:11px;color:var(--text-3);margin-bottom:1rem"></div>
+      <div id="lb-season-switcher" style="display:none;margin-bottom:1rem"></div>
       <input type="hidden" id="lb-filter-val" value="all" />
+      <input type="hidden" id="lb-archive-year" value="" />
       <div id="lb-season-summary" style="display:none;margin-bottom:1rem"></div>
       <div id="lb-penalty-box" style="display:none;margin-bottom:1rem"></div>
       <div class="pts-bar" id="pts-bar"></div>
@@ -1521,18 +1523,20 @@ async function loadAll() {
     }
   };
   try {
-    const [players, events, rounds, noticeboard, knockout_matches] = await Promise.all([
+    const [players, events, rounds, noticeboard, knockout_matches, season_archives] = await Promise.all([
       safeGet('players?order=name'),
       safeGet('events?order=event_date'),
       safeGet('rounds?order=created_at'),
       safeGet('noticeboard?order=created_at.desc'),
-      safeGet('knockout_matches?order=round,match_number')
+      safeGet('knockout_matches?order=round,match_number'),
+      safeGet('season_archives?order=year.desc')
     ]);
     db.players          = players          || [];
     db.events           = events           || [];
     db.rounds           = rounds           || [];
     db.noticeboard      = noticeboard      || [];
     db.knockout_matches = knockout_matches || [];
+    db.season_archives  = season_archives  || [];
     const pill = document.getElementById('conn-pill');
     pill.textContent = 'Connected'; pill.className = 'conn-pill ok';
     setTimeout(() => { pill.style.opacity = '0'; }, 2000);
@@ -1708,6 +1712,34 @@ function switchLbTab(tab) {
 function setLbFilter(val) { switchLbTab(val); }
 
 function renderLeaderboard() {
+  // ── Season switcher ─────────────────────────────────────────
+  const switcherEl = document.getElementById('lb-season-switcher');
+  const archiveYearEl = document.getElementById('lb-archive-year');
+  const archives = db.season_archives || [];
+  if (switcherEl) {
+    if (archives.length) {
+      const archiveYear = archiveYearEl?.value || '';
+      let html = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">';
+      html += `<button onclick="setSeasonView('')" style="padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${!archiveYear?'#0a1628':'var(--border)'};background:${!archiveYear?'#0a1628':'var(--bg)'};color:${!archiveYear?'#C9A84C':'var(--text-2)'}">2026 Live</button>`;
+      archives.forEach(a => {
+        const active = archiveYear === String(a.year);
+        html += `<button onclick="setSeasonView('${a.year}')" style="padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${active?'#0a1628':'var(--border)'};background:${active?'#0a1628':'var(--bg)'};color:${active?'#C9A84C':'var(--text-2)'}">Season ${a.year}</button>`;
+      });
+      html += '</div>';
+      switcherEl.innerHTML = html;
+      switcherEl.style.display = '';
+    } else {
+      switcherEl.style.display = 'none';
+    }
+  }
+
+  // If viewing an archive year, render that instead
+  const archiveYear = archiveYearEl?.value || '';
+  if (archiveYear) {
+    const archive = archives.find(a => String(a.year) === archiveYear);
+    if (archive) { renderArchivedLeaderboard(archive); return; }
+  }
+
   const filterValEl = document.getElementById('lb-filter-val');
   const filter = filterValEl ? filterValEl.value : 'all';
   const isDroppedNow = filter === 'dropped_now';
@@ -4012,6 +4044,12 @@ function toggleAdminTools() {
         <button class="btn sm" style="width:100%;margin-bottom:6px" onclick="closeModal();fixBracketSlots()">🔧 Fix bracket slots</button>
       </div>
 
+      <div style="background:linear-gradient(135deg,#0a1628,#1a2f50);border:1px solid #C9A84C;border-radius:var(--radius);padding:12px">
+        <div style="font-size:13px;font-weight:700;color:#C9A84C;margin-bottom:4px">🏁 End of season</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px">Archive the current season and prepare for next year.</div>
+        <button class="btn sm" style="width:100%;background:#C9A84C;color:#0a1628;border-color:#C9A84C;font-weight:700" onclick="closeModal();showCloseSeasonModal()">Close season & archive</button>
+      </div>
+
       <div style="background:var(--bg);border-radius:var(--radius);padding:12px">
         <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">App updates</div>
         <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">Force the latest version of the app.</div>
@@ -4043,6 +4081,142 @@ function toggleAdminTools() {
 
     </div>`;
   document.getElementById('modal-overlay').classList.add('open');
+}
+
+// ── Season archive & close ────────────────────────────────────
+
+function setSeasonView(year) {
+  const el = document.getElementById('lb-archive-year');
+  if (el) el.value = year;
+  renderLeaderboard();
+}
+
+function renderArchivedLeaderboard(archive) {
+  const sub = document.getElementById('lb-season-sub');
+  if (sub) sub.textContent = `Archived — Season ${archive.year} final standings`;
+
+  const standings = archive.standings || [];
+  if (!standings.length) {
+    document.getElementById('lb-table').innerHTML = '<div class="empty">No standings recorded for this season.</div>';
+    return;
+  }
+
+  const medals = ['🥇','🥈','🥉'];
+  const rows = standings.map((s, i) => {
+    const pos = i + 1;
+    const medal = pos <= 3 ? `<span style="font-size:16px">${medals[i]}</span>` : `<div style="width:28px;text-align:center;font-size:13px;font-weight:700;color:var(--text-3)">${pos}</div>`;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:0.5px solid var(--border)">
+      ${medal}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;color:var(--text)">${s.name}</div>
+        <div style="font-size:11px;color:var(--text-3)">Finishing hcp: ${parseFloat(s.handicap_index).toFixed(1)}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:18px;font-weight:800;color:#C9A84C">${s.league_points}</div>
+        <div style="font-size:10px;color:var(--text-3)">pts</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('lb-table').innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
+      <div style="background:#0a1628;padding:12px 14px;display:flex;align-items:center;gap:10px">
+        <div style="font-size:13px;font-weight:700;color:#C9A84C">Season ${archive.year} — Final Standings</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4)">${archive.events_played} events played</div>
+      </div>
+      ${rows}
+    </div>`;
+
+  // Hide filter/summary elements that don't apply to archive view
+  const penaltyBox = document.getElementById('lb-penalty-box');
+  if (penaltyBox) penaltyBox.style.display = 'none';
+}
+
+function showCloseSeasonModal() {
+  haptic();
+  const year = new Date().getFullYear();
+  const allEvents = db.events.filter(e => e.event_type !== 'outing_18' || e.event_type === 'outing_18');
+  const unverifiedRounds = db.rounds.filter(r => !r.verified);
+  const unpublishedEvents = db.events.filter(e => !e.published && !e.cancelled);
+  const openKnockout = db.knockout_matches.filter(m => m.status !== 'complete' && !m.is_bye);
+
+  const checks = [
+    { label: 'All rounds verified', ok: unverifiedRounds.length === 0, detail: unverifiedRounds.length ? `${unverifiedRounds.length} round${unverifiedRounds.length!==1?'s':''} still pending` : 'All clear' },
+    { label: 'All events published', ok: unpublishedEvents.length === 0, detail: unpublishedEvents.length ? `${unpublishedEvents.length} event${unpublishedEvents.length!==1?'s':''} unpublished` : 'All clear' },
+    { label: 'Knockout complete', ok: openKnockout.length === 0, detail: openKnockout.length ? `${openKnockout.length} match${openKnockout.length!==1?'es':''} remaining` : 'All clear' },
+  ];
+
+  const allClear = checks.every(c => c.ok);
+
+  document.getElementById('modal-title').textContent = `🏁 Close ${year} Season`;
+  document.getElementById('modal-body').innerHTML = `
+    <div style="font-size:13px;color:var(--text-2);margin-bottom:16px;line-height:1.5">
+      This will archive the ${year} season standings and prepare the app for ${year+1}. Player handicaps carry forward automatically.
+    </div>
+
+    <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Pre-close checklist</div>
+      ${checks.map(c => `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div style="width:20px;height:20px;border-radius:50%;background:${c.ok?'#d4edcc':'#FCEBEB'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px">${c.ok?'✓':'!'}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:${c.ok?'var(--text)':'#A32D2D'}">${c.label}</div>
+            <div style="font-size:11px;color:var(--text-3)">${c.detail}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+
+    ${allClear
+      ? `<div style="background:#f0f7ee;border:1px solid #a8c89a;border-radius:var(--radius);padding:12px;margin-bottom:16px;font-size:13px;color:#1a4a0a">
+          ✅ All checks passed — ready to close the season.
+        </div>
+        <button class="btn primary" style="width:100%" onclick="confirmCloseSeason(${year})">Archive ${year} & start ${year+1}</button>`
+      : `<div style="background:#FCEBEB;border:1px solid #F7C1C1;border-radius:var(--radius);padding:12px;margin-bottom:16px;font-size:13px;color:#A32D2D">
+          ⚠️ Complete the checklist above before closing the season.
+        </div>
+        <button class="btn" style="width:100%;opacity:0.5;cursor:not-allowed" disabled>Archive ${year} & start ${year+1}</button>`
+    }`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function confirmCloseSeason(year) {
+  if (!confirm(`Archive the ${year} season?\n\nThis will:\n• Save the final standings to the ${year} archive\n• All handicaps carry forward as-is\n• Events and rounds stay visible in the archive\n\nThis cannot be undone.`)) return;
+
+  const btn = document.querySelector('#modal-body .btn.primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Archiving…'; }
+
+  try {
+    // Build final standings from current live leaderboard
+    const lbPositions = getLeaderboardPositions();
+    const standings = db.players
+      .filter(p => !p.provisional && (lbPositions[p.id]?.lp || 0) > 0)
+      .map(p => ({
+        player_id: p.id,
+        name: p.name,
+        league_points: lbPositions[p.id]?.lp || 0,
+        handicap_index: p.handicap_index,
+        position: lbPositions[p.id]?.pos || 99
+      }))
+      .sort((a, b) => a.position - b.position);
+
+    const eventsPlayed = db.events.filter(e => e.published).length;
+
+    // Save to season_archives table
+    await post('season_archives', {
+      year,
+      standings,
+      events_played: eventsPlayed,
+      archived_at: new Date().toISOString()
+    });
+
+    toast(`Season ${year} archived! 🏆 Starting fresh for ${year+1}`, 'success');
+    closeModal();
+    await loadAll();
+    renderAll();
+  } catch(e) {
+    toast('Error archiving season: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = `Archive ${year} & start ${year+1}`; }
+  }
 }
 
 function buildHandicapTimeline() {
