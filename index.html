@@ -2054,6 +2054,7 @@ function renderEvents() {
         ${isAdmin && e.published ? `<button class="btn sm" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="recalcHandicaps('${e.id}')">Recalc handicaps</button>` : ''}
         ${isAdmin ? `<button class="btn sm" style="background:#fef8e6;color:#8a6a1a;border-color:#C9A84C" onclick="showPostUpdate('${e.id}')">Post update</button>` : ''}
         ${isAdmin ? `<button class="btn sm" style="background:${e.published?'#FCEBEB':'#fef8e6'};color:${e.published?'#A32D2D':'#8a6a1a'};border-color:${e.published?'#F7C1C1':'#C9A84C'}" onclick="togglePublishEvent('${e.id}',${!!e.published})">${e.published?'Unpublish':'Publish results'}</button>` : ''}
+        ${isAdmin ? `<button class="btn sm" style="background:${e.cancelled?'#f0f7ee':'#f8fafc'};color:${e.cancelled?'#2a6b1a':'#64748b'};border-color:${e.cancelled?'#a8c89a':'#cbd5e1'}" onclick="${e.cancelled?`unmarkCancelled('${e.id}')`:`markCancelled('${e.id}')`}">${e.cancelled?'☑ Restore':'☔ Cancel'}</button>` : ''}
         ${isAdmin ? `<button class="btn sm danger" onclick="deleteEvent('${e.id}')">Delete</button>` : ''}
       </div>
     </div>`;
@@ -4636,6 +4637,23 @@ async function togglePublishEvent(eid, currentlyPublished) {
   } catch(e) { toast('Publish error: '+e.message, 'error'); console.error(e); }
 }
 
+async function markCancelled(eid) {
+  if (!confirm('Mark this event as cancelled due to weather?\n\nIt will stay on the schedule as a played week but show as cancelled — no scores will be entered.')) return;
+  try {
+    await patch(`events?id=eq.${eid}`, { cancelled: true });
+    toast('Event marked as cancelled ☔', 'success');
+    await loadAll(); renderAll();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function unmarkCancelled(eid) {
+  try {
+    await patch(`events?id=eq.${eid}`, { cancelled: false });
+    toast('Event restored', 'success');
+    await loadAll(); renderAll();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
 async function deleteEvent(id) {
   if (!confirm('Delete this event and all its rounds?')) return;
   try {
@@ -4832,13 +4850,16 @@ function renderSchedule() {
     const outingNum = isOutingRow ? allOutingDates.indexOf(d) + 1 : null;
 
     const isCaptainsDayRow = ev?.is_captains_day === true;
+    const isCancelled = ev?.cancelled === true;
     const typeLabel = isOutingRow
       ? `<span style="font-size:10px;font-weight:600;color:#3C3489;background:#EEEDFE;padding:2px 8px;border-radius:99px;white-space:nowrap">Outing ${outingNum}</span>`
       : `<span style="font-size:10px;font-weight:600;color:#1a3c6e;background:#edf2fa;padding:2px 8px;border-radius:99px;white-space:nowrap">Sunday 9</span>`;
     const captainsDayLabel = isCaptainsDayRow
       ? `<div style="font-size:11px;font-weight:700;color:#C9A84C;letter-spacing:.03em;margin-top:2px">Captain's Day</div>`
       : '';
-    const rowBorderColor = isCaptainsDayRow ? '#C9A84C' : isOutingRow ? '#7F77DD' : '#378ADD';
+    const rowBorderColor = isCancelled ? '#d1d5db'
+      : isCaptainsDayRow ? '#C9A84C'
+      : isOutingRow ? '#7F77DD' : '#378ADD';
     const captainsBadge = '';
 
     const numLabel = `<div style="flex-shrink:0;text-align:center;min-width:36px">
@@ -4850,6 +4871,21 @@ function renderSchedule() {
         <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
         <div style="font-size:14px;font-weight:600;color:var(--text-2);line-height:1">${weekNum}</div>
        </div>`;
+
+    if (isCancelled) {
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;border-bottom:0.5px solid var(--border);border-left:3px solid ${rowBorderColor};margin-bottom:4px;opacity:0.55">
+        ${pastNumLabel}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--text-3)">${fmtDate(d)}</div>
+          ${courseName?`<div style="font-size:14px;font-weight:500;color:var(--text-3);margin-top:1px;text-decoration:line-through">${courseName}</div>`:''}
+          <div style="font-size:11px;font-weight:600;color:#9ca3af;margin-top:2px">☔ Cancelled</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${typeLabel}
+          ${isAdmin&&ev?`<button class="btn sm" style="font-size:10px;color:#6b7280;border-color:#d1d5db" onclick="unmarkCancelled('${ev.id}')">Restore</button>`:''}
+        </div>
+      </div>`;
+    }
 
     if (isPastSection || isPublished) {
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;border-bottom:0.5px solid var(--border);border-left:3px solid ${rowBorderColor};margin-bottom:4px">
