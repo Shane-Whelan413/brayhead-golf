@@ -7741,17 +7741,12 @@ function renderProfile() {
         <input type="file" id="avatar-upload-input" accept="image/*" style="display:none" onchange="uploadAvatar(this,'${pid}')" />
         <div style="flex:1;min-width:0">
           <div style="font-family:'DM Serif Display',serif;font-size:22px;color:white;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${player.name}</div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-            ${player.plays_womens_index?'<span style="font-size:10px;font-weight:700;color:#C9A84C;background:rgba(201,168,76,0.15);padding:2px 8px;border-radius:99px">Women\'s index</span>':''}
-            <span style="font-size:12px;color:rgba(255,255,255,0.5)">Hcp</span>
-            <span style="font-size:14px;font-weight:700;color:#C9A84C">${parseFloat(player.handicap_index).toFixed(1)}</span>
-          </div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px">Tap photo to update</div>
+          ${player.plays_womens_index?'<div style="margin-top:4px"><span style="font-size:10px;font-weight:700;color:#C9A84C;background:rgba(201,168,76,0.15);padding:2px 8px;border-radius:99px">Women\'s index</span></div>':''}
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:5px">Tap photo to update</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px">Season rank</div>
           <div style="font-size:28px;font-weight:800;color:${lbPos===1?'#C9A84C':lbPos===2?'#b0b0b0':lbPos===3?'#c07840':'rgba(255,255,255,0.7)'};line-height:1">${posLabel}</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px">${myLeaguePts} pts</div>
         </div>
       </div>
     </div>
@@ -7767,6 +7762,8 @@ function renderProfile() {
     <!-- OVERVIEW TAB -->
     <div id="ptab-content-overview">
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:1rem">
+        <div class="stat"><div class="stat-label">Handicap</div><div class="stat-value">${parseFloat(player.handicap_index).toFixed(1)}</div></div>
+        <div class="stat"><div class="stat-label">League pts</div><div class="stat-value">${myLeaguePts}</div></div>
         <div class="stat"><div class="stat-label">Rounds played</div><div class="stat-value">${totalRounds}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">${attendance}% attendance</div></div>
         <div class="stat"><div class="stat-label">Best score</div><div class="stat-value">${bestScore||'—'}</div><div style="font-size:11px;color:var(--text-3);margin-top:2px">Avg: ${avgScore}</div></div>
       </div>
