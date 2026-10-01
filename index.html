@@ -2130,9 +2130,9 @@ function renderAddRound() {
   const isMember = role === 'member';
   const isAdminUser = role === 'admin';
 
-  // Find next unpublished event
+  // Find next unpublished, non-cancelled event
   const nextEvent = [...db.events]
-    .filter(e => !e.published)
+    .filter(e => !e.published && !e.cancelled)
     .sort((a,b) => a.event_date.localeCompare(b.event_date))[0] || null;
 
   const noEventEl = document.getElementById('ar-no-event');
