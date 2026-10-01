@@ -8035,19 +8035,37 @@ function renderProfile() {
             </div>
           `).join('')}
         </div>` : ''}
-        ${myRounds.length > 1 ? `
-        <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-            <div class="card-title" style="margin:0">Handicap progression</div>
-            <div style="display:flex;gap:4px">
-              ${['10','20','All'].map(v=>`<button id="hcp-range-${v}" onclick="setHcpRange('${v}')"
-                style="padding:4px 10px;border-radius:99px;border:1px solid var(--border-strong);background:${v==='10'?'#0a1628':'var(--bg)'};color:${v==='10'?'#C9A84C':'var(--text-2)'};font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">${v}</button>`).join('')}
+        ${myRounds.filter(r=>r.verified).length > 1 ? (() => {
+          const verRounds = myRounds.filter(r=>r.verified && r.handicap_after!=null).sort((a,b)=>(db.events.find(e=>e.id===a.event_id)?.event_date||'').localeCompare(db.events.find(e=>e.id===b.event_id)?.event_date||''));
+          const startHcpVal = verRounds.length ? parseFloat(verRounds[0].handicap_before).toFixed(1) : '—';
+          const currentHcpVal = parseFloat(player.handicap_index).toFixed(1);
+          const improvement = verRounds.length ? (parseFloat(verRounds[0].handicap_before) - parseFloat(player.handicap_index)).toFixed(1) : null;
+          const improved = improvement !== null && parseFloat(improvement) > 0;
+          const impColor = improved ? '#1D9E75' : parseFloat(improvement) < 0 ? '#E24B4A' : '#9a8a70';
+          const impLabel = improvement !== null ? (improved ? '−' : '+') + Math.abs(improvement) : '—';
+          return `
+          <div style="background:white;border:1px solid #e8e4de;border-radius:14px;overflow:hidden;margin-bottom:1rem;box-shadow:0 1px 4px rgba(0,0,0,0.05)">
+            <div style="background:#0a1628;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Handicap progression</div>
+                <div style="font-size:13px;color:rgba(255,255,255,0.7)">Started <span style="color:#C9A84C;font-weight:700">${startHcpVal}</span> &nbsp;·&nbsp; Now <span style="color:#C9A84C;font-weight:700">${currentHcpVal}</span></div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px">Change</div>
+                <div style="font-size:22px;font-weight:800;color:${impColor};line-height:1">${impLabel}</div>
+              </div>
             </div>
-          </div>
-          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch" id="hcp-chart-scroll">
-            <canvas id="hcp-chart" style="height:180px;display:block"></canvas>
-          </div>
-        </div>` : ''}`;
+            <div style="padding:12px 14px 8px">
+              <div style="display:flex;justify-content:flex-end;gap:4px;margin-bottom:10px">
+                ${['10','20','All'].map(v=>`<button id="hcp-range-${v}" onclick="setHcpRange('${v}')"
+                  style="padding:4px 10px;border-radius:99px;border:1px solid var(--border-strong);background:${v==='10'?'#0a1628':'var(--bg)'};color:${v==='10'?'#C9A84C':'var(--text-2)'};font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">${v}</button>`).join('')}
+              </div>
+              <div style="overflow-x:auto;-webkit-overflow-scrolling:touch" id="hcp-chart-scroll">
+                <canvas id="hcp-chart" style="height:180px;display:block"></canvas>
+              </div>
+            </div>
+          </div>`;
+        })() : ''}`;
       })()}
     </div>
   `;
@@ -8289,12 +8307,12 @@ function drawHcpChart() {
   ctx.lineTo(xPos(allData.length-1), pad.top+ch);
   ctx.lineTo(xPos(0), pad.top+ch);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(201,168,76,0.10)';
+  ctx.fillStyle = 'rgba(29,158,117,0.08)';
   ctx.fill();
 
   // Line
   ctx.beginPath();
-  ctx.strokeStyle = '#C9A84C';
+  ctx.strokeStyle = '#1D9E75';
   ctx.lineWidth = 2.5;
   ctx.lineJoin = 'round';
   ctx.lineCap  = 'round';
@@ -8306,14 +8324,14 @@ function drawHcpChart() {
     // Dot
     ctx.beginPath();
     ctx.arc(xPos(i), yPos(v), i===allData.length-1?5:4, 0, Math.PI*2);
-    ctx.fillStyle = i===allData.length-1 ? '#0a1628' : '#C9A84C';
+    ctx.fillStyle = i===allData.length-1 ? '#0a1628' : '#1D9E75';
     ctx.fill();
     if (i===allData.length-1) {
-      ctx.strokeStyle = '#C9A84C'; ctx.lineWidth=2;
+      ctx.strokeStyle = '#1D9E75'; ctx.lineWidth=2;
       ctx.beginPath(); ctx.arc(xPos(i),yPos(v),5,0,Math.PI*2); ctx.stroke();
     }
     // Value label above dot
-    ctx.fillStyle = '#8a6a1a';
+    ctx.fillStyle = '#085041';
     ctx.font = 'bold 10px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(v.toFixed(1), xPos(i), yPos(v)-9);
