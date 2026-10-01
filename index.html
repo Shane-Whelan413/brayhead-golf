@@ -10107,6 +10107,25 @@ async function init() {
   // for :active CSS states to fire on any element
   document.addEventListener('touchstart', function(){}, { passive: true });
 
+  // Reset sheet slide-up animation every time any modal opens —
+  // without this the animation plays once on page load (invisibly)
+  // and then doesn't replay on the first real open
+  const modalOverlay = document.getElementById('modal-overlay');
+  if (modalOverlay) {
+    new MutationObserver(mutations => {
+      mutations.forEach(m => {
+        if (m.target.classList.contains('open')) {
+          const sheet = m.target.querySelector('.modal');
+          if (sheet) {
+            sheet.style.animation = 'none';
+            sheet.offsetHeight; // force reflow
+            sheet.style.animation = '';
+          }
+        }
+      });
+    }).observe(modalOverlay, { attributes: true, attributeFilter: ['class'] });
+  }
+
   try {
     await loadAll();
   } catch(e) {
