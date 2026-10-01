@@ -7351,8 +7351,12 @@ function showPlayerProfile(pid) {
             </div>
           </div>
           <div style="padding:12px 14px">
-            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-              <canvas id="modal-hcp-chart" style="width:100%;height:160px;display:block"></canvas>
+            <div style="display:flex;justify-content:flex-end;gap:4px;margin-bottom:10px">
+              ${['10','20','All'].map(v=>`<button id="modal-hcp-range-${v}" onclick="setModalHcpRange('${v}')"
+                style="padding:4px 10px;border-radius:99px;border:1px solid var(--border-strong);background:${v==='10'?'#0a1628':'var(--bg)'};color:${v==='10'?'#C9A84C':'var(--text-2)'};font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">${v}</button>`).join('')}
+            </div>
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch" id="modal-hcp-chart-scroll">
+              <canvas id="modal-hcp-chart" style="height:160px;display:block"></canvas>
             </div>
           </div>
         </div>`;
@@ -7363,6 +7367,7 @@ function showPlayerProfile(pid) {
   document.getElementById('modal-overlay').classList.add('open');
 
   if (countedRounds.length > 1) {
+    window._modalHcpRange = '10';
     window._modalHcpRounds = [...countedRounds].sort((a,b)=>{
       const ea=db.events.find(e=>e.id===a.event_id);
       const eb=db.events.find(e=>e.id===b.event_id);
@@ -7389,16 +7394,30 @@ function switchModalProfileTab(tab) {
   }, 50);
 }
 
+function setModalHcpRange(val) {
+  window._modalHcpRange = val;
+  ['10','20','All'].forEach(v => {
+    const btn = document.getElementById('modal-hcp-range-'+v);
+    if (btn) { btn.style.background = v===val?'#0a1628':'var(--bg)'; btn.style.color = v===val?'#C9A84C':'var(--text-2)'; }
+  });
+  drawModalHcpChart();
+}
+
 function drawModalHcpChart() {
   const canvas = document.getElementById('modal-hcp-chart');
   if (!canvas || !window._modalHcpRounds) return;
-  const sorted = window._modalHcpRounds;
+  const range = window._modalHcpRange || '10';
+  const limit = range === 'All' ? window._modalHcpRounds.length : parseInt(range);
+  const sorted = window._modalHcpRounds.slice(-limit);
   const labels = sorted.map(r=>{ const ev=db.events.find(e=>e.id===r.event_id); return ev?ev.course_name.split(' ')[0]:'R'; });
   const lastRound = sorted[sorted.length-1];
   const allData   = [...sorted.map(r=>parseFloat(r.handicap_before)), parseFloat(lastRound.handicap_after)];
   const allLabels = [...labels, 'Now'];
   const dpr = window.devicePixelRatio || 1;
-  const w = canvas.offsetWidth;
+  const minPtWidth = 44;
+  const scroll = document.getElementById('modal-hcp-chart-scroll');
+  const containerW = scroll ? scroll.offsetWidth : 300;
+  const w = Math.max(containerW, allData.length * minPtWidth);
   const h = 160;
   canvas.width  = w * dpr; canvas.height = h * dpr;
   canvas.style.width = w+'px'; canvas.style.height = h+'px';
@@ -7406,16 +7425,16 @@ function drawModalHcpChart() {
   ctx.scale(dpr, dpr);
   const pad = {top:16,right:16,bottom:36,left:36};
   const cw = w-pad.left-pad.right, ch = h-pad.top-pad.bottom;
-  const minV = Math.max(0, Math.min(...allData)-1), maxV = Math.max(...allData)+1, range = maxV-minV||1;
+  const minV = Math.max(0, Math.min(...allData)-1), maxV = Math.max(...allData)+1, dataRange = maxV-minV||1;
   const xStep = cw/(allData.length-1);
-  const yPos = v => pad.top+ch-((v-minV)/range)*ch;
+  const yPos = v => pad.top+ch-((v-minV)/dataRange)*ch;
   const xPos = i => pad.left+i*xStep;
   ctx.strokeStyle='rgba(0,0,0,0.06)'; ctx.lineWidth=1;
   for (let i=0;i<=4;i++) {
     const y=pad.top+(ch/4)*i;
     ctx.beginPath(); ctx.moveTo(pad.left,y); ctx.lineTo(pad.left+cw,y); ctx.stroke();
     ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.font='10px sans-serif'; ctx.textAlign='right';
-    ctx.fillText((maxV-(range/4)*i).toFixed(1), pad.left-4, y+3);
+    ctx.fillText((maxV-(dataRange/4)*i).toFixed(1), pad.left-4, y+3);
   }
   ctx.beginPath(); ctx.moveTo(xPos(0),yPos(allData[0]));
   allData.forEach((v,i)=>ctx.lineTo(xPos(i),yPos(v)));
