@@ -7974,12 +7974,73 @@ function renderProfile() {
           </button>`;
         }).join('');
 
-        return myRounds.length || missedEvs.length ? `
+        if (!myRounds.length && !missedEvs.length) return '<div class="card"><div class="empty">No rounds played yet this season</div></div>';
+
+        // Build month tabs from all rows
+        const monthMap = {};
+        allRows.forEach(({ ev }) => {
+          if (!ev) return;
+          const m = ev.event_date.slice(0,7); // "2026-06"
+          if (!monthMap[m]) monthMap[m] = new Date(ev.event_date).toLocaleString('en-IE',{month:'short',year:'numeric'});
+        });
+        const months = Object.keys(monthMap).sort((a,b)=>b.localeCompare(a));
+        const monthTabs = months.length > 1 ? `
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+            <button id="phist-all" onclick="switchHistoryMonth('all','${pid}')"
+              style="padding:5px 12px;border-radius:99px;border:1px solid #0a1628;background:#0a1628;color:#C9A84C;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer">All</button>
+            ${months.map(m=>`<button id="phist-${m}" onclick="switchHistoryMonth('${m}','${pid}')"
+              style="padding:5px 12px;border-radius:99px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text-2);font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">${monthMap[m]}</button>`).join('')}
+          </div>` : '';
+
+        // Styled rows
+        const styledRows = allRows.map(({ type, round:r, ev }) => {
+          const isDropped = droppedEids.has(ev?.id);
+          const isMissed  = type === 'missed';
+          const lp = isMissed ? 0 : (myLpRounds.find(x=>x.event_id===ev?.id)?._lp || 0);
+          const month = ev?.event_date?.slice(0,7) || '';
+          const isOuting = ev?.event_type === 'outing_18';
+          const typeTag = isOuting
+            ? '<span style="font-size:9px;font-weight:600;color:#3C3489;background:#EEEDFE;padding:1px 6px;border-radius:99px">Outing</span>'
+            : '<span style="font-size:9px;font-weight:600;color:#1a3c6e;background:#edf2fa;padding:1px 6px;border-radius:99px">Sunday</span>';
+
+          if (isMissed) {
+            return `<div data-month="${month}" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border);opacity:0.5">
+              <div style="width:36px;height:36px;border-radius:8px;background:var(--bg);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">✗</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev?ev.course_name:'Unknown'}</div>
+                <div style="font-size:11px;color:var(--text-3);margin-top:1px">${ev?fmtDate(ev.event_date):''} · Did not play</div>
+              </div>
+              ${typeTag}
+            </div>`;
+          }
+
+          const pts = r.stableford_points || 0;
+          const ptsColor = pts >= 20 ? '#1D9E75' : pts >= 15 ? '#C9A84C' : 'var(--text-2)';
+          const icon = isOuting ? '🏌️' : '⛳';
+
+          return `<button onclick="showRoundScorecard('${r.id}')" data-month="${month}" style="width:100%;background:none;border:none;border-bottom:0.5px solid var(--border);padding:10px 0;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;${isDropped?'opacity:0.5;':''}">
+            <div style="width:36px;height:36px;border-radius:8px;background:${isDropped?'var(--bg)':'#f8f5ee'};border:0.5px solid ${isDropped?'var(--border)':'#e8e4de'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">${icon}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:700;color:${isDropped?'var(--text-3)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev?ev.course_name:'Unknown'}</div>
+              <div style="font-size:11px;color:var(--text-3);margin-top:1px">${ev?fmtDate(ev.event_date):''} · ${lp} lp · Hcp ${r.course_handicap}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:18px;font-weight:800;color:${ptsColor};line-height:1">${pts}</div>
+              <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">pts</div>
+            </div>
+          </button>`;
+        }).join('');
+
+        return `
           <div class="card">
-            <div class="card-title" style="margin-bottom:${numDropped>0?'10px':'1rem'}">Round history</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${numDropped>0?'10px':'12px'}">
+              <div class="card-title" style="margin:0">Round history</div>
+              <span style="font-size:11px;color:var(--text-3)">${myRounds.length} rounds</span>
+            </div>
             ${dropSummary}
-            ${rows}
-          </div>` : '<div class="card"><div class="empty">No rounds played yet this season</div></div>';
+            ${monthTabs}
+            <div id="phist-rows-${pid}">${styledRows}</div>
+          </div>`;
       })()}
     </div>
 
@@ -8124,6 +8185,30 @@ function renderProfile() {
   setTimeout(renderPushSettings, 100);
   setTimeout(animateProfileStats, 150);
   }
+}
+
+function switchHistoryMonth(month, pid) {
+  haptic();
+  // Update tab button styles
+  const allBtn = document.getElementById('phist-all');
+  if (allBtn) {
+    allBtn.style.background = month==='all'?'#0a1628':'var(--bg)';
+    allBtn.style.color = month==='all'?'#C9A84C':'var(--text-2)';
+    allBtn.style.borderColor = month==='all'?'#0a1628':'var(--border-strong)';
+  }
+  document.querySelectorAll('[id^="phist-"]').forEach(btn => {
+    if (btn.id === 'phist-all' || btn.id === `phist-rows-${pid}`) return;
+    const isActive = btn.id === `phist-${month}`;
+    btn.style.background = isActive ? '#0a1628' : 'var(--bg)';
+    btn.style.color = isActive ? '#C9A84C' : 'var(--text-2)';
+    btn.style.borderColor = isActive ? '#0a1628' : 'var(--border-strong)';
+  });
+  // Show/hide rows by month
+  const container = document.getElementById(`phist-rows-${pid}`);
+  if (!container) return;
+  container.querySelectorAll('[data-month]').forEach(row => {
+    row.style.display = (month === 'all' || row.dataset.month === month) ? '' : 'none';
+  });
 }
 
 function switchProfileTab(tab) {
