@@ -248,12 +248,23 @@
     box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
   }
   .card-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-2);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
     margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title:not([style*="color"])::before {
+    content: '';
+    display: block;
+    width: 3px;
+    height: 18px;
+    background: #C9A84C;
+    border-radius: 99px;
+    flex-shrink: 0;
   }
 
   .stat-grid {
@@ -525,9 +536,10 @@
   }
   .lb-card .avatar { width: 36px; height: 36px; font-size: 12px; flex-shrink: 0; }
   .lb-card-info { flex: 1; min-width: 0; }
-  .lb-card-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb-card-name { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.01em; }
   .lb-card-sub  { font-size: 11px; color: var(--text-3); margin-top: 2px; }
-  .lb-card-pts  { font-size: 20px; font-weight: 700; color: var(--green-mid); flex-shrink: 0; }
+  .lb-card-pts  { font-size: 22px; font-weight: 800; color: var(--green-mid); flex-shrink: 0; line-height: 1; text-align: right; }
+  .lb-card-pts::after { content: 'pts'; display: block; font-size: 9px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; margin-top: 1px; }
 
   /* ── Bottom sheet modals ── */
   @media (max-width: 600px) {
