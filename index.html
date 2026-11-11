@@ -1974,9 +1974,9 @@ function _renderLeaderboardInner() {
   const switcherEl = document.getElementById('lb-season-switcher');
   const viewYear = lbYear();
   if (switcherEl) {
-    const years = [...new Set([activeSeasonYear(), ...db.events.map(e => +String(e.event_date).slice(0,4))])].sort((x,y) => y - x);
+    const years = [...new Set([activeSeasonYear(), ...(isAdmin ? [2027] : []), ...db.events.map(e => +String(e.event_date).slice(0,4))])].sort((x,y) => y - x);
     if (years.length > 1) {
-      const pill = y => { const on = viewYear === y; return `<button onclick="setSeasonView(${y})" style="padding:4px 14px;border-radius:99px;font-size:12px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${on?'#0a1628':'var(--border)'};background:${on?'#0a1628':'var(--bg)'};color:${on?'#C9A84C':'var(--text-2)'}">${y}${y===activeSeasonYear()?' · Live':''}</button>`; };
+      const pill = y => { const on = viewYear === y; return `<button onclick="setSeasonView(${y})" style="padding:4px 14px;border-radius:99px;font-size:12px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${on?'#0a1628':'var(--border)'};background:${on?'#0a1628':'var(--bg)'};color:${on?'#C9A84C':'var(--text-2)'}">${y}${y===activeSeasonYear()?' · Live':(y>activeSeasonYear()?' · Preview':'')}</button>`; };
       switcherEl.innerHTML = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + years.map(pill).join('') + '</div>';
       switcherEl.style.display = '';
     } else { switcherEl.style.display = 'none'; }
@@ -2168,8 +2168,8 @@ function _renderLeaderboardInner() {
 
   const lbTableEl = document.getElementById('lb-table');
   lbTableEl.innerHTML = rows.map((p)=>{
-    const pos = p.pos || 0;
-    const posStr = pos===1?'1st':pos===2?'2nd':pos===3?'3rd':pos+'th';
+    const pos = (p.lp > 0 || p.rounds > 0) ? (p.pos || 0) : 0;   // no rank until someone has played
+    const posStr = pos===0?'–':pos===1?'1st':pos===2?'2nd':pos===3?'3rd':pos+'th';
     const hasPenalty = p.penalty > 0 && filter !== 'sunday_9' && !isDroppedNow;
     const movHtml = p.movement > 0
       ? `<span style="font-size:11px;font-weight:700;color:#2a6b1a;background:#d4edcc;padding:2px 7px;border-radius:99px;flex-shrink:0">▲${p.movement}</span>`
@@ -2233,6 +2233,7 @@ function renderPlayers() {
             Hcp <strong>${parseFloat(p.handicap_index).toFixed(1)}</strong>
             · ${rounds.length} round${rounds.length!==1?'s':''}
             · ${lp} pts
+            ${p.is_admin ? `· <span style="color:#8a6a1a;font-weight:700;background:#fef8e6;padding:1px 6px;border-radius:99px;font-size:10px">Admin</span>` : ''}
             ${p.plays_womens_index ? `· <span style="color:#3C3489;font-weight:500">W</span>` : ''}
             ${p.provisional ? `· <span style="color:#8a6a1a;font-weight:600;background:#fef8e6;padding:1px 6px;border-radius:99px;font-size:10px">Provisional ${p.provisional_rounds||0}/3</span>` : ''}
           </div>
@@ -2243,6 +2244,7 @@ function renderPlayers() {
         <button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="editPlayer('${p.id}')">✏️ Edit</button>
         <button class="btn sm" onclick="editHandicap('${p.id}','${p.name.replace(/'/g,"\\'")}',${p.handicap_index})">Edit hcp</button>
         <button class="btn sm" style="background:#EEEDFE;color:#3C3489;border-color:#AFA9EC" onclick="toggleWomensIndex('${p.id}',${!!p.plays_womens_index})">${p.plays_womens_index?'Set men\'s':'Set women\'s'}</button>
+        <button class="btn sm" style="${p.is_admin?'background:#fef8e6;color:#8a6a1a;border-color:#C9A84C':''}" onclick="toggleAdminRole('${p.id}','${p.name.replace(/'/g,"\\'")}',${!!p.is_admin})">${p.is_admin?'Remove admin':'Make admin'}</button>
         <button class="btn sm" onclick="adminResetPin('${p.id}','${p.name.replace(/'/g,"\\'")}')">Reset PIN</button>
         <button class="btn sm danger" onclick="deletePlayer('${p.id}','${p.name.replace(/'/g,"\\'")}')">Remove</button>
       </div>` : ''}
@@ -3509,6 +3511,23 @@ async function saveRound() {
   btn.disabled=false; btn.textContent='Save round';
 }
 
+async function toggleAdminRole(pid, name, isAdminNow) {
+  const makeAdmin = !isAdminNow;
+  if (!makeAdmin) {
+    if (currentUser && String(currentUser.playerId) === String(pid)) { toast("You can't remove your own admin access", 'error'); return; }
+    if (db.players.filter(p => p.is_admin).length <= 1) { toast('There must be at least one admin', 'error'); return; }
+  }
+  const msg = makeAdmin
+    ? 'Make ' + name + ' an admin?\n\nAdmins can edit players, enter and publish scores, see the locked leaderboard and change settings.'
+    : 'Remove admin access for ' + name + '?';
+  if (!confirm(msg)) return;
+  try {
+    await patch('players?id=eq.' + pid, { is_admin: makeAdmin });
+    toast(makeAdmin ? name + ' is now an admin' : name + ' is no longer an admin', 'success');
+    await loadAll(); renderAll();
+  } catch (e) { toast('Could not update: ' + e.message, 'error'); }
+}
+
 function editPlayer(pid) {
   const p = db.players.find(x=>x.id===pid);
   if (!p) return;
@@ -4533,11 +4552,11 @@ async function saveMembership(pid, tier) {
 
 function membershipCardHtml(pid) {
   const tier = getMembership(pid);
-  if (!signupsOpen() && !tier) return '';
+  if (!signupsOpen() && !isAdmin && !tier) return '';
   if (!tier && signupsClosed()) return '';
   const opt = (t, label) => '<button onclick="chooseMembership(\'' + t + '\')" ' + (signupsClosed() ? 'disabled ' : '') + 'style="flex:1;padding:10px 6px;border-radius:8px;font-size:12px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer;border:1px solid ' + (tier === t ? '#C9A84C' : 'var(--border-strong)') + ';background:' + (tier === t ? '#0a1628' : 'var(--bg)') + ';color:' + (tier === t ? '#C9A84C' : 'var(--text-2)') + '">' + (tier === t ? '✓ ' : '') + label + '</button>';
   return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:1rem">'
-    + '<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin-bottom:4px">' + MEMBERSHIP_YEAR + ' membership</div>'
+    + '<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin-bottom:4px">' + MEMBERSHIP_YEAR + ' membership' + (!signupsOpen() ? ' <span style="color:#8a6a1a;background:#fef8e6;padding:1px 6px;border-radius:99px;text-transform:none;letter-spacing:0">Admin preview · members see this from 30 Nov</span>' : '') + '</div>'
     + '<div style="font-size:13px;color:var(--text);margin-bottom:10px">' + (tier ? 'You\'re down as <b>' + MEMBERSHIP_LABEL[tier] + '</b>.' + (signupsClosed() ? ' Sign-ups are closed — contact an admin to change.' : ' You can change this until sign-ups close.') : 'Are you playing in ' + MEMBERSHIP_YEAR + '?') + '</div>'
     + '<div style="display:flex;gap:8px">' + opt('full', 'Full member') + opt('associate', 'Associate') + '</div></div>';
 }
@@ -5757,7 +5776,7 @@ function renderHome() {
       ? getLeaderboardPositions(new Set(seasonEvents().filter(e=>e.published && e.event_type==='outing_18').map(e=>e.id)), 'outing_18')
       : getLeaderboardPositions(publishedEids);
     const _lk      = hideStandings();
-    const myPos    = _lk ? 0 : (lbData[pid]?.pos || 0);
+    const myPos    = _lk ? 0 : (lbData[pid]?.lp ? lbData[pid].pos : 0);
     const myPts    = _lk ? '🔒' : (lbData[pid]?.lp  || 0);
     const myPlayer = db.players.find(p=>p.id===pid);
     const myHcp    = myPlayer ? parseFloat(myPlayer.handicap_index).toFixed(1) : '—';
@@ -7527,7 +7546,7 @@ function _showPlayerProfileInner(pid) {
 
   const lbPositions = getLeaderboardPositions();
   const _lk = hideStandings();
-  const lbPos = _lk ? 0 : (lbPositions[pid]?.pos || 0);
+  const lbPos = _lk ? 0 : (lbPositions[pid]?.lp ? lbPositions[pid].pos : 0);
   const myLeaguePts = _lk ? '🔒' : (lbPositions[pid]?.lp || 0);
   const byEvent = {};
   for (const r of seasonRounds().filter(x=>x.verified && publishedEids.has(x.event_id))) {
@@ -8131,10 +8150,10 @@ async function verifyRound(rid) {
 let _profileYear = null;
 function setProfileYear(y) { _profileYear = (+y === activeSeasonYear()) ? null : +y; renderProfile(); }
 function profileYearPills() {
-  const years = [...new Set([activeSeasonYear(), ...db.events.map(e => +String(e.event_date).slice(0,4))])].sort((a,b) => b - a);
+  const years = [...new Set([activeSeasonYear(), ...(isAdmin ? [2027] : []), ...db.events.map(e => +String(e.event_date).slice(0,4))])].sort((a,b) => b - a);
   if (years.length < 2) return '';
   const cur = _profileYear || activeSeasonYear();
-  return '<div style="display:flex;gap:6px;margin-bottom:1rem">' + years.map(y => { const on = cur === y; return `<button onclick="setProfileYear(${y})" style="flex:1;padding:8px;border-radius:8px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${on?'#0a1628':'var(--border-strong)'};background:${on?'#0a1628':'var(--bg)'};color:${on?'#C9A84C':'var(--text-2)'}">${y}${y===activeSeasonYear()?' · Live':''}</button>`; }).join('') + '</div>';
+  return '<div style="display:flex;gap:6px;margin-bottom:1rem">' + years.map(y => { const on = cur === y; return `<button onclick="setProfileYear(${y})" style="flex:1;padding:8px;border-radius:8px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${on?'#0a1628':'var(--border-strong)'};background:${on?'#0a1628':'var(--bg)'};color:${on?'#C9A84C':'var(--text-2)'}">${y}${y===activeSeasonYear()?' · Live':(y>activeSeasonYear()?' · Preview':'')}</button>`; }).join('') + '</div>';
 }
 function renderProfile() {
   window._scopeYear = _profileYear;
@@ -8177,7 +8196,7 @@ function _renderProfileInner() {
 
   const lbPositions = getLeaderboardPositions();
   const _lk    = hideStandings();
-  const lbPos  = _lk ? 0 : (lbPositions[pid]?.pos || 0);
+  const lbPos  = _lk ? 0 : (lbPositions[pid]?.lp ? lbPositions[pid].pos : 0);
   const myLeaguePts = _lk ? '🔒' : (lbPositions[pid]?.lp || 0);
 
   // Count 1st, 2nd, 3rd finishes — use sorted ranked array
@@ -10310,7 +10329,8 @@ function showWelcomeScreen(player) {
     // Season rank
     try {
       const publishedEids = new Set(seasonEvents().filter(e=>e.published).map(e=>e.id));
-      const lbPos = getLeaderboardPositions(publishedEids)[player.id]?.pos || 0;
+      const _wp = getLeaderboardPositions(publishedEids)[player.id];
+      const lbPos = _wp && _wp.lp ? _wp.pos : 0;
       const rankLabel = hideStandings() ? '🔒' : lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos>0?(lbPos+'th'):'—';
       document.getElementById('welcome-rank').textContent = rankLabel;
     } catch(e) { document.getElementById('welcome-rank').textContent = '—'; }
