@@ -1298,7 +1298,7 @@ const LEAGUE_PTS = pos => pos <= 1 ? 20 : Math.max(6, 21 - pos);
 const SEASON_START = new Date('2026-03-22');
 const SEASON_END   = new Date('2026-11-29');
 // Fixtures moved from their default Sunday (date -> new date)
-const DATE_MOVES = { '2026-11-29': '2026-11-28' };
+const DATE_MOVES = {};   // none at the moment (final 2026 game is Sun 29 Nov)
 
 const OUTINGS = {
   '2026-04-18': 'Silloge Park',
@@ -1416,11 +1416,11 @@ const FIXTURES_2027 = [
 ];
 const SEASON_2027 = { start:'2027-03-21', end:'2027-11-28' };
 
-// Which season the app shows by default: 2027 from 29 Nov 2026
+// Which season the app shows by default: 2027 from 30 Nov 2026 (final 2026 game is Sun 29 Nov)
 function activeSeasonYear() {
   const d = new Date();
   const iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-  return iso >= '2026-11-29' ? 2027 : 2026;
+  return iso >= '2026-11-30' ? 2027 : 2026;
 }
 const _iso = dt => dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
 const _parse = iso => { const [y,m,d] = iso.split('-').map(Number); return new Date(y, m-1, d); };
@@ -1507,7 +1507,7 @@ let db = { players:[], events:[], rounds:[], noticeboard:[], knockout_matches:[]
 // Locked = final game of the year published (or admin forced). While locked
 // and the winner not yet announced, only admins see season rank/points.
 // season_status.lock_override: 'lock' | 'unlock' | null (auto)
-const FINAL_EVENT_DATE_2026 = '2026-11-28';
+const FINAL_EVENT_DATE_2026 = '2026-11-29';
 let adminPreviewAsMember = false;
 function getSeasonStatus(year) {
   return (db.season_status||[]).find(r => +r.year === +year) || null;
@@ -1918,6 +1918,43 @@ function switchLbTab(tab) {
 
 function setLbFilter(val) { switchLbTab(val); }
 
+// "If dropped now": each player's 4 lowest slots are dropped (no-shows count as 0 and fill those first).
+// Used by the leaderboard view AND to pick Player of the Year, so both always agree.
+function getDroppedNowPositions() {
+  const allPublishedEvs = seasonEvents().filter(e=>e.published);
+  const allPublishedEids = new Set(allPublishedEvs.map(e=>e.id));
+  const byEventDN = {};
+  for (const r of seasonRounds().filter(x=>x.verified && allPublishedEids.has(x.event_id))) {
+    if (!byEventDN[r.event_id]) byEventDN[r.event_id]=[];
+    byEventDN[r.event_id].push({...r});
+  }
+  for (const eid in byEventDN) assignLeaguePts(byEventDN[eid]);
+  const totalsDN = {};
+  for (const p of db.players.filter(x=>!x.provisional && !isHiddenAssociate(x.id, scopeYear(), 'all'))) {
+    const myLpRounds = [];
+    for (const eid in byEventDN) {
+      const r = byEventDN[eid].find(x=>x.player_id===p.id);
+      if (r) myLpRounds.push(r);
+    }
+    const missedCount = allPublishedEvs.filter(e=>!myLpRounds.find(r=>r.event_id===e.id)).length;
+    const missedSlots = Array.from({length: missedCount}, ()=>({ _lp: 0 }));
+    // Sort best first, drop the bottom 4 (no-shows fill those slots first)
+    const allSlots = [...myLpRounds, ...missedSlots].sort((a,b)=>b._lp-a._lp);
+    const counting = allSlots.slice(0, Math.max(0, allSlots.length - 4));
+    totalsDN[p.id] = counting.reduce((s,r)=>s+r._lp, 0);
+  }
+  const sortedDN = db.players.filter(p=>!p.provisional && !isHiddenAssociate(p.id, scopeYear(), 'all'))
+    .map(p=>({ id: p.id, lp: totalsDN[p.id]||0 }))
+    .sort((a,b)=>b.lp-a.lp);
+  const posDN = {};
+  let posCtr = 1;
+  for (let i=0; i<sortedDN.length; i++) {
+    if (i > 0 && sortedDN[i].lp < sortedDN[i-1].lp) posCtr = i+1;
+    posDN[sortedDN[i].id] = { pos: posCtr, lp: sortedDN[i].lp };
+  }
+  return posDN;
+}
+
 function renderLeaderboard() {
   window._scopeYear = lbYear();
   try { return _renderLeaderboardInner(); } finally { window._scopeYear = null; }
@@ -1950,7 +1987,7 @@ function _renderLeaderboardInner() {
     ['lb-season-summary','lb-penalty-box','pts-bar'].forEach(id => { const el=document.getElementById(id); if (el) { el.innerHTML=''; if (id==='lb-penalty-box') el.style.display='none'; } });
     const subL = document.getElementById('lb-season-sub'); if (subL) subL.textContent = '2026 season complete';
     const tblL = document.getElementById('lb-table');
-    if (tblL) tblL.innerHTML = '<div style="background:#0a1628;border-radius:var(--radius);padding:2rem 1.25rem;text-align:center"><div style="font-size:36px;margin-bottom:10px">🔒</div><div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#C9A84C;margin-bottom:8px">Final standings locked</div><div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">The 2026 season is complete</div><div style="font-size:13px;color:rgba(255,255,255,.65);line-height:1.5">The Player of the Year will be announced soon.<br>Standings will be revealed then.</div></div>';
+    if (tblL) tblL.innerHTML = '<div style="background:#0a1628;border-radius:var(--radius);padding:2rem 1.25rem;text-align:center"><div style="font-size:36px;margin-bottom:10px">🔒</div><div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#C9A84C;margin-bottom:8px">Final standings locked</div><div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">The 2026 season is complete</div><div style="font-size:13px;color:rgba(255,255,255,.65);line-height:1.5">The Player of the Year will be announced at the awards night on 12 December.<br>Standings will be revealed then.</div></div>';
     return;
   }
   const archiveYear = '';   // legacy snapshot path retired: every year is computed live
@@ -2068,41 +2105,10 @@ function _renderLeaderboardInner() {
       </div>`;
   }
 
-  // For dropped_now: drop each player's 4 lowest scores (including missed rounds as 0pts)
+  // For dropped_now: shared helper (see getDroppedNowPositions)
   let lbPositions;
   if (isDroppedNow) {
-    const allPublishedEvs = seasonEvents().filter(e=>e.published);
-    const allPublishedEids = new Set(allPublishedEvs.map(e=>e.id));
-    const byEventDN = {};
-    for (const r of seasonRounds().filter(x=>x.verified && allPublishedEids.has(x.event_id))) {
-      if (!byEventDN[r.event_id]) byEventDN[r.event_id]=[];
-      byEventDN[r.event_id].push({...r});
-    }
-    for (const eid in byEventDN) assignLeaguePts(byEventDN[eid]);
-    const totalsDN = {};
-    for (const p of db.players.filter(x=>!x.provisional && !isHiddenAssociate(x.id, scopeYear(), 'all'))) {
-      const myLpRounds = [];
-      for (const eid in byEventDN) {
-        const r = byEventDN[eid].find(x=>x.player_id===p.id);
-        if (r) myLpRounds.push(r);
-      }
-      const missedCount = allPublishedEvs.filter(e=>!myLpRounds.find(r=>r.event_id===e.id)).length;
-      const missedSlots = Array.from({length: missedCount}, ()=>({ _lp: 0 }));
-      // Sort best first, drop the bottom 4 (no-shows fill those slots first)
-      const allSlots = [...myLpRounds, ...missedSlots].sort((a,b)=>b._lp-a._lp);
-      const counting = allSlots.slice(0, Math.max(0, allSlots.length - 4));
-      totalsDN[p.id] = counting.reduce((s,r)=>s+r._lp, 0);
-    }
-    const sortedDN = db.players.filter(p=>!p.provisional && !isHiddenAssociate(p.id, scopeYear(), 'all'))
-      .map(p=>({ id: p.id, lp: totalsDN[p.id]||0 }))
-      .sort((a,b)=>b.lp-a.lp);
-    const posDN = {};
-    let posCtr = 1;
-    for (let i=0; i<sortedDN.length; i++) {
-      if (i > 0 && sortedDN[i].lp < sortedDN[i-1].lp) posCtr = i+1;
-      posDN[sortedDN[i].id] = { pos: posCtr, lp: sortedDN[i].lp };
-    }
-    lbPositions = posDN;
+    lbPositions = getDroppedNowPositions();
   } else {
     lbPositions = getLeaderboardPositions(publishedEids, filter);
   }
@@ -4391,10 +4397,10 @@ function renderSeasonLockAdmin() {
     status = '🏆 Announced — standings are visible to everyone.';
     buttons = [btn('Edit announcement', 'showPotyModal()', true), btn('Withdraw & re-lock', 'withdrawPoty()')];
   } else if (locked) {
-    status = '🔒 Season locked — only admins can see standings.' + (adminPreviewAsMember ? ' <b>(Previewing as a member)</b>' : '');
+    status = '🔒 Season locked until the awards night (12 Dec) or until you release it — only admins can see standings.' + (adminPreviewAsMember ? ' <b>(Previewing as a member)</b>' : '');
     buttons = [btn('Announce Player of the Year', 'showPotyModal()', true), btn(adminPreviewAsMember ? 'Exit member preview' : 'Preview as member', 'togglePreviewAsMember()'), btn('Unlock now', "setLockOverride('unlock')")];
   } else {
-    status = 'Standings are open. Locks automatically once the final game (Sat 28 Nov) is published.' + (adminPreviewAsMember ? ' <b>(Previewing)</b>' : '');
+    status = 'Standings are open. Locks automatically once the final game (Sun 29 Nov) is published.' + (adminPreviewAsMember ? ' <b>(Previewing)</b>' : '');
     buttons = [btn('Lock now', "setLockOverride('lock')")];
   }
   buttons.push(btn('2027 sign-ups (' + db.season_membership.filter(m => +m.year === MEMBERSHIP_YEAR).length + '/' + db.players.filter(p => !p.provisional).length + ')', 'showSignupsModal()'));
@@ -4439,14 +4445,14 @@ function showPotyModal() {
   haptic();
   const st = getSeasonStatus(2026) || {};
   window._scopeYear = 2026;
-  const lb = getLeaderboardPositions();
+  const lb = getDroppedNowPositions();
   window._scopeYear = null;
   const players = db.players.filter(p => !p.provisional).map(p => ({ p, pos: lb[p.id]?.pos || 999, lp: lb[p.id]?.lp || 0 }))
     .filter(x => x.lp > 0).sort((a, b) => a.pos - b.pos);
   const defName = st.poty_winner_name || (players[0] ? players[0].p.name : '');
   document.getElementById('modal-title').textContent = '🏆 Player of the Year 2026';
   document.getElementById('modal-body').innerHTML =
-    '<div style="font-size:12px;color:var(--text-2);margin-bottom:12px;line-height:1.5">Posting this reveals the final standings to everyone and pins a Player of the Year card to the home feed.</div>'
+    '<div style="font-size:12px;color:var(--text-2);margin-bottom:12px;line-height:1.5">Winner is picked from the <b>"If dropped now"</b> standings (each player\'s 4 lowest scores dropped). Posting this reveals the final standings to everyone and pins a Player of the Year card to the home feed.</div>'
     + '<label style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase">Winner</label>'
     + '<select id="poty-winner" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-strong);margin:4px 0 12px;font-size:14px;font-family:\'DM Sans\',sans-serif">'
     + players.map(x => '<option value="' + x.p.name.replace(/"/g, '&quot;') + '"' + (x.p.name === defName ? ' selected' : '') + '>' + x.pos + '. ' + x.p.name + ' (' + x.lp + ' pts)</option>').join('')
@@ -4495,7 +4501,7 @@ function getMembership(pid) {
   const m = (db.season_membership || []).find(x => +x.year === MEMBERSHIP_YEAR && String(x.player_id) === String(pid));
   return m ? m.tier : null;
 }
-const SIGNUPS_OPEN_FROM = '2026-11-29';   // pop-up + profile card start on this date
+const SIGNUPS_OPEN_FROM = '2026-11-30';   // pop-up + profile card start on this date
 function signupsOpen() {
   const d = new Date();
   const today = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
