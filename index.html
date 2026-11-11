@@ -1163,7 +1163,7 @@
   <!-- SCHEDULE -->
   <div id="schedule" class="section">
     <div class="card" style="margin-top:0">
-      <div class="card-title">2026 season schedule</div>
+      <div class="card-title" id="schedule-title">2026 season schedule</div>
       <div id="schedule-table"><div class="skeleton-card"><div class="skeleton-row">
           <div class="skeleton" style="width:32px;height:32px;border-radius:50%;flex-shrink:0"></div>
           <div style="flex:1">
@@ -1369,7 +1369,68 @@ const OUTING_COURSES = {
   },
 };
 
-function getSeasonDates() {
+// ── 2027 FIXTURES ──────────────────────────────────────────
+// kind: 'outing' | 'scramble' (no points) | 'captains_day'
+// course = key in OUTING_COURSES (scorecard data); title = what shows on the card
+const FIXTURES_2027 = [
+  { date:'2027-04-10', course:'Silloge Park',       kind:'outing',       time:'11:00am', cost:'€25' },
+  { date:'2027-05-01', course:'Moyvalley',          kind:'outing',       time:'10:00am', cost:'€50' },
+  { date:'2027-05-22', course:'Bray Golf Club',     kind:'scramble',     time:'2:00pm',  cost:'€50' },
+  { date:'2027-06-05', course:'Courtown',           kind:'outing',       time:'11:00am', cost:'€40', buggies:'6 booked' },
+  { date:'2027-06-26', course:'Slade Valley',       kind:'outing',       time:'11:00am', cost:'€40' },
+  { date:'2027-07-10', course:'Grange Castle',      kind:'outing',       time:'11:00am', cost:'€39' },
+  { date:'2027-08-01', course:'Woodenbridge',       kind:'outing',       time:'11:00am', cost:'€55' },
+  { date:'2027-08-06', course:'Headfort Golf Club', kind:'scramble',     title:"Captain's Scramble", time:null, cost:null },
+  { date:'2027-08-07', course:'Headfort Golf Club', kind:'captains_day', title:"Captain's Day",      time:null, cost:null },
+  { date:'2027-09-18', course:'Coolattin',          kind:'outing',       time:'11:30am', cost:'€40' },
+  { date:'2027-10-02', course:'Wicklow Golf Club',  kind:'outing',       time:'11:00am', cost:'€60', costNote:'€55 with 32' },
+];
+const SEASON_2027 = { start:'2027-03-21', end:'2027-11-28' };
+
+// Which season the app shows by default: 2027 from 29 Nov 2026
+function activeSeasonYear() {
+  const d = new Date();
+  const iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  return iso >= '2026-11-29' ? 2027 : 2026;
+}
+const _iso = dt => dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+const _parse = iso => { const [y,m,d] = iso.split('-').map(Number); return new Date(y, m-1, d); };
+
+function fixtureToEntry(f) {
+  return {
+    date: f.date, isOuting: true, course: f.course,
+    title: f.title || f.course, kind: f.kind, time: f.time || null,
+    cost: f.cost || null, costNote: f.costNote || null,
+    buggies: f.buggies || '5 booked',
+    noPoints: f.kind === 'scramble', fixture: true,
+  };
+}
+
+function buildSeasonFromFixtures(fixtures, startISO, endISO) {
+  const byDate = {};
+  fixtures.forEach(f => { byDate[f.date] = f; });
+  // A Saturday fixture takes the place of that weekend's Sunday round
+  const skip = new Set();
+  fixtures.forEach(f => { if (_parse(f.date).getDay() === 6) { const n = _parse(f.date); n.setDate(n.getDate()+1); skip.add(_iso(n)); } });
+  const out = [];
+  const end = _parse(endISO);
+  for (let d = _parse(startISO); d <= end; d.setDate(d.getDate()+7)) {
+    const iso = _iso(d);
+    if (skip.has(iso)) continue;
+    if (byDate[iso]) out.push(fixtureToEntry(byDate[iso]));
+    else out.push({ date: iso, isOuting: false, course: null });
+  }
+  fixtures.forEach(f => { if (!out.some(e => e.date === f.date)) out.push(fixtureToEntry(f)); });
+  return out.sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function getSeasonDates(year) {
+  year = year || activeSeasonYear();
+  if (+year === 2027) return buildSeasonFromFixtures(FIXTURES_2027, SEASON_2027.start, SEASON_2027.end);
+  return getSeasonDates2026();
+}
+
+function getSeasonDates2026() {
   const satOutings = {}, sunOutings = {};
   for (const [d, name] of Object.entries(OUTINGS)) {
     const dt = new Date(...d.split('-').map((v,i)=>i===1?v-1:+v));
@@ -1853,7 +1914,7 @@ function renderLeaderboard() {
   const sub = document.getElementById('lb-season-sub');
   if (sub) {
     const today = new Date().toISOString().split('T')[0];
-    const remaining = getSeasonDates().filter(e=>!e.isOuting && e.date > today).length;
+    const remaining = getSeasonDates(2026).filter(e=>!e.isOuting && e.date > today).length;  // TODO step 4: year-scope
     const played = db.events.filter(e=>e.published).length;
     sub.textContent = `${remaining} Sunday${remaining!==1?'s':''} remaining this season`;
   }
@@ -2929,16 +2990,26 @@ function renderSavedCourseDropdown() {
   if (!sel) return;
   const courses = getSavedCourses();
 
-  // Outing courses not yet played
-  const playedCourseNames = new Set(db.events.filter(e=>e.event_type==='outing_18').map(e=>e.course_name));
-  const upcomingOutings = Object.entries(OUTING_COURSES)
-    .filter(([name]) => !playedCourseNames.has(name))
-    .map(([name]) => name);
+  // Upcoming fixtures (any season) that have a scorecard loaded and no event created yet
+  const haveEventOn = new Set(db.events.map(e=>e.event_date));
+  const todayIso = _iso(new Date());
+  const upcomingOutings = [];
+  [2026, 2027].forEach(y => getSeasonDates(y).forEach(f => {
+    if (f.isOuting && !f.noPoints && f.date >= todayIso && !haveEventOn.has(f.date) && OUTING_COURSES[f.course] && !upcomingOutings.some(u => u.name === f.course))
+      upcomingOutings.push({ name: f.course, date: f.date });
+  }));
+  const upcomingNames = new Set(upcomingOutings.map(u => u.name));
+  const otherKnown = Object.keys(OUTING_COURSES).filter(n => !upcomingNames.has(n));
 
   sel.innerHTML = '<option value="">— select a saved course —</option>';
   if (upcomingOutings.length) {
     sel.innerHTML += `<optgroup label="Upcoming outings">` +
-      upcomingOutings.map(name => `<option value="outing:${name}">${name}</option>`).join('') +
+      upcomingOutings.map(u => `<option value="outing:${u.name}">${u.name} · ${fmtDate(u.date)}</option>`).join('') +
+      `</optgroup>`;
+  }
+  if (otherKnown.length) {
+    sel.innerHTML += `<optgroup label="Other courses">` +
+      otherKnown.map(name => `<option value="outing:${name}">${name}</option>`).join('') +
       `</optgroup>`;
   }
   if (courses.length) {
@@ -2978,7 +3049,10 @@ function loadSavedCourse() {
     const ws = document.getElementById('e-wsi'+i); if(ws && c.wsi) ws.value = c.wsi[i-1] || '';
   }
   // Auto-fill the event date if it matches an upcoming outing
-  const outingDate = Object.entries(OUTINGS).find(([,name])=>name===c.name)?.[0];
+  const _today = _iso(new Date());
+  const _haveEv = new Set(db.events.map(e=>e.event_date));
+  let outingDate = null;
+  [2026, 2027].forEach(y => { if (!outingDate) { const f = getSeasonDates(y).find(x => x.isOuting && !x.noPoints && x.course === c.name && x.date >= _today && !_haveEv.has(x.date)); if (f) outingDate = f.date; } });
   if (outingDate) {
     const dateEl = document.getElementById('e-date');
     if (dateEl && !dateEl.value) dateEl.value = outingDate;
@@ -5329,162 +5403,156 @@ function viewEventResults(eid) {
 
 let scheduleShowPast = false;
 
+let scheduleYear = null;
+function getScheduleYear() { return scheduleYear || activeSeasonYear(); }
+function setScheduleYear(y) { scheduleYear = +y; renderSchedule(); }
+
+const KIND_STYLE = {
+  outing:       { label:'Outing',          bg:'#EEEDFE', fg:'#3C3489', border:'#7F77DD' },
+  captains_day: { label:"Captain's Day",   bg:'#FFF4D6', fg:'#7a5500', border:'#C9A84C' },
+  scramble:     { label:'Scramble',        bg:'#FDEBD3', fg:'#9a4a00', border:'#E08A2E' },
+  sunday:       { label:'Sunday 9',        bg:'#edf2fa', fg:'#1a3c6e', border:'#378ADD' },
+};
+function entryKind(entry, ev) {
+  if (entry.kind) return entry.kind;
+  if (ev && ev.is_captains_day) return 'captains_day';
+  const isOut = ev ? ev.event_type === 'outing_18' : entry.isOuting;
+  return isOut ? 'outing' : 'sunday';
+}
+
 function renderSchedule() {
   try {
-  const seasonDates = getSeasonDates();
+  const year = getScheduleYear();
+  const seasonDates = getSeasonDates(year);
   const byDate = {};
   db.events.forEach(e=>{ byDate[e.event_date]=e; });
   const t = new Date();
   const today = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
 
-  // Split into past and upcoming
-  const pastDates     = seasonDates.filter(e => e.date < today && byDate[e.date]?.published);
-  const upcomingDates = seasonDates.filter(e => e.date >= today || !byDate[e.date]?.published);
+  const isDone = e => e.noPoints ? e.date < today : (e.date < today && byDate[e.date]?.published);
+  const pastDates     = seasonDates.filter(isDone);
+  const upcomingDates = seasonDates.filter(e => !isDone(e));
+  const nextRoundDate = (upcomingDates.find(e => !byDate[e.date]?.cancelled) || {}).date;
 
-  // Find next upcoming outing for countdown
-  const nextOuting = Object.entries(OUTINGS)
-    .filter(([d]) => d >= today)
-    .sort(([a],[b]) => a.localeCompare(b))[0];
-
+  // Next outing countdown
+  const nextOuting = seasonDates.find(e => e.isOuting && e.date >= today && !byDate[e.date]?.cancelled);
   let countdownHtml = '';
   if (nextOuting) {
-    const [outDate, outName] = nextOuting;
-    const [oy,om,od] = outDate.split('-').map(Number);
-    const target = new Date(oy, om-1, od);
+    const target = _parse(nextOuting.date);
     const diff = Math.round((target - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 86400000);
     const daysLabel = diff === 0 ? 'Today!' : diff === 1 ? '1 day to go' : `${diff} days to go`;
+    const nm = nextOuting.title || (byDate[nextOuting.date] ? byDate[nextOuting.date].course_name : nextOuting.course);
     countdownHtml = `
-      <div style="background:#0a1628;border-radius:var(--radius);padding:16px;margin-bottom:1rem;text-align:center">
-        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Next outing</div>
-        <div style="font-size:18px;font-weight:700;color:white;margin-bottom:4px">${outName}</div>
-        <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:10px">${fmtDate(outDate)}</div>
+      <div onclick="showFixtureSheet('${nextOuting.date}',${year})" style="background:#0a1628;border-radius:var(--radius);padding:16px;margin-bottom:1rem;text-align:center;cursor:pointer">
+        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Next outing${nextOuting.kind==='scramble'?' · Scramble':''}</div>
+        <div style="font-size:18px;font-weight:700;color:white;margin-bottom:4px">${nm}</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:${nextOuting.time?'2':'10'}px">${fmtDate(nextOuting.date)}</div>
+        ${nextOuting.time?`<div style="font-size:13px;color:#C9A84C;font-weight:600;margin-bottom:10px">Tee time ${nextOuting.time}</div>`:''}
         <div class="bhgs-countdown"><div class="bhgs-countdown-inner">${daysLabel}</div></div>
       </div>`;
   }
 
-  // Week number = sequential position across ALL events sorted by date
-  const allSortedDates = seasonDates.map(e=>e.date).sort();
-  // Outing number = which outing number it is
-  const allOutingDates = seasonDates.filter(e=>e.isOuting).map(e=>e.date).sort();
-
-  const renderRow = (entry, i, isPastSection) => {
-    const { date: d, isOuting, course: outingCourse } = entry;
+  const renderRow = (entry, isPastSection) => {
+    const d = entry.date;
     const ev = byDate[d];
-    const isPublished = ev && ev.published;
-    const isNextRound = ev && !ev.published && [...db.events]
-      .filter(e=>!e.published)
-      .sort((a,b)=>a.event_date.localeCompare(b.event_date))[0]?.id === ev.id;
-    const courseName = ev ? ev.course_name : isOuting ? outingCourse : null;
-    const evType = (ev ? ev.event_type : isOuting ? 'outing_18' : 'sunday_9');
-    const isOutingRow = evType === 'outing_18';
-
-    // Week number is position across all events chronologically
-    const weekNum = allSortedDates.indexOf(d) + 1;
-    // Outing number is which outing it is
-    const outingNum = isOutingRow ? allOutingDates.indexOf(d) + 1 : null;
-
-    const isCaptainsDayRow = ev?.is_captains_day === true;
+    const kind = entryKind(entry, ev);
+    const ks = KIND_STYLE[kind];
     const isCancelled = ev?.cancelled === true;
-    const typeLabel = isOutingRow
-      ? `<span style="font-size:10px;font-weight:600;color:#3C3489;background:#EEEDFE;padding:2px 8px;border-radius:99px;white-space:nowrap">Outing ${outingNum}</span>`
-      : `<span style="font-size:10px;font-weight:600;color:#1a3c6e;background:#edf2fa;padding:2px 8px;border-radius:99px;white-space:nowrap">Sunday 9</span>`;
-    const captainsDayLabel = isCaptainsDayRow
-      ? `<div style="font-size:11px;font-weight:700;color:#C9A84C;letter-spacing:.03em;margin-top:2px">Captain's Day</div>`
-      : '';
-    const rowBorderColor = isCancelled ? '#d1d5db'
-      : isCaptainsDayRow ? '#C9A84C'
-      : isOutingRow ? '#7F77DD' : '#378ADD';
-    const captainsBadge = '';
-
-    const numLabel = `<div style="flex-shrink:0;text-align:center;min-width:36px">
-        <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
-        <div style="font-size:16px;font-weight:700;color:${isOutingRow?'#C9A84C':'var(--text-2)'};line-height:1">${weekNum}</div>
-       </div>`;
-
-    const pastNumLabel = `<div style="flex-shrink:0;text-align:center;min-width:32px">
-        <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em">Wk</div>
-        <div style="font-size:14px;font-weight:600;color:var(--text-2);line-height:1">${weekNum}</div>
-       </div>`;
-
-    if (isCancelled) {
-      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;border-bottom:0.5px solid var(--border);border-left:3px solid ${rowBorderColor};margin-bottom:4px;opacity:0.55">
-        ${pastNumLabel}
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;color:var(--text-3)">${fmtDate(d)}</div>
-          ${courseName?`<div style="font-size:14px;font-weight:500;color:var(--text-3);margin-top:1px;text-decoration:line-through">${courseName}</div>`:''}
-          <div style="font-size:11px;font-weight:600;color:#9ca3af;margin-top:2px">☔ Cancelled</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          ${typeLabel}
-          ${isAdmin&&ev?`<button class="btn sm" style="font-size:10px;color:#6b7280;border-color:#d1d5db" onclick="unmarkCancelled('${ev.id}')">Restore</button>`:''}
-        </div>
-      </div>`;
-    }
-
-    if (isPastSection || isPublished) {
-      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;border-bottom:0.5px solid var(--border);border-left:3px solid ${rowBorderColor};margin-bottom:4px">
-        ${pastNumLabel}
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;color:var(--text-3)">${fmtDate(d)}</div>
-          ${courseName?`<div style="font-size:14px;font-weight:600;color:var(--text);margin-top:1px">${courseName}</div>`:''}
-          ${captainsDayLabel}
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          ${typeLabel}
-          ${ev?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋 Hcp</button>`:''}
-          ${ev?.published?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="font-size:11px">Results</button>`:''}
-        </div>
-      </div>`;
-    }
-
-    if (isNextRound) {
-      return `<div style="display:flex;align-items:center;gap:10px;padding:12px 12px 12px 14px;background:#f0f7ee;border-radius:10px;border:1.5px solid #a8c89a;border-left:4px solid ${rowBorderColor};margin-bottom:4px">
-        ${numLabel}
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-            ${typeLabel}
-            <span style="font-size:10px;font-weight:700;color:#2a6b1a;background:#d4edcc;padding:2px 8px;border-radius:99px">Next round</span>
-          </div>
-          <div style="font-size:13px;color:#2a6b1a;font-weight:500">${fmtDate(d)}</div>
-          ${courseName?`<div style="font-size:15px;font-weight:700;color:#1a4a0a;margin-top:2px">${courseName}</div>`:''}
-          ${captainsDayLabel}
-        </div>
-        ${ev?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628;flex-shrink:0" onclick="showHandicapSheet('${ev.id}')">📋 Hcp sheet</button>`:''}
-      </div>`;
-    }
-
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 10px 10px 12px;border-bottom:0.5px solid var(--border);border-left:3px solid ${rowBorderColor};margin-bottom:4px">
-      ${numLabel}
+    const isNext = !isPastSection && d === nextRoundDate;
+    const title = entry.title || (ev ? ev.course_name : entry.course) || (kind === 'sunday' ? 'Sunday round' : '');
+    const [wd, dayNum, mon] = _parse(d).toLocaleDateString('en-IE',{weekday:'short',day:'numeric',month:'short'}).replace(',','').split(' ');
+    const tee = entry.time ? `<span style="font-size:12px;color:var(--text-2);font-weight:600">⏰ ${entry.time}</span>`
+      : (entry.fixture && !entry.time ? `<span style="font-size:12px;color:var(--text-3);font-style:italic">Tee time TBC</span>` : '');
+    const chip = `<span style="font-size:10px;font-weight:700;color:${ks.fg};background:${ks.bg};padding:2px 8px;border-radius:99px;white-space:nowrap">${ks.label}</span>`;
+    const noPts = entry.noPoints ? `<span style="font-size:10px;color:var(--text-3)">No points</span>` : '';
+    const status = isCancelled ? `<span style="font-size:11px;font-weight:600;color:#9ca3af">☔ Cancelled</span>`
+      : (ev?.published ? `<span style="font-size:11px;font-weight:600;color:#2a6b1a">✓ Results in</span>` : '');
+    const bg = isNext ? 'background:#f0f7ee;border:1.5px solid #a8c89a;border-left:4px solid '+ks.border+';' : 'border-bottom:0.5px solid var(--border);border-left:3px solid '+ks.border+';';
+    return `<div onclick="showFixtureSheet('${d}',${year})" style="display:flex;align-items:center;gap:12px;padding:12px 12px 12px 12px;${bg}border-radius:${isNext?'10px':'0'};margin-bottom:4px;cursor:pointer;${isCancelled?'opacity:.55;':''}${isPastSection&&!isNext?'':''}">
+      <div style="flex-shrink:0;width:42px;text-align:center">
+        <div style="font-size:10px;font-weight:700;color:${ks.border};text-transform:uppercase;letter-spacing:.04em">${wd}</div>
+        <div style="font-size:20px;font-weight:800;color:var(--text);line-height:1.05">${dayNum}</div>
+        <div style="font-size:10px;color:var(--text-3);text-transform:uppercase">${mon}</div>
+      </div>
       <div style="flex:1;min-width:0">
-        ${courseName?`<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px">${courseName}</div>`:''}
-        <div style="display:flex;align-items:center;gap:6px">${typeLabel}<span style="font-size:12px;color:var(--text-3)">${fmtDate(d)}</span></div>
-        ${captainsDayLabel}
+        ${isNext?`<div style="font-size:10px;font-weight:700;color:#2a6b1a;margin-bottom:2px">NEXT ROUND</div>`:''}
+        <div style="font-size:15px;font-weight:700;color:var(--text);${isCancelled?'text-decoration:line-through;':''}white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title}</div>
+        ${entry.fixture && entry.course && entry.course !== title ? `<div style="font-size:12px;color:var(--text-3)">${entry.course}</div>` : ''}
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px">${chip}${tee}${noPts}${status}</div>
       </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        ${ev?`<button class="btn sm" style="background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="showHandicapSheet('${ev.id}')">📋 Hcp sheet</button>`:''}
-        ${ev?.published?`<button class="btn sm" onclick="viewEventResults('${ev.id}')" style="flex-shrink:0">Results</button>`:''}
-      </div>
+      <div style="flex-shrink:0;color:var(--text-3);font-size:18px">›</div>
     </div>`;
   };
 
   const pastHtml = scheduleShowPast
-    ? `<div id="past-events-list">
-        ${pastDates.map((e,i) => renderRow(e, i, true)).join('')}
-      </div>`
-    : '';
+    ? `<div id="past-events-list">${pastDates.map(e => renderRow(e, true)).join('')}</div>` : '';
 
   const toggleBtn = pastDates.length ? `
-    <button onclick="togglePastEvents()" style="width:100%;padding:11px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text-2);font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:1rem;display:flex;align-items:center;justify-content:center;gap:6px" id="past-toggle-btn">
+    <button onclick="togglePastEvents()" style="width:100%;padding:11px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--bg);color:var(--text-2);font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;margin-bottom:1rem">
       <span id="past-toggle-icon">${scheduleShowPast ? '▲' : '▼'}</span>
       ${scheduleShowPast ? 'Hide' : 'Show'} past events (${pastDates.length})
     </button>` : '';
 
+  const showToggle = isAdmin || activeSeasonYear() === 2027;
+  const yearBtn = y => `<button onclick="setScheduleYear(${y})" style="flex:1;padding:8px;border-radius:8px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${year===y?'#0a1628':'var(--border-strong)'};background:${year===y?'#0a1628':'var(--bg)'};color:${year===y?'#C9A84C':'var(--text-2)'}">${y}</button>`;
+  const yearToggle = showToggle ? `<div style="display:flex;gap:8px;margin-bottom:1rem">${yearBtn(2026)}${yearBtn(2027)}</div>` : '';
+
+  const footer = year === 2027 ? `<div style="font-size:11px;color:var(--text-3);line-height:1.5;margin-top:8px;padding:0 4px"><b>Buggies:</b> 5 booked for every outing, 6 at Courtown.<br>TBC = to be confirmed. Details to follow. Tap any card for more.</div>` : '';
+
+  const stEl = document.getElementById('schedule-title'); if (stEl) stEl.textContent = year + ' season schedule';
   document.getElementById('schedule-table').innerHTML = `
+    ${yearToggle}
     ${countdownHtml}
     ${pastHtml}
-    ${upcomingDates.map((e,i) => renderRow(e, i, false)).join('')}
-    ${toggleBtn}`;
+    ${upcomingDates.map(e => renderRow(e, false)).join('')}
+    ${toggleBtn}
+    ${footer}`;
   } catch(e) { console.error('renderSchedule error:', e.message, e.stack); document.getElementById('schedule-table').innerHTML = '<div style="padding:1rem;color:red;font-size:12px">Schedule error: '+e.message+'</div>'; }
+}
+
+function showFixtureSheet(date, year) {
+  haptic();
+  const entry = getSeasonDates(year).find(e => e.date === date);
+  if (!entry) return;
+  const ev = db.events.find(e => e.event_date === date);
+  const kind = entryKind(entry, ev);
+  const ks = KIND_STYLE[kind];
+  const counting = getSeasonDates(year).filter(e => !e.noPoints);
+  const roundNo = entry.noPoints ? null : counting.findIndex(e => e.date === date) + 1;
+  const title = entry.title || (ev ? ev.course_name : entry.course) || 'Sunday round';
+  const venue = entry.fixture && entry.course !== title ? entry.course : (ev && ev.course_name !== title ? ev.course_name : null);
+  const cd = entry.course ? OUTING_COURSES[entry.course] : null;
+  const isCancelled = ev?.cancelled === true;
+  const row = (label, val) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border)"><div style="font-size:12px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;font-weight:600">${label}</div><div style="font-size:14px;color:var(--text);font-weight:600;text-align:right">${val}</div></div>`;
+  const tbc = '<span style="font-style:italic;color:var(--text-3);font-weight:500">TBC</span>';
+  let rows = '';
+  if (entry.fixture) {
+    rows += row('Tee time', entry.time || tbc);
+    rows += row('Cost', entry.cost ? entry.cost + (entry.costNote ? ` <span style="font-size:11px;color:var(--text-3);font-weight:500">(${entry.costNote})</span>` : '') : tbc);
+    rows += row('Buggies', entry.buggies);
+  }
+  rows += row('Points', entry.noPoints ? 'Scramble · no points' : (roundNo ? `Counts · round ${roundNo} of ${counting.length}` : 'Counts'));
+  if (cd) rows += row('Course', `Par ${cd.par} · CR ${cd.cr} · Slope ${cd.slope}`);
+  else if (entry.fixture && !entry.noPoints && isAdmin) rows += row('Scorecard', '<span style="color:#A32D2D">Not loaded yet</span>');
+  if (isCancelled) rows += row('Status', '☔ Cancelled');
+
+  const btn = (label, fn, dark) => `<button class="btn" style="flex:1;${dark?'background:#0a1628;color:#C9A84C;border-color:#0a1628':''}" onclick="${fn}">${label}</button>`;
+  let actions = '';
+  if (ev) {
+    actions += btn('📋 Hcp sheet', `closeModal();showHandicapSheet('${ev.id}')`, true);
+    if (ev.published) actions += btn('Results', `closeModal();viewEventResults('${ev.id}')`);
+  }
+  if (isAdmin && ev) actions += isCancelled ? btn('Restore', `closeModal();unmarkCancelled('${ev.id}')`) : '';
+  document.getElementById('modal-title').textContent = ks.label;
+  document.getElementById('modal-body').innerHTML = `
+    <div style="background:#0a1628;border-radius:var(--radius);padding:16px;margin-bottom:6px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:4px">${fmtDate(date)}</div>
+      <div style="font-size:20px;font-weight:800;color:#C9A84C">${title}</div>
+      ${venue ? `<div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:2px">${venue}</div>` : ''}
+    </div>
+    ${rows}
+    ${actions ? `<div style="display:flex;gap:8px;margin-top:14px">${actions}</div>` : ''}`;
+  document.getElementById('modal-overlay').classList.add('open');
 }
 
 function showHandicapSheet(eid) {
@@ -5765,10 +5833,10 @@ function renderHome() {
       : '<span style="font-size:10px;font-weight:600;color:#93c5fd;background:rgba(147,197,253,0.12);padding:1px 7px;border-radius:99px">Sunday</span>';
 
     // Week number for this event in the season
-    const allSeasonDates = getSeasonDates();
-    const totalRounds = allSeasonDates.length;
+    const allSeasonDates = getSeasonDates(ev ? ev.event_date.slice(0,4) : 2026);
+    const totalRounds = allSeasonDates.filter(x => !x.noPoints).length;
     const evDate = ev ? ev.event_date : null;
-    const weekNum = evDate ? (allSeasonDates.findIndex(d => d.date === evDate) + 1) : 0;
+    const weekNum = evDate ? (allSeasonDates.filter(x => !x.noPoints).findIndex(d => d.date === evDate) + 1) : 0;
     const roundLabel = weekNum ? 'Round ' + weekNum + '/' + totalRounds : '';
 
     // Winner hero row
