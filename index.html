@@ -1520,7 +1520,19 @@ function isSeasonLocked(year=2026) {
   const fin = (db.events||[]).find(e => e.event_date === FINAL_EVENT_DATE_2026);
   return !!(fin && fin.published);
 }
+// ── SEASON SCOPING ──────────────────────────────────────────
+// Each year stands alone: points, ranks, stats and profiles only use games dated in that year.
+// Handicaps live on the players table, so they carry over untouched.
+function scopeYear() { return window._scopeYear || activeSeasonYear(); }
+function lbYear() { const el = document.getElementById('lb-archive-year'); const v = el && el.value; return v ? +v : activeSeasonYear(); }
+function seasonEvents() { const y = String(scopeYear()); return db.events.filter(e => String(e.event_date).slice(0,4) === y); }
+function seasonRounds() { const ids = new Set(seasonEvents().map(e => e.id)); return db.rounds.filter(r => ids.has(r.event_id)); }
+// 2026: best 33 of 37 count. 2027: best 32 of 36 count (lowest 4 dropped both years).
+function countedGames(year) { return +year === 2027 ? 32 : 33; }
+// 2027 Associates (outings only) only appear in the Outings view
+function isHiddenAssociate(pid, year, scope) { return +year === MEMBERSHIP_YEAR && scope !== 'outing_18' && getMembership(pid) === 'associate'; }
 function hideStandings() {
+  if (scopeYear() !== 2026) return false;     // only the 2026 standings are locked
   if (!isSeasonLocked()) return false;
   return !(isAdmin && !adminPreviewAsMember);
 }
@@ -1717,7 +1729,7 @@ async function loadAll() {
     db.events           = events           || [];
     db.rounds           = rounds           || [];
     db.noticeboard      = noticeboard      || [];
-    db.knockout_matches = knockout_matches || [];
+    db.knockout_matches = (knockout_matches || []).filter(m => !m.archived);
     db.season_archives  = season_archives  || [];
     const pill = document.getElementById('conn-pill');
     pill.textContent = 'Connected'; pill.className = 'conn-pill ok';
@@ -1733,17 +1745,17 @@ async function loadAll() {
 
 function getPreviousLeaderboardPositions(publishedEids) {
   // Get positions excluding the most recent published event
-  const sortedEvents = db.events.filter(e=>e.published && publishedEids.has(e.id))
+  const sortedEvents = seasonEvents().filter(e=>e.published && publishedEids.has(e.id))
     .sort((a,b)=>b.event_date.localeCompare(a.event_date));
   if (sortedEvents.length < 2) return {};
   const prevEids = new Set(sortedEvents.slice(1).map(e=>e.id));
   return getLeaderboardPositions(prevEids);
 }
 
-function getLeaderboardPositions(publishedEids) {
-  if (!publishedEids) publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+function getLeaderboardPositions(publishedEids, scope) {
+  if (!publishedEids) publishedEids = new Set(seasonEvents().filter(e=>e.published).map(e=>e.id));
   const byEvent = {};
-  for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) {
+  for (const r of seasonRounds().filter(x=>x.verified && publishedEids.has(x.event_id))) {
     if (!byEvent[r.event_id]) byEvent[r.event_id]=[];
     byEvent[r.event_id].push({...r});
   }
@@ -1758,11 +1770,11 @@ function getLeaderboardPositions(publishedEids) {
   }
   const totals = {};
   for (const pid in allPlayerRounds) {
-    const rounds = allPlayerRounds[pid].sort((a,b)=>b._lp-a._lp).slice(0,33);
+    const rounds = allPlayerRounds[pid].sort((a,b)=>b._lp-a._lp).slice(0,countedGames(scopeYear()));
     totals[pid] = rounds.reduce((s,r)=>s+r._lp, 0);
   }
   // Sort full members only — provisionals are excluded from standings
-  const fullMembers = db.players.filter(p => !p.provisional);
+  const fullMembers = db.players.filter(p => !p.provisional && !isHiddenAssociate(p.id, scopeYear(), scope));
   const sorted = fullMembers
     .map(p => ({ id: p.id, lp: totals[p.id] || 0 }))
     .sort((a,b) => b.lp - a.lp);
@@ -1778,15 +1790,19 @@ function getLeaderboardPositions(publishedEids) {
 }
 
 function shareLeaderboard() {
+  window._scopeYear = lbYear();
+  try { return _shareLeaderboardInner(); } finally { window._scopeYear = null; }
+}
+function _shareLeaderboardInner() {
   if (hideStandings()) { toast('Standings are locked', 'error'); return; }
   const filterValEl = document.getElementById('lb-filter-val');
   const filter = filterValEl ? filterValEl.value : 'all';
-  const evs = filter === 'all' ? db.events : db.events.filter(e => e.event_type === filter);
+  const evs = filter === 'all' ? seasonEvents() : seasonEvents().filter(e => e.event_type === filter);
   const publishedEids = new Set(evs.filter(e => e.published).map(e => e.id));
-  const lbPositions = getLeaderboardPositions(publishedEids);
+  const lbPositions = getLeaderboardPositions(publishedEids, filter);
 
   const filterLabel = filter === 'sunday_9' ? 'Sundays' : filter === 'outing_18' ? 'Outings' : 'All Events';
-  const eventsPlayed = db.events.filter(e => e.published && publishedEids.has(e.id)).length;
+  const eventsPlayed = seasonEvents().filter(e => e.published && publishedEids.has(e.id)).length;
 
   // Build top 10 full members sorted by position
   const top10 = db.players
@@ -1895,78 +1911,76 @@ function switchLbTab(tab) {
 function setLbFilter(val) { switchLbTab(val); }
 
 function renderLeaderboard() {
+  window._scopeYear = lbYear();
+  try { return _renderLeaderboardInner(); } finally { window._scopeYear = null; }
+}
+
+function setSeasonView(year) {
+  const el = document.getElementById('lb-archive-year');
+  if (el) el.value = (String(year) === String(activeSeasonYear())) ? '' : year;
+  renderLeaderboard();
+}
+
+function _renderLeaderboardInner() {
   const lockAdminEl = document.getElementById('lb-lock-admin');
   if (lockAdminEl) lockAdminEl.innerHTML = isAdmin ? renderSeasonLockAdmin() : '';
+
+  // ── Season switcher: one pill per year that has games (shows once there is more than one) ──
+  const switcherEl = document.getElementById('lb-season-switcher');
+  const viewYear = lbYear();
+  if (switcherEl) {
+    const years = [...new Set([activeSeasonYear(), ...db.events.map(e => +String(e.event_date).slice(0,4))])].sort((x,y) => y - x);
+    if (years.length > 1) {
+      const pill = y => { const on = viewYear === y; return `<button onclick="setSeasonView(${y})" style="padding:4px 14px;border-radius:99px;font-size:12px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${on?'#0a1628':'var(--border)'};background:${on?'#0a1628':'var(--bg)'};color:${on?'#C9A84C':'var(--text-2)'}">${y}${y===activeSeasonYear()?' · Live':''}</button>`; };
+      switcherEl.innerHTML = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + years.map(pill).join('') + '</div>';
+      switcherEl.style.display = '';
+    } else { switcherEl.style.display = 'none'; }
+  }
+
   // ── Season lock: members see a locked card until the winner is announced ──
-  if (hideStandings() && !document.getElementById('lb-archive-year')?.value) {
-    ['lb-season-summary','lb-penalty-box','pts-bar','lb-season-switcher'].forEach(id => { const el=document.getElementById(id); if (el) { el.innerHTML=''; if (id!=='lb-season-summary'&&id!=='pts-bar') el.style.display='none'; } });
+  if (hideStandings()) {
+    ['lb-season-summary','lb-penalty-box','pts-bar'].forEach(id => { const el=document.getElementById(id); if (el) { el.innerHTML=''; if (id==='lb-penalty-box') el.style.display='none'; } });
     const subL = document.getElementById('lb-season-sub'); if (subL) subL.textContent = '2026 season complete';
     const tblL = document.getElementById('lb-table');
     if (tblL) tblL.innerHTML = '<div style="background:#0a1628;border-radius:var(--radius);padding:2rem 1.25rem;text-align:center"><div style="font-size:36px;margin-bottom:10px">🔒</div><div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#C9A84C;margin-bottom:8px">Final standings locked</div><div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">The 2026 season is complete</div><div style="font-size:13px;color:rgba(255,255,255,.65);line-height:1.5">The Player of the Year will be announced soon.<br>Standings will be revealed then.</div></div>';
     return;
   }
-  // ── Season switcher ─────────────────────────────────────────
-  const switcherEl = document.getElementById('lb-season-switcher');
-  const archiveYearEl = document.getElementById('lb-archive-year');
-  const archives = db.season_archives || [];
-  if (switcherEl) {
-    if (archives.length) {
-      const archiveYear = archiveYearEl?.value || '';
-      let html = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">';
-      html += `<button onclick="setSeasonView('')" style="padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${!archiveYear?'#0a1628':'var(--border)'};background:${!archiveYear?'#0a1628':'var(--bg)'};color:${!archiveYear?'#C9A84C':'var(--text-2)'}">2026 Live</button>`;
-      archives.forEach(a => {
-        const active = archiveYear === String(a.year);
-        html += `<button onclick="setSeasonView('${a.year}')" style="padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${active?'#0a1628':'var(--border)'};background:${active?'#0a1628':'var(--bg)'};color:${active?'#C9A84C':'var(--text-2)'}">Season ${a.year}</button>`;
-      });
-      html += '</div>';
-      switcherEl.innerHTML = html;
-      switcherEl.style.display = '';
-    } else {
-      switcherEl.style.display = 'none';
-    }
-  }
-
-  // If viewing an archive year, render that instead
-  const archiveYear = archiveYearEl?.value || '';
-  if (archiveYear) {
-    const archive = archives.find(a => String(a.year) === archiveYear);
-    if (archive) { renderArchivedLeaderboard(archive); return; }
-  }
+  const archiveYear = '';   // legacy snapshot path retired: every year is computed live
 
   const filterValEl = document.getElementById('lb-filter-val');
   const filter = filterValEl ? filterValEl.value : 'all';
   const isDroppedNow = filter === 'dropped_now';
-  const evs = (filter === 'all' || isDroppedNow) ? db.events : db.events.filter(e=>e.event_type===filter);
+  const evs = (filter === 'all' || isDroppedNow) ? seasonEvents() : seasonEvents().filter(e=>e.event_type===filter);
   const publishedEids = new Set(evs.filter(e=>e.published).map(e=>e.id));
 
   // Update season sub line
   const sub = document.getElementById('lb-season-sub');
   if (sub) {
     const today = new Date().toISOString().split('T')[0];
-    const remaining = getSeasonDates(2026).filter(e=>!e.isOuting && e.date > today).length;  // TODO step 4: year-scope
-    const played = db.events.filter(e=>e.published).length;
+    const remaining = getSeasonDates(lbYear()).filter(e=>!e.isOuting && e.date > today).length;
+    const played = seasonEvents().filter(e=>e.published).length;
     sub.textContent = `${remaining} Sunday${remaining!==1?'s':''} remaining this season`;
   }
 
   // Season summary card — hide for dropped_now view
   const summaryEl = document.getElementById('lb-season-summary');
   if (summaryEl && isDroppedNow) {
-    const played = db.events.filter(e=>e.published).length;
-    const dropping = Math.max(0, played - 33);
+    const played = seasonEvents().filter(e=>e.published).length;
+    const dropping = Math.max(0, played - countedGames(lbYear()));
     summaryEl.innerHTML = `<div style="background:#fef8e6;border:1px solid #C9A84C;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center"><span style="font-size:15px">⚠️</span><div><div style="font-size:12px;font-weight:700;color:#8a6a1a">Each player's 4 lowest scores dropped</div><div style="font-size:11px;color:#a07820;margin-top:1px">${played} events played · missed rounds count as 0 pts</div></div></div>`;
   } else if (summaryEl) {
     const todayStr      = new Date().toISOString().split('T')[0];
-    const totalEvents   = db.events.filter(e=>e.published).length;
-    const totalSundays  = db.events.filter(e=>e.published && e.event_type==='sunday_9').length;
-    const totalOutings  = db.events.filter(e=>e.published && e.event_type==='outing_18').length;
-    const sundaysLeft   = db.events.filter(e=>e.event_type==='sunday_9' && e.event_date > todayStr).length;
-    const nextEv        = db.events.filter(e=>e.event_date >= todayStr).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0];
+    const totalEvents   = seasonEvents().filter(e=>e.published).length;
+    const totalSundays  = seasonEvents().filter(e=>e.published && e.event_type==='sunday_9').length;
+    const totalOutings  = seasonEvents().filter(e=>e.published && e.event_type==='outing_18').length;
+    const sundaysLeft   = seasonEvents().filter(e=>e.event_type==='sunday_9' && e.event_date > todayStr).length;
+    const nextEv        = seasonEvents().filter(e=>e.event_date >= todayStr).sort((a,b)=>a.event_date.localeCompare(b.event_date))[0];
     const daysToNext    = nextEv ? Math.ceil((new Date(nextEv.event_date)-new Date(todayStr))/(1000*60*60*24)) : null;
 
     // Hot streak — who has most pts in last 3 published events
-    const last3Eids = new Set([...db.events].filter(e=>e.published).sort((a,b)=>b.event_date.localeCompare(a.event_date)).slice(0,3).map(e=>e.id));
+    const last3Eids = new Set([...seasonEvents()].filter(e=>e.published).sort((a,b)=>b.event_date.localeCompare(a.event_date)).slice(0,3).map(e=>e.id));
     const recentPts = {};
-    db.rounds.filter(r=>r.verified && last3Eids.has(r.event_id)).forEach(r => {
+    seasonRounds().filter(r=>r.verified && last3Eids.has(r.event_id)).forEach(r => {
       recentPts[r.player_id] = (recentPts[r.player_id]||0) + r.stableford_points;
     });
     const hotPlayer = Object.entries(recentPts).sort((a,b)=>b[1]-a[1])[0];
@@ -1984,7 +1998,7 @@ function renderLeaderboard() {
       playerStats[p.id] = { name: p.name, pars: 0, birdies: 0, scratches: 0 };
     });
 
-    db.rounds.filter(r => r.verified && publishedEids.has(r.event_id) && r.hole_scores).forEach(r => {
+    seasonRounds().filter(r => r.verified && publishedEids.has(r.event_id) && r.hole_scores).forEach(r => {
       const ev = db.events.find(e => e.id === r.event_id);
       if (!ev) return;
       const scores  = Array.isArray(r.hole_scores) ? r.hole_scores : JSON.parse(r.hole_scores || '[]');
@@ -2049,16 +2063,16 @@ function renderLeaderboard() {
   // For dropped_now: drop each player's 4 lowest scores (including missed rounds as 0pts)
   let lbPositions;
   if (isDroppedNow) {
-    const allPublishedEvs = db.events.filter(e=>e.published);
+    const allPublishedEvs = seasonEvents().filter(e=>e.published);
     const allPublishedEids = new Set(allPublishedEvs.map(e=>e.id));
     const byEventDN = {};
-    for (const r of db.rounds.filter(x=>x.verified && allPublishedEids.has(x.event_id))) {
+    for (const r of seasonRounds().filter(x=>x.verified && allPublishedEids.has(x.event_id))) {
       if (!byEventDN[r.event_id]) byEventDN[r.event_id]=[];
       byEventDN[r.event_id].push({...r});
     }
     for (const eid in byEventDN) assignLeaguePts(byEventDN[eid]);
     const totalsDN = {};
-    for (const p of db.players.filter(x=>!x.provisional)) {
+    for (const p of db.players.filter(x=>!x.provisional && !isHiddenAssociate(x.id, scopeYear(), 'all'))) {
       const myLpRounds = [];
       for (const eid in byEventDN) {
         const r = byEventDN[eid].find(x=>x.player_id===p.id);
@@ -2071,7 +2085,7 @@ function renderLeaderboard() {
       const counting = allSlots.slice(0, Math.max(0, allSlots.length - 4));
       totalsDN[p.id] = counting.reduce((s,r)=>s+r._lp, 0);
     }
-    const sortedDN = db.players.filter(p=>!p.provisional)
+    const sortedDN = db.players.filter(p=>!p.provisional && !isHiddenAssociate(p.id, scopeYear(), 'all'))
       .map(p=>({ id: p.id, lp: totalsDN[p.id]||0 }))
       .sort((a,b)=>b.lp-a.lp);
     const posDN = {};
@@ -2082,15 +2096,15 @@ function renderLeaderboard() {
     }
     lbPositions = posDN;
   } else {
-    lbPositions = getLeaderboardPositions(publishedEids);
+    lbPositions = getLeaderboardPositions(publishedEids, filter);
   }
 
   const outingPenalties = filter !== 'sunday_9' ? getPreviousOutingPositions() : {};
   const prevPositions = (filter === 'all' || isDroppedNow) ? getPreviousLeaderboardPositions(publishedEids) : {};
-  const rows = db.players.filter(p => !p.provisional).map(p => {
+  const rows = db.players.filter(p => !p.provisional && !isHiddenAssociate(p.id, scopeYear(), filter)).map(p => {
     const pos = lbPositions[p.id]?.pos || 0;
     const lp  = lbPositions[p.id]?.lp  || 0;
-    const playerRounds = db.rounds.filter(r=>r.player_id===p.id && r.verified && publishedEids.has(r.event_id));
+    const playerRounds = seasonRounds().filter(r=>r.player_id===p.id && r.verified && publishedEids.has(r.event_id));
     const stab = playerRounds.reduce((s,r)=>s+r.stableford_points,0);
     const best = playerRounds.length ? Math.max(...playerRounds.map(r=>r.stableford_points)) : 0;
     const avg  = playerRounds.length ? (stab/playerRounds.length).toFixed(1) : '—';
@@ -2184,16 +2198,16 @@ function renderPlayers() {
   const el = document.getElementById('players-table');
   if (!db.players.length) { el.innerHTML='<div class="empty">No players yet</div>'; return; }
 
-  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+  const publishedEids = new Set(seasonEvents().filter(e=>e.published).map(e=>e.id));
   const byEvent = {};
-  for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) {
+  for (const r of seasonRounds().filter(x=>x.verified && publishedEids.has(x.event_id))) {
     if (!byEvent[r.event_id]) byEvent[r.event_id]=[];
     byEvent[r.event_id].push({...r});
   }
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
 
   el.innerHTML = db.players.map(p=>{
-    const rounds = db.rounds.filter(r=>r.player_id===p.id && r.verified && publishedEids.has(r.event_id));
+    const rounds = seasonRounds().filter(r=>r.player_id===p.id && r.verified && publishedEids.has(r.event_id));
     let lp = 0;
     for (const eid in byEvent) { const ranked=byEvent[eid]; const r=ranked.find(x=>x.player_id===p.id); if(r) lp+=r._lp; }
     return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px">
@@ -4260,9 +4274,9 @@ function toggleAdminTools() {
       </div>
 
       <div style="background:linear-gradient(135deg,#0a1628,#1a2f50);border:1px solid #C9A84C;border-radius:var(--radius);padding:12px">
-        <div style="font-size:13px;font-weight:700;color:#C9A84C;margin-bottom:4px">🏁 End of season</div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px">Archive the current season and prepare for next year.</div>
-        <button class="btn sm" style="width:100%;background:#C9A84C;color:#0a1628;border-color:#C9A84C;font-weight:700" onclick="closeModal();showCloseSeasonModal()">Close season & archive</button>
+        <div style="font-size:13px;font-weight:700;color:#C9A84C;margin-bottom:4px">🏁 New season</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px">Seasons now switch over automatically by date and handicaps carry over. Use this once to archive last year's knockout bracket so you can draw a fresh one.</div>
+        <button class="btn sm" style="width:100%;background:#C9A84C;color:#0a1628;border-color:#C9A84C;font-weight:700" onclick="closeModal();archiveKnockout()">Archive knockout bracket</button>
       </div>
 
       <div style="background:var(--bg);border-radius:var(--radius);padding:12px">
@@ -4300,11 +4314,6 @@ function toggleAdminTools() {
 
 // ── Season archive & close ────────────────────────────────────
 
-function setSeasonView(year) {
-  const el = document.getElementById('lb-archive-year');
-  if (el) el.value = year;
-  renderLeaderboard();
-}
 
 function renderArchivedLeaderboard(archive) {
   const sub = document.getElementById('lb-season-sub');
@@ -4421,7 +4430,9 @@ async function withdrawPoty() {
 function showPotyModal() {
   haptic();
   const st = getSeasonStatus(2026) || {};
+  window._scopeYear = 2026;
   const lb = getLeaderboardPositions();
+  window._scopeYear = null;
   const players = db.players.filter(p => !p.provisional).map(p => ({ p, pos: lb[p.id]?.pos || 999, lp: lb[p.id]?.lp || 0 }))
     .filter(x => x.lp > 0).sort((a, b) => a.pos - b.pos);
   const defName = st.poty_winner_name || (players[0] ? players[0].p.name : '');
@@ -4640,6 +4651,17 @@ function showCloseSeasonModal() {
         <button class="btn" style="width:100%;opacity:0.5;cursor:not-allowed" disabled>Archive ${year} & start ${year+1}</button>`
     }`;
   document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function archiveKnockout() {
+  const n = db.knockout_matches.length;
+  if (!n) { toast('No knockout bracket to archive', 'error'); return; }
+  if (!confirm('Archive the current knockout bracket (' + n + ' matches) and start with a clean slate?\n\nPast results already posted stay on the feed.')) return;
+  try {
+    await patch('knockout_matches?id=not.is.null', { archived: true });
+    await loadAll(); renderAll();
+    toast('Knockout archived — ready for a new draw', 'success');
+  } catch (e) { toast('Could not archive. Has the SQL for knockout_matches been run?', 'error'); }
 }
 
 async function confirmCloseSeason(year) {
@@ -5714,8 +5736,11 @@ function renderHome() {
   let statsBar = '';
   if (currentUser && currentUser.playerId) {
     const pid = currentUser.playerId;
-    const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
-    const lbData   = getLeaderboardPositions(publishedEids);
+    const publishedEids = new Set(seasonEvents().filter(e=>e.published).map(e=>e.id));
+    const _assoc   = scopeYear() === MEMBERSHIP_YEAR && getMembership(pid) === 'associate';
+    const lbData   = _assoc
+      ? getLeaderboardPositions(new Set(seasonEvents().filter(e=>e.published && e.event_type==='outing_18').map(e=>e.id)), 'outing_18')
+      : getLeaderboardPositions(publishedEids);
     const _lk      = hideStandings();
     const myPos    = _lk ? 0 : (lbData[pid]?.pos || 0);
     const myPts    = _lk ? '🔒' : (lbData[pid]?.lp  || 0);
@@ -5728,7 +5753,7 @@ function renderHome() {
     const posLabelColor = myPos<=3?'rgba(255,255,255,0.5)':'var(--text-3)';
     const posBorder = myPos<=3?posBg:'var(--border)';
     statsBar = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:1rem">'
-      + '<div style="background:'+posBg+';border:1px solid '+posBorder+';border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:'+posLabelColor+';margin-bottom:3px">Rank</div><div style="font-size:20px;font-weight:800;line-height:1;color:'+posColor+'">'+posLabel+'</div></div>'
+      + '<div style="background:'+posBg+';border:1px solid '+posBorder+';border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:'+posLabelColor+';margin-bottom:3px">'+(_assoc?'Outing rank':'Rank')+'</div><div style="font-size:20px;font-weight:800;line-height:1;color:'+posColor+'">'+posLabel+'</div></div>'
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Pts</div><div style="font-size:20px;font-weight:800;color:var(--text);line-height:1">'+myPts+'</div></div>'
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Hcp</div><div style="font-size:20px;font-weight:800;color:var(--text);line-height:1">'+myHcp+'</div></div>'
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center"><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:3px">Rounds</div><div style="font-size:20px;font-weight:800;color:var(--text);line-height:1">'+myRounds+'</div></div>'
@@ -6025,14 +6050,14 @@ function showStatsModal() {
 }
 
 function calcPlayerStats() {
-  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+  const publishedEids = new Set(seasonEvents().filter(e=>e.published).map(e=>e.id));
   const stats = {};
 
   for (const player of db.players) {
     stats[player.id] = { name: player.name, rounds: 0, birdies: 0, pars: 0, scratches: 0 };
   }
 
-  for (const r of db.rounds.filter(x => x.verified && publishedEids.has(x.event_id))) {
+  for (const r of seasonRounds().filter(x => x.verified && publishedEids.has(x.event_id))) {
     if (!r.hole_scores) continue;
     const ev = db.events.find(e => e.id === r.event_id);
     const pl = db.players.find(p => p.id === r.player_id);
@@ -6310,7 +6335,7 @@ function _drawResultsCard(eid, logoImg) {
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '16px DM Sans,sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('Bray Head Golf Society · 2026 Season', W/2, footY+26);
+  ctx.fillText('Bray Head Golf Society · ' + scopeYear() + ' Season', W/2, footY+26);
   ctx.fillStyle = GOLD;
   ctx.font = '500 15px DM Sans,sans-serif';
   ctx.fillText('www.golfsoc.ie', W/2, footY+50);
@@ -6481,7 +6506,7 @@ function _renderKnockoutResultsCard(matches, logoImg) {
   const footY = H - FOOTER_H + 10;
   ctx.fillStyle = DIVIDER; ctx.fillRect(PAD, footY, W - PAD*2, 1);
   ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '14px DM Sans,sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('Bray Head Golf Society \u00b7 2026 Season', W/2, footY + 26);
+  ctx.fillText('Bray Head Golf Society \u00b7 ' + scopeYear() + ' Season', W/2, footY + 26);
   ctx.fillStyle = GOLD; ctx.font = '500 13px DM Sans,sans-serif';
   ctx.fillText('www.golfsoc.ie', W/2, footY + 48);
 
@@ -6806,7 +6831,7 @@ function _renderFixtureCard(matches, note, logoImg) {
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '14px DM Sans,sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('Bray Head Golf Society · 2026 Season', W/2, footY + 26);
+  ctx.fillText('Bray Head Golf Society · ' + scopeYear() + ' Season', W/2, footY + 26);
   ctx.fillStyle = GOLD;
   ctx.font = '500 13px DM Sans,sans-serif';
   ctx.fillText('www.golfsoc.ie', W/2, footY + 48);
@@ -7473,8 +7498,8 @@ function showPlayerProfile(pid) {
   const player = db.players.find(p=>p.id===pid);
   if (!player) return;
 
-  const myRounds = db.rounds.filter(r=>r.player_id===pid && r.verified);
-  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+  const myRounds = seasonRounds().filter(r=>r.player_id===pid && r.verified);
+  const publishedEids = new Set(seasonEvents().filter(e=>e.published).map(e=>e.id));
   const countedRounds = myRounds.filter(r=>publishedEids.has(r.event_id));
   const totalEvents = publishedEids.size;
   const bestScore = countedRounds.length ? Math.max(...countedRounds.map(r=>r.stableford_points)) : 0;
@@ -7486,7 +7511,7 @@ function showPlayerProfile(pid) {
   const lbPos = _lk ? 0 : (lbPositions[pid]?.pos || 0);
   const myLeaguePts = _lk ? '🔒' : (lbPositions[pid]?.lp || 0);
   const byEvent = {};
-  for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) {
+  for (const r of seasonRounds().filter(x=>x.verified && publishedEids.has(x.event_id))) {
     if (!byEvent[r.event_id]) byEvent[r.event_id]=[];
     byEvent[r.event_id].push({...r});
   }
@@ -7620,12 +7645,12 @@ function showPlayerProfile(pid) {
     <div id="mptab-content-history" style="display:none">
       ${(() => {
         // Dropped rounds logic — same as profile history tab
-        const publishedEvs = db.events.filter(e=>e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date));
+        const publishedEvs = seasonEvents().filter(e=>e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date));
         const publishedEidsAll = new Set(publishedEvs.map(e=>e.id));
         const totalPublished = publishedEvs.length;
 
         const byEventM = {};
-        for (const r of db.rounds.filter(x=>x.verified && publishedEidsAll.has(x.event_id))) {
+        for (const r of seasonRounds().filter(x=>x.verified && publishedEidsAll.has(x.event_id))) {
           if (!byEventM[r.event_id]) byEventM[r.event_id]=[];
           byEventM[r.event_id].push({...r});
         }
@@ -7642,7 +7667,7 @@ function showPlayerProfile(pid) {
         const missedSlotsM = missedEvsM.map(e=>({ event_id: e.id, _lp: 0, missed: true }));
 
         const allSlotsM   = [...myLpRoundsM, ...missedSlotsM].sort((a,b)=>b._lp-a._lp);
-        const droppedSlotsM = allSlotsM.slice(33);
+        const droppedSlotsM = allSlotsM.slice(countedGames(scopeYear()));
         const droppedEidsM  = new Set(droppedSlotsM.map(s=>s.event_id));
         const droppedPtsM   = droppedSlotsM.reduce((s,r)=>s+r._lp,0);
         const numDroppedM   = droppedSlotsM.length;
@@ -7659,7 +7684,7 @@ function showPlayerProfile(pid) {
               <div style="font-size:12px;font-weight:700;color:#8a6a1a">${numDroppedM} round${numDroppedM!==1?'s are':' is'} being dropped</div>
               <div style="font-size:11px;color:#a07820;margin-top:1px">${droppedPtsM} pts not counting · best 33 of ${totalPublished} events count</div>
             </div>
-          </div>` : totalPublished >= 33 ? `
+          </div>` : totalPublished >= countedGames(scopeYear()) ? `
           <div style="background:#eaf3de;border:1px solid #639922;border-radius:8px;padding:10px 12px;margin-bottom:12px">
             <div style="font-size:12px;font-weight:700;color:#3B6D11">All rounds counting ✓</div>
             <div style="font-size:11px;color:#3B6D11;margin-top:1px">Best 33 of ${totalPublished} events</div>
@@ -8104,8 +8129,8 @@ function renderProfile() {
   const player = db.players.find(p=>p.id===pid);
   if (!player) { el.innerHTML = '<div class="empty">Player not found — try logging out and back in</div>'; return; }
 
-  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
-  const myRounds = db.rounds.filter(r=>r.player_id===pid && r.verified && publishedEids.has(r.event_id));
+  const publishedEids = new Set(seasonEvents().filter(e=>e.published).map(e=>e.id));
+  const myRounds = seasonRounds().filter(r=>r.player_id===pid && r.verified && publishedEids.has(r.event_id));
   const totalRounds = myRounds.length;
   const totalEvents = publishedEids.size;
   const bestScore = myRounds.length ? Math.max(...myRounds.map(r=>r.stableford_points)) : 0;
@@ -8116,7 +8141,7 @@ function renderProfile() {
   const bestSunday = sundayRounds.length ? Math.max(...sundayRounds.map(r=>r.stableford_points)) : null;
   const bestOuting = outingRounds.length ? Math.max(...outingRounds.map(r=>r.stableford_points)) : null;
   const byEvent = {};
-  for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) { if(!byEvent[r.event_id]) byEvent[r.event_id]=[]; byEvent[r.event_id].push({...r}); }
+  for (const r of seasonRounds().filter(x=>x.verified && publishedEids.has(x.event_id))) { if(!byEvent[r.event_id]) byEvent[r.event_id]=[]; byEvent[r.event_id].push({...r}); }
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
 
   const lbPositions = getLeaderboardPositions();
@@ -8137,10 +8162,10 @@ function renderProfile() {
   }
 
   // Outing-only ranking
-  const outingEvents = db.events.filter(e=>e.event_type==='outing_18');
+  const outingEvents = seasonEvents().filter(e=>e.event_type==='outing_18');
   const outingByEvent = {};
   for (const ev of outingEvents) {
-    const evRounds = db.rounds.filter(r=>r.event_id===ev.id);
+    const evRounds = seasonRounds().filter(r=>r.event_id===ev.id);
     if (evRounds.length) outingByEvent[ev.id] = assignLeaguePts(evRounds.map(r=>({...r})));
   }
   const outingTotals = {};
@@ -8153,7 +8178,7 @@ function renderProfile() {
   const outingSorted = Object.entries(outingTotals).sort((a,b)=>b[1]-a[1]);
   const outingPos = outingSorted.findIndex(([id])=>id===pid) + 1;
   const myOutingPts = outingTotals[pid] || 0;
-  const myOutingRounds = db.rounds.filter(r=>r.player_id===pid && outingEvents.find(e=>e.id===r.event_id));
+  const myOutingRounds = seasonRounds().filter(r=>r.player_id===pid && outingEvents.find(e=>e.id===r.event_id));
   const outingPosLabel = _lk?'🔒':outingPos===0?'—':outingPos===1?'1st':outingPos===2?'2nd':outingPos===3?'3rd':outingPos+'th';
   const outingPosColor = outingPos===1?'#B8860B':outingPos===2?'#707070':outingPos===3?'#A0522D':'#EEEDFE';
   const outingPosText  = outingPos===1?'#fff':outingPos===2?'#fff':outingPos===3?'#fff':'#3C3489';
@@ -8307,13 +8332,13 @@ function renderProfile() {
       ${(() => {
         // Build dropped round logic
         // 1. All published events so far
-        const publishedEvs = db.events.filter(e=>e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date));
+        const publishedEvs = seasonEvents().filter(e=>e.published).sort((a,b)=>a.event_date.localeCompare(b.event_date));
         const publishedEids = new Set(publishedEvs.map(e=>e.id));
         const totalPublished = publishedEvs.length;
 
         // 2. Assign league points to every round across all events
         const byEvent = {};
-        for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) {
+        for (const r of seasonRounds().filter(x=>x.verified && publishedEids.has(x.event_id))) {
           if (!byEvent[r.event_id]) byEvent[r.event_id]=[];
           byEvent[r.event_id].push({...r});
         }
@@ -8333,7 +8358,7 @@ function renderProfile() {
 
         // 5. All slots sorted best first — top 33 count, rest dropped
         const allSlots = [...myLpRounds, ...missedSlots].sort((a,b)=>b._lp-a._lp);
-        const droppedSlots = allSlots.slice(33);
+        const droppedSlots = allSlots.slice(countedGames(scopeYear()));
         const droppedEids = new Set(droppedSlots.map(s=>s.event_id));
         const droppedPts = droppedSlots.reduce((s,r)=>s+r._lp,0);
         const numDropped = droppedSlots.length;
@@ -8351,7 +8376,7 @@ function renderProfile() {
               <div style="font-size:12px;font-weight:700;color:#8a6a1a">${numDropped} round${numDropped!==1?'s are':' is'} being dropped</div>
               <div style="font-size:11px;color:#a07820;margin-top:1px">${droppedPts} pts not counting · best 33 of ${totalPublished} events count</div>
             </div>
-          </div>` : totalPublished >= 33 ? `
+          </div>` : totalPublished >= countedGames(scopeYear()) ? `
           <div style="background:#eaf3de;border:1px solid #639922;border-radius:8px;padding:10px 12px;margin-bottom:12px">
             <div style="font-size:12px;font-weight:700;color:#3B6D11">All rounds counting ✓</div>
             <div style="font-size:11px;color:#3B6D11;margin-top:1px">Best 33 of ${totalPublished} events</div>
@@ -9523,8 +9548,8 @@ function updateTopbarPts() {
   const pill = document.getElementById('topbar-pts-pill');
   if (!pill) return;
   const pid = currentUser.playerId;
-  const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
-  const myPts = db.rounds.filter(r=>r.player_id===pid&&r.verified&&publishedEids.has(r.event_id)).reduce((s,r)=>s+(r.stableford_points||0),0);
+  const publishedEids = new Set(seasonEvents().filter(e=>e.published).map(e=>e.id));
+  const myPts = seasonRounds().filter(r=>r.player_id===pid&&r.verified&&publishedEids.has(r.event_id)).reduce((s,r)=>s+(r.stableford_points||0),0);
   if (myPts > 0) {
     pill.style.display = '';
     pill.textContent = myPts + ' pts';
@@ -10252,7 +10277,7 @@ function showWelcomeScreen(player) {
 
     // Season rank
     try {
-      const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
+      const publishedEids = new Set(seasonEvents().filter(e=>e.published).map(e=>e.id));
       const lbPos = getLeaderboardPositions(publishedEids)[player.id]?.pos || 0;
       const rankLabel = hideStandings() ? '🔒' : lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos>0?(lbPos+'th'):'—';
       document.getElementById('welcome-rank').textContent = rankLabel;
@@ -10773,6 +10798,11 @@ async function init() {
   }
 }
 
+(function setSeasonHeadings() {
+  const y = activeSeasonYear() + ' Season';
+  document.querySelectorAll('.site-sub').forEach(el => { el.textContent = y; });
+  document.querySelectorAll('h2').forEach(h => { const p = h.nextElementSibling; if (h.textContent.trim() === 'Bray Head Golf Society' && p && p.tagName === 'P' && /Season/.test(p.textContent)) p.textContent = y; });
+})();
 buildEventSIInputs(9);
 
 // Pre-load Stepaside if no courses saved yet
