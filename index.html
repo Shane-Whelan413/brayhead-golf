@@ -1523,6 +1523,14 @@ function isSeasonLocked(year=2026) {
 // ── SEASON SCOPING ──────────────────────────────────────────
 // Each year stands alone: points, ranks, stats and profiles only use games dated in that year.
 // Handicaps live on the players table, so they carry over untouched.
+function seasonNotices() {
+  const y = String(scopeYear());
+  return db.noticeboard.filter(n => {
+    const ev = n.event_id ? db.events.find(e => e.id === n.event_id) : null;
+    const d = ev ? ev.event_date : (n.created_at || '');
+    return !d || String(d).slice(0,4) === y;
+  });
+}
 function scopeYear() { return window._scopeYear || activeSeasonYear(); }
 function lbYear() { const el = document.getElementById('lb-archive-year'); const v = el && el.value; return v ? +v : activeSeasonYear(); }
 function seasonEvents() { const y = String(scopeYear()); return db.events.filter(e => String(e.event_date).slice(0,4) === y); }
@@ -2169,7 +2177,7 @@ function _renderLeaderboardInner() {
     const podiumClass = pos===1?'lb-card-gold':pos===2?'lb-card-silver':pos===3?'lb-card-bronze':'';
 
     return `<div class="lb-slide-wrap">
-      <button onclick="showPlayerProfile('${p.id}')" class="lb-card ${podiumClass}" style="width:100%;text-align:left;">
+      <button onclick="showPlayerProfile('${p.id}',${lbYear()})" class="lb-card ${podiumClass}" style="width:100%;text-align:left;">
         <div class="lb-rank-pill" style="width:34px;height:34px;border-radius:50%;background:${pos===1?'#B8860B':pos===2?'#888':pos===3?'#8B4513':'#0a1628'};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700">${posStr}</div>
         <div style="flex-shrink:0;">
           ${avatarHtml(p, 34, 12)}
@@ -7494,7 +7502,11 @@ function loadComparison(rid, compareRid) {
     </table>`;
 }
 
-function showPlayerProfile(pid) {
+function showPlayerProfile(pid, year) {
+  window._scopeYear = year ? +year : null;
+  try { return _showPlayerProfileInner(pid); } finally { window._scopeYear = null; }
+}
+function _showPlayerProfileInner(pid) {
   const player = db.players.find(p=>p.id===pid);
   if (!player) return;
 
@@ -7532,10 +7544,10 @@ function showPlayerProfile(pid) {
   }
 
   // Prize history
-  const front9Wins = db.noticeboard.filter(n => n.best_front_9 && n.best_front_9.startsWith(player.name));
-  const back9Wins  = db.noticeboard.filter(n => n.best_back_9  && n.best_back_9.startsWith(player.name));
-  const ctpWins    = db.noticeboard.filter(n => n.closest_to_pin && n.closest_to_pin.startsWith(player.name));
-  const birdieWins = db.noticeboard.filter(n => {
+  const front9Wins = seasonNotices().filter(n => n.best_front_9 && n.best_front_9.startsWith(player.name));
+  const back9Wins  = seasonNotices().filter(n => n.best_back_9  && n.best_back_9.startsWith(player.name));
+  const ctpWins    = seasonNotices().filter(n => n.closest_to_pin && n.closest_to_pin.startsWith(player.name));
+  const birdieWins = seasonNotices().filter(n => {
     const ev = db.events.find(e=>e.id===n.event_id);
     return ev && ev.event_type==='sunday_9' && Array.isArray(n.birdies) && n.birdies.includes(player.name);
   });
@@ -8109,7 +8121,19 @@ async function verifyRound(rid) {
   } catch(e) { toast('Error: '+e.message, 'error'); }
 }
 
+let _profileYear = null;
+function setProfileYear(y) { _profileYear = (+y === activeSeasonYear()) ? null : +y; renderProfile(); }
+function profileYearPills() {
+  const years = [...new Set([activeSeasonYear(), ...db.events.map(e => +String(e.event_date).slice(0,4))])].sort((a,b) => b - a);
+  if (years.length < 2) return '';
+  const cur = _profileYear || activeSeasonYear();
+  return '<div style="display:flex;gap:6px;margin-bottom:1rem">' + years.map(y => { const on = cur === y; return `<button onclick="setProfileYear(${y})" style="flex:1;padding:8px;border-radius:8px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${on?'#0a1628':'var(--border-strong)'};background:${on?'#0a1628':'var(--bg)'};color:${on?'#C9A84C':'var(--text-2)'}">${y}${y===activeSeasonYear()?' · Live':''}</button>`; }).join('') + '</div>';
+}
 function renderProfile() {
+  window._scopeYear = _profileYear;
+  try { return _renderProfileInner(); } finally { window._scopeYear = null; }
+}
+function _renderProfileInner() {
   const el = document.getElementById('profile-content');
   if (!el) return;
   if (!currentUser || currentUser.role === 'viewer') {
@@ -8188,10 +8212,10 @@ function renderProfile() {
   const posText  = lbPos===1?'#fff':lbPos===2?'#fff':lbPos===3?'#fff':'var(--green-dark)';
 
   // --- Prize history from noticeboard (Sunday events only for birdies) ---
-  const front9Wins  = db.noticeboard.filter(n => n.best_front_9 && n.best_front_9.startsWith(player.name));
-  const back9Wins   = db.noticeboard.filter(n => n.best_back_9  && n.best_back_9.startsWith(player.name));
-  const ctpWins     = db.noticeboard.filter(n => n.closest_to_pin && n.closest_to_pin.startsWith(player.name));
-  const birdieWins  = db.noticeboard.filter(n => {
+  const front9Wins  = seasonNotices().filter(n => n.best_front_9 && n.best_front_9.startsWith(player.name));
+  const back9Wins   = seasonNotices().filter(n => n.best_back_9  && n.best_back_9.startsWith(player.name));
+  const ctpWins     = seasonNotices().filter(n => n.closest_to_pin && n.closest_to_pin.startsWith(player.name));
+  const birdieWins  = seasonNotices().filter(n => {
     const ev = db.events.find(e => e.id === n.event_id);
     return ev && ev.event_type === 'sunday_9' && Array.isArray(n.birdies) && n.birdies.includes(player.name);
   });
@@ -8221,6 +8245,7 @@ function renderProfile() {
   }
 
   el.innerHTML = `
+    ${profileYearPills()}
     ${membershipCardHtml(pid)}
     <div style="background:#0a1628;border-radius:14px;overflow:hidden;margin-bottom:1rem;box-shadow:0 2px 12px rgba(0,0,0,0.12)">
       <div style="padding:18px 16px;display:flex;align-items:center;gap:16px">
