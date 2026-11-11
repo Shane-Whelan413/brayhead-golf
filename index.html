@@ -1411,7 +1411,7 @@ function getSundays() {
   return getSeasonDates().map(e => e.date);
 }
 
-let db = { players:[], events:[], rounds:[], noticeboard:[], knockout_matches:[], season_status:[] };
+let db = { players:[], events:[], rounds:[], noticeboard:[], knockout_matches:[], season_status:[], season_membership:[] };
 
 // ── SEASON LOCK ─────────────────────────────────────────────
 // Locked = final game of the year published (or admin forced). While locked
@@ -1611,16 +1611,18 @@ async function loadAll() {
     }
   };
   try {
-    const [players, events, rounds, noticeboard, knockout_matches, season_archives, season_status] = await Promise.all([
+    const [players, events, rounds, noticeboard, knockout_matches, season_archives, season_status, season_membership] = await Promise.all([
       safeGet('players?order=name'),
       safeGet('events?order=event_date'),
       safeGet('rounds?order=created_at'),
       safeGet('noticeboard?order=created_at.desc'),
       safeGet('knockout_matches?order=round,match_number'),
       safeGet('season_archives?order=year.desc'),
-      safeGet('season_status?order=year')   // optional table; [] if not created yet
+      safeGet('season_status?order=year'),   // optional table; [] if not created yet
+      safeGet('season_membership?order=year')   // optional table
     ]);
     db.season_status    = Array.isArray(season_status) ? season_status : [];
+    db.season_membership = Array.isArray(season_membership) ? season_membership : [];
     db.players          = players          || [];
     db.events           = events           || [];
     db.rounds           = rounds           || [];
@@ -4275,6 +4277,7 @@ function renderSeasonLockAdmin() {
     status = 'Standings are open. Locks automatically once the final game (Sat 28 Nov) is published.' + (adminPreviewAsMember ? ' <b>(Previewing)</b>' : '');
     buttons = [btn('Lock now', "setLockOverride('lock')")];
   }
+  buttons.push(btn('2027 sign-ups (' + db.season_membership.filter(m => +m.year === MEMBERSHIP_YEAR).length + '/' + db.players.filter(p => !p.provisional).length + ')', 'showSignupsModal()'));
   return '<div style="background:#fffbea;border:1px solid #e8d48a;border-radius:var(--radius);padding:12px;margin-bottom:1rem">'
     + '<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7a5500;margin-bottom:4px">Admin · Season lock</div>'
     + '<div style="font-size:12px;color:#5a4a30;line-height:1.45;margin-bottom:10px">' + status + '</div>'
@@ -4287,11 +4290,11 @@ function refreshAfterSeasonChange() {
   else { renderHome(); renderLeaderboard(); }
 }
 
-async function saveSeasonStatus(fields) {
-  const existing = getSeasonStatus(2026);
+async function saveSeasonStatus(fields, year=2026) {
+  const existing = getSeasonStatus(year);
   try {
-    if (existing) await patch('season_status?year=eq.2026', fields);
-    else await post('season_status', Object.assign({ year: 2026 }, fields));
+    if (existing) await patch('season_status?year=eq.' + year, fields);
+    else await post('season_status', Object.assign({ year: year }, fields));
     const rows = await get('season_status?order=year');
     db.season_status = Array.isArray(rows) ? rows : [];
     refreshAfterSeasonChange();
@@ -4361,6 +4364,132 @@ async function confirmPoty() {
   closeModal();
   toast('Player of the Year posted 🏆', 'success');
   if (push && !wasAnnounced) notifyPlayers(db.players.map(p => p.id), '🏆 Player of the Year', name + ' is the 2026 Player of the Year! Final standings are now live.', 'poty-2026', '/brayhead-golf/');
+}
+
+// ── 2027 MEMBERSHIP SIGN-UP ────────────────────────────────
+const MEMBERSHIP_YEAR = 2027;
+const MEMBERSHIP_LABEL = { full: 'Full member', associate: 'Associate (outings only)' };
+function getMembership(pid) {
+  const m = (db.season_membership || []).find(x => +x.year === MEMBERSHIP_YEAR && String(x.player_id) === String(pid));
+  return m ? m.tier : null;
+}
+const SIGNUPS_OPEN_FROM = '2026-11-29';   // pop-up + profile card start on this date
+function signupsOpen() {
+  const d = new Date();
+  const today = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  return today >= SIGNUPS_OPEN_FROM;
+}
+function signupsClosed() {
+  const st = getSeasonStatus(MEMBERSHIP_YEAR);
+  return !!(st && st.signups_closed);
+}
+function membershipPid() {
+  if (!currentUser) return null;
+  if (currentUser.playerId) return currentUser.playerId;
+  return null;
+}
+async function saveMembership(pid, tier) {
+  const existing = (db.season_membership || []).find(x => +x.year === MEMBERSHIP_YEAR && String(x.player_id) === String(pid));
+  try {
+    if (existing) await patch('season_membership?year=eq.' + MEMBERSHIP_YEAR + '&player_id=eq.' + encodeURIComponent(pid), { tier: tier, updated_at: new Date().toISOString() });
+    else await post('season_membership', { year: MEMBERSHIP_YEAR, player_id: pid, tier: tier });
+    const rows = await get('season_membership?order=year');
+    db.season_membership = Array.isArray(rows) ? rows : [];
+    return true;
+  } catch (e) {
+    console.error('saveMembership', e);
+    toast('Could not save. Please try again.', 'error');
+    return false;
+  }
+}
+
+function membershipCardHtml(pid) {
+  const tier = getMembership(pid);
+  if (!signupsOpen() && !tier) return '';
+  if (!tier && signupsClosed()) return '';
+  const opt = (t, label) => '<button onclick="chooseMembership(\'' + t + '\')" ' + (signupsClosed() ? 'disabled ' : '') + 'style="flex:1;padding:10px 6px;border-radius:8px;font-size:12px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer;border:1px solid ' + (tier === t ? '#C9A84C' : 'var(--border-strong)') + ';background:' + (tier === t ? '#0a1628' : 'var(--bg)') + ';color:' + (tier === t ? '#C9A84C' : 'var(--text-2)') + '">' + (tier === t ? '✓ ' : '') + label + '</button>';
+  return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:1rem">'
+    + '<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin-bottom:4px">' + MEMBERSHIP_YEAR + ' membership</div>'
+    + '<div style="font-size:13px;color:var(--text);margin-bottom:10px">' + (tier ? 'You\'re down as <b>' + MEMBERSHIP_LABEL[tier] + '</b>.' + (signupsClosed() ? ' Sign-ups are closed — contact an admin to change.' : ' You can change this until sign-ups close.') : 'Are you playing in ' + MEMBERSHIP_YEAR + '?') + '</div>'
+    + '<div style="display:flex;gap:8px">' + opt('full', 'Full member') + opt('associate', 'Associate') + '</div></div>';
+}
+
+async function chooseMembership(tier) {
+  const pid = membershipPid();
+  if (!pid) return;
+  if (signupsClosed()) { toast('Sign-ups are closed', 'error'); return; }
+  if (await saveMembership(pid, tier)) {
+    toast(MEMBERSHIP_YEAR + ': ' + MEMBERSHIP_LABEL[tier], 'success');
+    const ov = document.getElementById('membership-overlay'); if (ov) ov.remove();
+    if (typeof renderProfile === 'function') renderProfile();
+  }
+}
+
+let _membershipTries = 0;
+function maybeShowMembershipPrompt() {
+  try {
+    const pid = membershipPid();
+    if (!pid || document.getElementById('membership-overlay')) return;
+    if (!signupsOpen() || !db.players.length || signupsClosed() || getMembership(pid)) return;
+    if (sessionStorage.getItem('bhgs_membership_skip')) return;
+    const ws = document.getElementById('welcome-screen');
+    if (ws && ws.style.display !== 'none') {           // wait for the welcome screen to finish
+      if (_membershipTries++ < 12) setTimeout(maybeShowMembershipPrompt, 1000);
+      return;
+    }
+    const p = db.players.find(x => String(x.id) === String(pid));
+    const first = p ? p.name.split(' ')[0] : '';
+    const ov = document.createElement('div');
+    ov.id = 'membership-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9500;background:#0a1628;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;overflow:auto';
+    const card = (t, title, sub) => '<button onclick="chooseMembership(\'' + t + '\')" style="width:100%;max-width:340px;padding:16px;margin-bottom:12px;border-radius:12px;border:1.5px solid #C9A84C;background:' + (t === 'full' ? '#C9A84C' : 'transparent') + ';color:' + (t === 'full' ? '#0a1628' : '#C9A84C') + ';font-family:\'DM Sans\',sans-serif;cursor:pointer"><div style="font-size:16px;font-weight:800">' + title + '</div><div style="font-size:12px;opacity:.8;margin-top:3px">' + sub + '</div></button>';
+    ov.innerHTML = '<div style="font-size:40px;margin-bottom:10px">⛳</div>'
+      + '<div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#C9A84C;margin-bottom:8px">Bray Head Golf Society</div>'
+      + '<div style="font-size:24px;font-weight:800;color:#fff;margin-bottom:6px">' + MEMBERSHIP_YEAR + ' season</div>'
+      + '<div style="font-size:14px;color:rgba(255,255,255,.7);margin-bottom:22px;line-height:1.5">' + (first ? first + ', are' : 'Are') + ' you playing next year?<br>Choose your membership.</div>'
+      + card('full', 'Full member', 'Sundays and outings')
+      + card('associate', 'Associate member', 'Outings only')
+      + '<button onclick="skipMembershipPrompt()" style="margin-top:6px;background:none;border:none;color:rgba(255,255,255,.45);font-size:12px;font-family:\'DM Sans\',sans-serif;cursor:pointer;text-decoration:underline">Not sure yet</button>';
+    document.body.appendChild(ov);
+  } catch (e) { console.error('membership prompt', e); }
+}
+function skipMembershipPrompt() {
+  try { sessionStorage.setItem('bhgs_membership_skip', '1'); } catch (e) {}
+  const ov = document.getElementById('membership-overlay'); if (ov) ov.remove();
+}
+
+function showSignupsModal() {
+  haptic();
+  const players = db.players.filter(p => !p.provisional).sort((a, b) => a.name.localeCompare(b.name));
+  const rows = players.map(p => ({ p, tier: getMembership(p.id) }));
+  const full = rows.filter(r => r.tier === 'full').length, assoc = rows.filter(r => r.tier === 'associate').length, none = rows.filter(r => !r.tier).length;
+  const closed = signupsClosed();
+  const sel = r => '<select onchange="adminSetMembership(\'' + r.p.id + '\',this.value)" style="padding:6px;border-radius:6px;border:1px solid var(--border-strong);font-size:12px;font-family:\'DM Sans\',sans-serif"><option value=""' + (!r.tier ? ' selected' : '') + '>No answer</option><option value="full"' + (r.tier === 'full' ? ' selected' : '') + '>Full</option><option value="associate"' + (r.tier === 'associate' ? ' selected' : '') + '>Associate</option></select>';
+  document.getElementById('modal-title').textContent = MEMBERSHIP_YEAR + ' sign-ups';
+  document.getElementById('modal-body').innerHTML =
+    '<div style="display:flex;gap:8px;margin-bottom:12px">'
+    + [['Full', full], ['Associate', assoc], ['No answer', none]].map(x => '<div style="flex:1;background:var(--bg);border-radius:10px;padding:10px 4px;text-align:center"><div style="font-size:20px;font-weight:800">' + x[1] + '</div><div style="font-size:10px;color:var(--text-3);text-transform:uppercase">' + x[0] + '</div></div>').join('') + '</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
+    + (none ? '<button class="btn" style="flex:1" onclick="remindSignups()">Remind ' + none + ' player' + (none !== 1 ? 's' : '') + '</button>' : '')
+    + '<button class="btn" style="flex:1" onclick="toggleSignupsClosed()">' + (closed ? 'Re-open sign-ups' : 'Close sign-ups') + '</button></div>'
+    + '<div style="max-height:50vh;overflow:auto">'
+    + rows.map(r => '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)"><div style="font-size:13px;font-weight:600">' + r.p.name + '</div>' + sel(r) + '</div>').join('')
+    + '</div>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+async function adminSetMembership(pid, tier) {
+  if (!tier) { toast('Pick Full or Associate', 'error'); showSignupsModal(); return; }
+  if (await saveMembership(pid, tier)) { toast('Saved', 'success'); showSignupsModal(); refreshAfterSeasonChange(); }
+}
+async function toggleSignupsClosed() {
+  if (await saveSeasonStatus({ signups_closed: !signupsClosed() }, MEMBERSHIP_YEAR)) { toast(signupsClosed() ? 'Sign-ups closed' : 'Sign-ups re-opened', 'success'); showSignupsModal(); }
+}
+async function remindSignups() {
+  const ids = db.players.filter(p => !p.provisional && !getMembership(p.id)).map(p => p.id);
+  if (!ids.length) return;
+  if (!confirm('Send a reminder to ' + ids.length + ' player' + (ids.length !== 1 ? 's' : '') + '?')) return;
+  notifyPlayers(ids, '⛳ ' + MEMBERSHIP_YEAR + ' membership', 'Open the app and confirm if you are playing as a Full or Associate member.', 'signup-' + MEMBERSHIP_YEAR, '/brayhead-golf/');
+  toast('Reminder sent', 'success');
 }
 
 function showCloseSeasonModal() {
@@ -7970,6 +8099,7 @@ function renderProfile() {
   }
 
   el.innerHTML = `
+    ${membershipCardHtml(pid)}
     <div style="background:#0a1628;border-radius:14px;overflow:hidden;margin-bottom:1rem;box-shadow:0 2px 12px rgba(0,0,0,0.12)">
       <div style="padding:18px 16px;display:flex;align-items:center;gap:16px">
         <div style="position:relative;flex-shrink:0" onclick="triggerAvatarUpload('${pid}')">
@@ -9933,6 +10063,7 @@ function renderAll() {
   if (activeName === 'knockout') safeRender(renderKnockout);
   // Always update knockout mine widget if visible
   if (document.getElementById('knockout-mine')?.style.display !== 'none') safeRender(renderMyMatches);
+  setTimeout(maybeShowMembershipPrompt, 0);
 }
 
 function onFabClick() {
