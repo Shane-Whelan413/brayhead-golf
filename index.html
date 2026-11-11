@@ -5523,7 +5523,7 @@ function renderSchedule() {
     const tee = entry.time ? `<span style="font-size:12px;color:var(--text-2);font-weight:600">⏰ ${entry.time}</span>`
       : (entry.fixture && !entry.time ? `<span style="font-size:12px;color:var(--text-3);font-style:italic">Tee time TBC</span>` : '');
     const chip = `<span style="font-size:10px;font-weight:700;color:${ks.fg};background:${ks.bg};padding:2px 8px;border-radius:99px;white-space:nowrap">${ks.label}</span>`;
-    const noPts = entry.noPoints ? `<span style="font-size:10px;color:var(--text-3)">No points</span>` : '';
+    const noPts = '';
     const status = isCancelled ? `<span style="font-size:11px;font-weight:600;color:#9ca3af">☔ Cancelled</span>`
       : (ev?.published ? `<span style="font-size:11px;font-weight:600;color:#2a6b1a">✓ Results in</span>` : '');
     const bg = isNext ? 'background:#f0f7ee;border:1.5px solid #a8c89a;border-left:4px solid '+ks.border+';' : 'border-bottom:0.5px solid var(--border);border-left:3px solid '+ks.border+';';
@@ -5590,7 +5590,7 @@ function showFixtureSheet(date, year) {
     rows += row('Cost', entry.cost ? entry.cost + (entry.costNote ? ` <span style="font-size:11px;color:var(--text-3);font-weight:500">(${entry.costNote})</span>` : '') : tbc);
     rows += row('Buggies', entry.buggies);
   }
-  rows += row('Points', entry.noPoints ? 'Scramble · no points' : (roundNo ? `Counts · round ${roundNo} of ${counting.length}` : 'Counts'));
+  rows += row('Points', entry.noPoints ? 'Scramble' : (roundNo ? `Counts · round ${roundNo} of ${counting.length}` : 'Counts'));
   if (cd) rows += row('Course', `Par ${cd.par}` + (cd.cr ? ` · CR ${cd.cr}` : '') + (cd.slope ? ` · Slope ${cd.slope}` : ''));
   else if (entry.fixture && !entry.noPoints && isAdmin) rows += row('Scorecard', '<span style="color:#A32D2D">Not loaded yet</span>');
   if (isCancelled) rows += row('Status', '☔ Cancelled');
@@ -5610,6 +5610,7 @@ function showFixtureSheet(date, year) {
       ${venue ? `<div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:2px">${venue}</div>` : ''}
     </div>
     ${rows}
+    ${entry.noPoints ? `<div style="margin-top:12px;padding:10px 12px;background:#FDEBD3;border-radius:8px;font-size:12px;color:#9a4a00;line-height:1.4">ℹ️ This game does not go towards Player of the Year points.</div>` : ''}
     ${actions ? `<div style="display:flex;gap:8px;margin-top:14px">${actions}</div>` : ''}`;
   document.getElementById('modal-overlay').classList.add('open');
 }
