@@ -1531,6 +1531,22 @@ function seasonNotices() {
     return !d || String(d).slice(0,4) === y;
   });
 }
+// Admin-only, per device: show the 2027 previews (profile / leaderboard / schedule / membership card)
+function adminPreview2027() {
+  try { return isAdmin && localStorage.getItem('bhgs_preview2027') === '1'; } catch (e) { return false; }
+}
+function toggleAdminPreview2027() {
+  const on = !adminPreview2027();
+  try { localStorage.setItem('bhgs_preview2027', on ? '1' : '0'); } catch (e) {}
+  if (!on) {   // leave any 2027 preview view so nothing is left stuck on screen
+    if (_profileYear && _profileYear > activeSeasonYear()) _profileYear = null;
+    const lby = document.getElementById('lb-archive-year'); if (lby && +lby.value > activeSeasonYear()) lby.value = '';
+    if (scheduleYear && scheduleYear > activeSeasonYear()) scheduleYear = null;
+  }
+  closeModal();
+  window._homeHash = null; renderAll();
+  toast(on ? '2027 preview on' : '2027 preview off', 'success');
+}
 function scopeYear() { return window._scopeYear || activeSeasonYear(); }
 function lbYear() { const el = document.getElementById('lb-archive-year'); const v = el && el.value; return v ? +v : activeSeasonYear(); }
 function seasonEvents() { const y = String(scopeYear()); return db.events.filter(e => String(e.event_date).slice(0,4) === y); }
@@ -1974,7 +1990,7 @@ function _renderLeaderboardInner() {
   const switcherEl = document.getElementById('lb-season-switcher');
   const viewYear = lbYear();
   if (switcherEl) {
-    const years = [...new Set([activeSeasonYear(), ...(isAdmin ? [2027] : []), ...db.events.map(e => +String(e.event_date).slice(0,4))])].sort((x,y) => y - x);
+    const years = [...new Set([activeSeasonYear(), ...(adminPreview2027() ? [2027] : []), ...db.events.map(e => +String(e.event_date).slice(0,4))])].sort((x,y) => y - x);
     if (years.length > 1) {
       const pill = y => { const on = viewYear === y; return `<button onclick="setSeasonView(${y})" style="padding:4px 14px;border-radius:99px;font-size:12px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${on?'#0a1628':'var(--border)'};background:${on?'#0a1628':'var(--bg)'};color:${on?'#C9A84C':'var(--text-2)'}">${y}${y===activeSeasonYear()?' · Live':(y>activeSeasonYear()?' · Preview':'')}</button>`; };
       switcherEl.innerHTML = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + years.map(pill).join('') + '</div>';
@@ -4306,6 +4322,12 @@ function toggleAdminTools() {
         <button class="btn sm" style="width:100%;margin-bottom:6px" onclick="closeModal();fixBracketSlots()">🔧 Fix bracket slots</button>
       </div>
 
+      <div style="background:var(--bg);border-radius:var(--radius);padding:12px">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">2027 preview (admin only)</div>
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">Shows the 2027 buttons on your profile, leaderboard and schedule, plus the membership card. Members never see these before 30 Nov. Saved on this device.</div>
+        <button class="btn sm" style="width:100%;${adminPreview2027()?'background:#0a1628;color:#C9A84C;border-color:#0a1628':''}" onclick="toggleAdminPreview2027()">${adminPreview2027()?'✓ Preview is ON — tap to turn off':'Preview is OFF — tap to turn on'}</button>
+      </div>
+
       <div style="background:linear-gradient(135deg,#0a1628,#1a2f50);border:1px solid #C9A84C;border-radius:var(--radius);padding:12px">
         <div style="font-size:13px;font-weight:700;color:#C9A84C;margin-bottom:4px">🏁 New season</div>
         <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px">Seasons now switch over automatically by date and handicaps carry over. Use this once to archive last year's knockout bracket so you can draw a fresh one.</div>
@@ -4552,7 +4574,7 @@ async function saveMembership(pid, tier) {
 
 function membershipCardHtml(pid) {
   const tier = getMembership(pid);
-  if (!signupsOpen() && !isAdmin && !tier) return '';
+  if (!signupsOpen() && !adminPreview2027() && !tier) return '';
   if (!tier && signupsClosed()) return '';
   const opt = (t, label) => '<button onclick="chooseMembership(\'' + t + '\')" ' + (signupsClosed() ? 'disabled ' : '') + 'style="flex:1;padding:10px 6px;border-radius:8px;font-size:12px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer;border:1px solid ' + (tier === t ? '#C9A84C' : 'var(--border-strong)') + ';background:' + (tier === t ? '#0a1628' : 'var(--bg)') + ';color:' + (tier === t ? '#C9A84C' : 'var(--text-2)') + '">' + (tier === t ? '✓ ' : '') + label + '</button>';
   return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:1rem">'
@@ -5577,7 +5599,7 @@ function renderSchedule() {
       ${scheduleShowPast ? 'Hide' : 'Show'} past events (${pastDates.length})
     </button>` : '';
 
-  const showToggle = isAdmin || activeSeasonYear() === 2027;
+  const showToggle = adminPreview2027() || activeSeasonYear() === 2027;
   const yearBtn = y => `<button onclick="setScheduleYear(${y})" style="flex:1;padding:8px;border-radius:8px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${year===y?'#0a1628':'var(--border-strong)'};background:${year===y?'#0a1628':'var(--bg)'};color:${year===y?'#C9A84C':'var(--text-2)'}">${y}</button>`;
   const yearToggle = showToggle ? `<div style="display:flex;gap:8px;margin-bottom:1rem">${yearBtn(2026)}${yearBtn(2027)}</div>` : '';
 
@@ -8150,7 +8172,7 @@ async function verifyRound(rid) {
 let _profileYear = null;
 function setProfileYear(y) { _profileYear = (+y === activeSeasonYear()) ? null : +y; renderProfile(); }
 function profileYearPills() {
-  const years = [...new Set([activeSeasonYear(), ...(isAdmin ? [2027] : []), ...db.events.map(e => +String(e.event_date).slice(0,4))])].sort((a,b) => b - a);
+  const years = [...new Set([activeSeasonYear(), ...(adminPreview2027() ? [2027] : []), ...db.events.map(e => +String(e.event_date).slice(0,4))])].sort((a,b) => b - a);
   if (years.length < 2) return '';
   const cur = _profileYear || activeSeasonYear();
   return '<div style="display:flex;gap:6px;margin-bottom:1rem">' + years.map(y => { const on = cur === y; return `<button onclick="setProfileYear(${y})" style="flex:1;padding:8px;border-radius:8px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid ${on?'#0a1628':'var(--border-strong)'};background:${on?'#0a1628':'var(--bg)'};color:${on?'#C9A84C':'var(--text-2)'}">${y}${y===activeSeasonYear()?' · Live':(y>activeSeasonYear()?' · Preview':'')}</button>`; }).join('') + '</div>';
