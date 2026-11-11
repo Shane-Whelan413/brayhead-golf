@@ -942,6 +942,7 @@
           </div>
         </div>
       </div>
+      <div id="lb-lock-admin"></div>
       <div id="lb-season-sub" style="font-size:11px;color:var(--text-3);margin-bottom:1rem"></div>
       <div id="lb-season-switcher" style="display:none;margin-bottom:1rem"></div>
       <input type="hidden" id="lb-filter-val" value="all" />
@@ -1296,6 +1297,8 @@ const LEAGUE_PTS = pos => pos <= 1 ? 20 : Math.max(6, 21 - pos);
 
 const SEASON_START = new Date('2026-03-22');
 const SEASON_END   = new Date('2026-11-29');
+// Fixtures moved from their default Sunday (date -> new date)
+const DATE_MOVES = { '2026-11-29': '2026-11-28' };
 
 const OUTINGS = {
   '2026-04-18': 'Silloge Park',
@@ -1400,6 +1403,7 @@ function getSeasonDates() {
     const next = new Date(y, m-1, day);
     y = next.getFullYear(); m = next.getMonth()+1; day = next.getDate();
   }
+  dates.forEach(e => { if (DATE_MOVES[e.date]) e.date = DATE_MOVES[e.date]; });
   return dates;
 }
 
@@ -1407,7 +1411,29 @@ function getSundays() {
   return getSeasonDates().map(e => e.date);
 }
 
-let db = { players:[], events:[], rounds:[], noticeboard:[], knockout_matches:[] };
+let db = { players:[], events:[], rounds:[], noticeboard:[], knockout_matches:[], season_status:[] };
+
+// ── SEASON LOCK ─────────────────────────────────────────────
+// Locked = final game of the year published (or admin forced). While locked
+// and the winner not yet announced, only admins see season rank/points.
+// season_status.lock_override: 'lock' | 'unlock' | null (auto)
+const FINAL_EVENT_DATE_2026 = '2026-11-28';
+let adminPreviewAsMember = false;
+function getSeasonStatus(year) {
+  return (db.season_status||[]).find(r => +r.year === +year) || null;
+}
+function isSeasonLocked(year=2026) {
+  const st = getSeasonStatus(year);
+  if (st && st.announced) return false;
+  if (st && st.lock_override === 'unlock') return false;
+  if (st && st.lock_override === 'lock') return true;
+  const fin = (db.events||[]).find(e => e.event_date === FINAL_EVENT_DATE_2026);
+  return !!(fin && fin.published);
+}
+function hideStandings() {
+  if (!isSeasonLocked()) return false;
+  return !(isAdmin && !adminPreviewAsMember);
+}
 let isAdmin = false;
 const ADMIN_PW = 'BHGS2026!';
 
@@ -1585,14 +1611,16 @@ async function loadAll() {
     }
   };
   try {
-    const [players, events, rounds, noticeboard, knockout_matches, season_archives] = await Promise.all([
+    const [players, events, rounds, noticeboard, knockout_matches, season_archives, season_status] = await Promise.all([
       safeGet('players?order=name'),
       safeGet('events?order=event_date'),
       safeGet('rounds?order=created_at'),
       safeGet('noticeboard?order=created_at.desc'),
       safeGet('knockout_matches?order=round,match_number'),
-      safeGet('season_archives?order=year.desc')
+      safeGet('season_archives?order=year.desc'),
+      safeGet('season_status?order=year')   // optional table; [] if not created yet
     ]);
+    db.season_status    = Array.isArray(season_status) ? season_status : [];
     db.players          = players          || [];
     db.events           = events           || [];
     db.rounds           = rounds           || [];
@@ -1658,6 +1686,7 @@ function getLeaderboardPositions(publishedEids) {
 }
 
 function shareLeaderboard() {
+  if (hideStandings()) { toast('Standings are locked', 'error'); return; }
   const filterValEl = document.getElementById('lb-filter-val');
   const filter = filterValEl ? filterValEl.value : 'all';
   const evs = filter === 'all' ? db.events : db.events.filter(e => e.event_type === filter);
@@ -1774,6 +1803,16 @@ function switchLbTab(tab) {
 function setLbFilter(val) { switchLbTab(val); }
 
 function renderLeaderboard() {
+  const lockAdminEl = document.getElementById('lb-lock-admin');
+  if (lockAdminEl) lockAdminEl.innerHTML = isAdmin ? renderSeasonLockAdmin() : '';
+  // ── Season lock: members see a locked card until the winner is announced ──
+  if (hideStandings() && !document.getElementById('lb-archive-year')?.value) {
+    ['lb-season-summary','lb-penalty-box','pts-bar','lb-season-switcher'].forEach(id => { const el=document.getElementById(id); if (el) { el.innerHTML=''; if (id!=='lb-season-summary'&&id!=='pts-bar') el.style.display='none'; } });
+    const subL = document.getElementById('lb-season-sub'); if (subL) subL.textContent = '2026 season complete';
+    const tblL = document.getElementById('lb-table');
+    if (tblL) tblL.innerHTML = '<div style="background:#0a1628;border-radius:var(--radius);padding:2rem 1.25rem;text-align:center"><div style="font-size:36px;margin-bottom:10px">🔒</div><div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#C9A84C;margin-bottom:8px">Final standings locked</div><div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">The 2026 season is complete</div><div style="font-size:13px;color:rgba(255,255,255,.65);line-height:1.5">The Player of the Year will be announced soon.<br>Standings will be revealed then.</div></div>';
+    return;
+  }
   // ── Season switcher ─────────────────────────────────────────
   const switcherEl = document.getElementById('lb-season-switcher');
   const archiveYearEl = document.getElementById('lb-archive-year');
@@ -4203,6 +4242,127 @@ function renderArchivedLeaderboard(archive) {
   if (penaltyBox) penaltyBox.style.display = 'none';
 }
 
+// ── PLAYER OF THE YEAR ─────────────────────────────────────
+function renderPotyCard() {
+  const st = getSeasonStatus(2026);
+  if (!st || !st.announced || !st.poty_winner_name) return '';
+  return '<div style="border:2px solid #C9A84C;border-radius:14px;overflow:hidden;margin-bottom:12px;box-shadow:0 2px 12px rgba(0,0,0,0.12);background:white">'
+    + '<div style="background:linear-gradient(135deg,#0a1628,#1a2f50);padding:16px 16px 14px;position:relative">'
+    + '<div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#7a5500,#C9A84C,#e8c04a,#C9A84C,#7a5500)"></div>'
+    + '<div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:8px">Bray Head Golf Society · 2026 Season</div>'
+    + '<div style="display:flex;align-items:center;gap:12px"><div style="font-size:30px">🏆</div>'
+    + '<div><div style="font-size:15px;font-weight:700;color:#C9A84C">Player of the Year</div>'
+    + '<div style="font-size:18px;color:white;font-weight:800;margin-top:2px">' + st.poty_winner_name + '</div></div></div>'
+    + (st.poty_message ? '<div style="margin-top:10px;font-size:13px;color:rgba(255,255,255,.8);font-style:italic;line-height:1.5">"' + st.poty_message + '"</div>' : '')
+    + '</div>'
+    + (st.poty_photo_url ? '<img src="' + st.poty_photo_url + '" style="width:100%;max-height:320px;object-fit:cover;display:block">' : '')
+    + '</div>';
+}
+
+function renderSeasonLockAdmin() {
+  const locked = isSeasonLocked();
+  const st = getSeasonStatus(2026);
+  const announced = !!(st && st.announced);
+  const btn = (label, fn, primary) => '<button onclick="' + fn + '" style="padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer;border:1px solid ' + (primary ? '#0a1628' : 'var(--border-strong)') + ';background:' + (primary ? '#0a1628' : 'var(--bg)') + ';color:' + (primary ? '#C9A84C' : 'var(--text-2)') + '">' + label + '</button>';
+  let status, buttons = [];
+  if (announced) {
+    status = '🏆 Announced — standings are visible to everyone.';
+    buttons = [btn('Edit announcement', 'showPotyModal()', true), btn('Withdraw & re-lock', 'withdrawPoty()')];
+  } else if (locked) {
+    status = '🔒 Season locked — only admins can see standings.' + (adminPreviewAsMember ? ' <b>(Previewing as a member)</b>' : '');
+    buttons = [btn('Announce Player of the Year', 'showPotyModal()', true), btn(adminPreviewAsMember ? 'Exit member preview' : 'Preview as member', 'togglePreviewAsMember()'), btn('Unlock now', "setLockOverride('unlock')")];
+  } else {
+    status = 'Standings are open. Locks automatically once the final game (Sat 28 Nov) is published.' + (adminPreviewAsMember ? ' <b>(Previewing)</b>' : '');
+    buttons = [btn('Lock now', "setLockOverride('lock')")];
+  }
+  return '<div style="background:#fffbea;border:1px solid #e8d48a;border-radius:var(--radius);padding:12px;margin-bottom:1rem">'
+    + '<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7a5500;margin-bottom:4px">Admin · Season lock</div>'
+    + '<div style="font-size:12px;color:#5a4a30;line-height:1.45;margin-bottom:10px">' + status + '</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap">' + buttons.join('') + '</div></div>';
+}
+
+function refreshAfterSeasonChange() {
+  window._homeHash = null;
+  if (typeof renderAll === 'function') renderAll();
+  else { renderHome(); renderLeaderboard(); }
+}
+
+async function saveSeasonStatus(fields) {
+  const existing = getSeasonStatus(2026);
+  try {
+    if (existing) await patch('season_status?year=eq.2026', fields);
+    else await post('season_status', Object.assign({ year: 2026 }, fields));
+    const rows = await get('season_status?order=year');
+    db.season_status = Array.isArray(rows) ? rows : [];
+    refreshAfterSeasonChange();
+    return true;
+  } catch (e) {
+    console.error('saveSeasonStatus', e);
+    toast('Could not save. Has the season_status table been created in Supabase?', 'error');
+    return false;
+  }
+}
+
+function togglePreviewAsMember() { adminPreviewAsMember = !adminPreviewAsMember; refreshAfterSeasonChange(); }
+async function setLockOverride(mode) {
+  if (await saveSeasonStatus({ lock_override: mode })) toast(mode === 'lock' ? 'Season locked' : 'Season unlocked', 'success');
+}
+async function withdrawPoty() {
+  if (!confirm('Withdraw the announcement and lock standings again?')) return;
+  if (await saveSeasonStatus({ announced: false, lock_override: 'lock' })) toast('Announcement withdrawn', 'success');
+}
+
+function showPotyModal() {
+  haptic();
+  const st = getSeasonStatus(2026) || {};
+  const lb = getLeaderboardPositions();
+  const players = db.players.filter(p => !p.provisional).map(p => ({ p, pos: lb[p.id]?.pos || 999, lp: lb[p.id]?.lp || 0 }))
+    .filter(x => x.lp > 0).sort((a, b) => a.pos - b.pos);
+  const defName = st.poty_winner_name || (players[0] ? players[0].p.name : '');
+  document.getElementById('modal-title').textContent = '🏆 Player of the Year 2026';
+  document.getElementById('modal-body').innerHTML =
+    '<div style="font-size:12px;color:var(--text-2);margin-bottom:12px;line-height:1.5">Posting this reveals the final standings to everyone and pins a Player of the Year card to the home feed.</div>'
+    + '<label style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase">Winner</label>'
+    + '<select id="poty-winner" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-strong);margin:4px 0 12px;font-size:14px;font-family:\'DM Sans\',sans-serif">'
+    + players.map(x => '<option value="' + x.p.name.replace(/"/g, '&quot;') + '"' + (x.p.name === defName ? ' selected' : '') + '>' + x.pos + '. ' + x.p.name + ' (' + x.lp + ' pts)</option>').join('')
+    + '</select>'
+    + '<label style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase">Photo (optional)</label>'
+    + '<input type="file" id="poty-photo" accept="image/*" style="width:100%;margin:4px 0 12px;font-size:13px">'
+    + (st.poty_photo_url ? '<div style="font-size:11px;color:var(--text-3);margin:-8px 0 12px">Current photo kept unless you choose a new one.</div>' : '')
+    + '<label style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase">Message (optional)</label>'
+    + '<textarea id="poty-msg" rows="3" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-strong);margin:4px 0 12px;font-size:14px;font-family:\'DM Sans\',sans-serif">' + (st.poty_message || '') + '</textarea>'
+    + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:14px"><input type="checkbox" id="poty-push" checked> Send push notification to all members</label>'
+    + '<button class="btn" id="poty-save" style="width:100%;background:#0a1628;color:#C9A84C;border-color:#0a1628" onclick="confirmPoty()">Post Player of the Year</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function confirmPoty() {
+  const btn = document.getElementById('poty-save');
+  const name = document.getElementById('poty-winner').value;
+  if (!name) { toast('Pick a winner', 'error'); return; }
+  btn.disabled = true; btn.textContent = 'Posting…';
+  const st = getSeasonStatus(2026) || {};
+  let photoUrl = st.poty_photo_url || null;
+  const file = document.getElementById('poty-photo').files[0];
+  if (file) {
+    try {
+      const path = 'poty/2026_' + Date.now() + '.' + file.name.split('.').pop();
+      const up = await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
+        method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': file.type }, body: file });
+      if (up.ok) photoUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
+      else toast('Photo upload failed — posting without it', 'error');
+    } catch (e) { toast('Photo upload failed — posting without it', 'error'); }
+  }
+  const msg = document.getElementById('poty-msg').value.trim() || null;
+  const push = document.getElementById('poty-push').checked;
+  const wasAnnounced = !!st.announced;
+  const ok = await saveSeasonStatus({ announced: true, lock_override: null, poty_winner_name: name, poty_photo_url: photoUrl, poty_message: msg, announced_at: new Date().toISOString() });
+  if (!ok) { btn.disabled = false; btn.textContent = 'Post Player of the Year'; return; }
+  closeModal();
+  toast('Player of the Year posted 🏆', 'success');
+  if (push && !wasAnnounced) notifyPlayers(db.players.map(p => p.id), '🏆 Player of the Year', name + ' is the 2026 Player of the Year! Final standings are now live.', 'poty-2026', '/brayhead-golf/');
+}
+
 function showCloseSeasonModal() {
   haptic();
   const year = new Date().getFullYear();
@@ -5281,7 +5441,7 @@ function renderHome() {
   const ql    = document.getElementById('admin-quick-links');
 
   // Skip full re-render if data unchanged (include _feedShowAll so accordion toggle forces re-render)
-  const homeHash = JSON.stringify([db.events.length, db.rounds.filter(r=>!r.verified).length, db.rounds.length, window._feedShowAll||false]);
+  const homeHash = JSON.stringify([db.events.length, db.rounds.filter(r=>!r.verified).length, db.rounds.length, window._feedShowAll||false, db.season_status, isSeasonLocked(), hideStandings()]);
   if (window._homeHash === homeHash && feed && feed.innerHTML.length > 100) return;
   window._homeHash = homeHash;
 
@@ -5330,12 +5490,13 @@ function renderHome() {
     const pid = currentUser.playerId;
     const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
     const lbData   = getLeaderboardPositions(publishedEids);
-    const myPos    = lbData[pid]?.pos || 0;
-    const myPts    = lbData[pid]?.lp  || 0;
+    const _lk      = hideStandings();
+    const myPos    = _lk ? 0 : (lbData[pid]?.pos || 0);
+    const myPts    = _lk ? '🔒' : (lbData[pid]?.lp  || 0);
     const myPlayer = db.players.find(p=>p.id===pid);
     const myHcp    = myPlayer ? parseFloat(myPlayer.handicap_index).toFixed(1) : '—';
     const myRounds = db.rounds.filter(r=>r.player_id===pid&&r.verified&&publishedEids.has(r.event_id)).length;
-    const posLabel = myPos===1?'1st':myPos===2?'2nd':myPos===3?'3rd':myPos>0?(myPos+'th'):'—';
+    const posLabel = _lk?'🔒':myPos===1?'1st':myPos===2?'2nd':myPos===3?'3rd':myPos>0?(myPos+'th'):'—';
     const posBg    = myPos===1?'#0a1628':myPos===2?'#3a3a3a':myPos===3?'#4a1e00':'var(--surface)';
     const posColor = myPos===1?'#C9A84C':myPos===2?'#c0c0c0':myPos===3?'#c07840':'var(--text)';
     const posLabelColor = myPos<=3?'rgba(255,255,255,0.5)':'var(--text-3)';
@@ -5622,7 +5783,7 @@ function renderHome() {
     pushBanner = '<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:1rem"><span style="font-size:16px;flex-shrink:0">🔔</span><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--text)">Enable notifications</div><div style="font-size:11px;color:var(--text-3)">Results, fixtures and knockout updates</div></div><button onclick="promptPushPermission()" style="flex-shrink:0;padding:6px 10px;border-radius:7px;border:none;background:#C9A84C;color:#0a1628;font-size:11px;font-weight:700;font-family:\'DM Sans\',sans-serif;cursor:pointer">Enable</button><button onclick="dismissPushBanner()" style="flex-shrink:0;background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer;padding:0 4px">×</button></div>';
   }
 
-  feed.innerHTML = statsBar + countdownHtml + knockoutCard + pushBanner + feedHtml;
+  feed.innerHTML = statsBar + renderPotyCard() + countdownHtml + knockoutCard + pushBanner + feedHtml;
 }
 
 function showAdminLogin() {
@@ -7095,15 +7256,16 @@ function showPlayerProfile(pid) {
   const attendance = totalEvents > 0 ? Math.round((countedRounds.length/totalEvents)*100) : 0;
 
   const lbPositions = getLeaderboardPositions();
-  const lbPos = lbPositions[pid]?.pos || 0;
-  const myLeaguePts = lbPositions[pid]?.lp || 0;
+  const _lk = hideStandings();
+  const lbPos = _lk ? 0 : (lbPositions[pid]?.pos || 0);
+  const myLeaguePts = _lk ? '🔒' : (lbPositions[pid]?.lp || 0);
   const byEvent = {};
   for (const r of db.rounds.filter(x=>x.verified && publishedEids.has(x.event_id))) {
     if (!byEvent[r.event_id]) byEvent[r.event_id]=[];
     byEvent[r.event_id].push({...r});
   }
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
-  const posLabel = lbPos===0?'—':lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos+'th';
+  const posLabel = _lk?'🔒':lbPos===0?'—':lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos+'th';
   const posColor = lbPos===1?'#B8860B':lbPos===2?'#707070':lbPos===3?'#A0522D':'var(--green-light)';
   const posText  = lbPos===1?'#fff':lbPos===2?'#fff':lbPos===3?'#fff':'var(--green-dark)';
 
@@ -7732,8 +7894,9 @@ function renderProfile() {
   for (const eid in byEvent) assignLeaguePts(byEvent[eid]);
 
   const lbPositions = getLeaderboardPositions();
-  const lbPos  = lbPositions[pid]?.pos || 0;
-  const myLeaguePts = lbPositions[pid]?.lp || 0;
+  const _lk    = hideStandings();
+  const lbPos  = _lk ? 0 : (lbPositions[pid]?.pos || 0);
+  const myLeaguePts = _lk ? '🔒' : (lbPositions[pid]?.lp || 0);
 
   // Count 1st, 2nd, 3rd finishes — use sorted ranked array
   let first=0, second=0, third=0;
@@ -7765,11 +7928,11 @@ function renderProfile() {
   const outingPos = outingSorted.findIndex(([id])=>id===pid) + 1;
   const myOutingPts = outingTotals[pid] || 0;
   const myOutingRounds = db.rounds.filter(r=>r.player_id===pid && outingEvents.find(e=>e.id===r.event_id));
-  const outingPosLabel = outingPos===0?'—':outingPos===1?'1st':outingPos===2?'2nd':outingPos===3?'3rd':outingPos+'th';
+  const outingPosLabel = _lk?'🔒':outingPos===0?'—':outingPos===1?'1st':outingPos===2?'2nd':outingPos===3?'3rd':outingPos+'th';
   const outingPosColor = outingPos===1?'#B8860B':outingPos===2?'#707070':outingPos===3?'#A0522D':'#EEEDFE';
   const outingPosText  = outingPos===1?'#fff':outingPos===2?'#fff':outingPos===3?'#fff':'#3C3489';
 
-  const posLabel = lbPos === 0 ? '—' : lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos+'th';
+  const posLabel = _lk ? '🔒' : lbPos === 0 ? '—' : lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos+'th';
   const posColor = lbPos===1?'#B8860B':lbPos===2?'#707070':lbPos===3?'#A0522D':'var(--green-light)';
   const posText  = lbPos===1?'#fff':lbPos===2?'#fff':lbPos===3?'#fff':'var(--green-dark)';
 
@@ -7874,7 +8037,7 @@ function renderProfile() {
         <div class="stat" style="background:${outingPosColor};border-radius:var(--radius)">
           <div class="stat-label" style="color:${outingPosText}">Outing rank</div>
           <div class="stat-value" style="color:${outingPosText}">${outingPosLabel}</div>
-          <div style="font-size:11px;color:${outingPosText};margin-top:2px">${myOutingPts} league pts from ${myOutingRounds.length} outing${myOutingRounds.length!==1?'s':''}</div>
+          <div style="font-size:11px;color:${outingPosText};margin-top:2px">${_lk?'—':myOutingPts} league pts from ${myOutingRounds.length} outing${myOutingRounds.length!==1?'s':''}</div>
         </div>
       </div>` : ''}
       <div class="card" style="margin-top:1rem" id="push-settings-card">
@@ -9863,7 +10026,7 @@ function showWelcomeScreen(player) {
     try {
       const publishedEids = new Set(db.events.filter(e=>e.published).map(e=>e.id));
       const lbPos = getLeaderboardPositions(publishedEids)[player.id]?.pos || 0;
-      const rankLabel = lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos>0?(lbPos+'th'):'—';
+      const rankLabel = hideStandings() ? '🔒' : lbPos===1?'1st':lbPos===2?'2nd':lbPos===3?'3rd':lbPos>0?(lbPos+'th'):'—';
       document.getElementById('welcome-rank').textContent = rankLabel;
     } catch(e) { document.getElementById('welcome-rank').textContent = '—'; }
 
