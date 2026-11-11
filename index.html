@@ -1367,6 +1367,35 @@ const OUTING_COURSES = {
     si:   [9,17,5,1,13,3,15,7,11, 10,6,18,2,14,4,16,8,12],
     wsi:  [9,17,5,1,13,3,15,7,11, 10,6,18,2,14,4,16,8,12],
   },
+  // ── 2027 additions (pars / stroke indexes from GolfPass scorecards; no CR/slope loaded) ──
+  'Slade Valley': {
+    par:70, wpar:70,
+    pars: [4,3,4,4,3,4,5,4,4, 4,4,4,3,4,4,4,4,4],
+    wpars:[4,3,4,4,3,4,5,4,4, 4,4,4,3,4,4,4,4,4],
+    si:   [4,8,10,16,14,6,18,12,2, 5,1,17,15,7,13,11,9,3],
+    wsi:  [4,18,10,14,16,2,12,6,8, 3,11,15,17,9,1,13,5,7],
+  },
+  'Woodenbridge': {
+    par:71, wpar:71,
+    pars: [4,4,4,3,4,4,4,3,5, 4,3,4,4,4,5,4,3,5],
+    wpars:[4,4,4,3,4,4,4,3,5, 4,3,4,4,4,5,4,3,5],
+    si:   [7,3,11,9,5,1,15,17,13, 2,4,16,8,18,12,14,10,6],
+    wsi:  [9,5,7,13,3,17,11,15,1, 4,12,16,8,18,2,14,10,6],
+  },
+  'Wicklow Golf Club': {
+    par:71, wpar:71,
+    pars: [5,4,4,4,4,4,3,4,3, 4,3,4,4,5,4,5,3,4],
+    wpars:[5,4,4,4,4,4,3,4,3, 4,3,4,4,5,4,5,3,4],
+    si:   [8,2,18,12,16,4,10,6,14, 1,17,9,3,7,5,13,11,15],
+    wsi:  [8,2,18,12,16,4,10,6,14, 1,17,9,3,7,5,13,11,15],
+  },
+  'Headfort Golf Club (New Course)': {   // Captain's Day course. Men's par/SI match two sources
+    par:72, wpar:72,
+    pars: [4,5,4,3,4,5,3,4,4, 4,3,4,4,5,4,5,3,4],
+    wpars:[4,5,4,3,4,5,3,4,4, 4,3,4,4,5,4,5,3,4],
+    si:   [6,18,10,14,2,8,16,4,12, 9,11,5,1,15,3,17,13,7],
+    wsi:  [13,11,3,15,1,5,17,9,7, 14,12,2,6,4,10,18,16,8],
+  },
 };
 
 // ── 2027 FIXTURES ──────────────────────────────────────────
@@ -1380,8 +1409,8 @@ const FIXTURES_2027 = [
   { date:'2027-06-26', course:'Slade Valley',       kind:'outing',       time:'11:00am', cost:'€40' },
   { date:'2027-07-10', course:'Grange Castle',      kind:'outing',       time:'11:00am', cost:'€39' },
   { date:'2027-08-01', course:'Woodenbridge',       kind:'outing',       time:'11:00am', cost:'€55' },
-  { date:'2027-08-06', course:'Headfort Golf Club', kind:'scramble',     title:"Captain's Scramble", time:null, cost:null },
-  { date:'2027-08-07', course:'Headfort Golf Club', kind:'captains_day', title:"Captain's Day",      time:null, cost:null },
+  { date:'2027-08-06', course:'Headfort Golf Club (Old Course)', kind:'scramble',     title:"Captain's Scramble", time:null, cost:null },
+  { date:'2027-08-07', course:'Headfort Golf Club (New Course)', kind:'captains_day', title:"Captain's Day",      time:null, cost:null },
   { date:'2027-09-18', course:'Coolattin',          kind:'outing',       time:'11:30am', cost:'€40' },
   { date:'2027-10-02', course:'Wicklow Golf Club',  kind:'outing',       time:'11:00am', cost:'€60', costNote:'€55 with 32' },
 ];
@@ -5532,7 +5561,7 @@ function showFixtureSheet(date, year) {
     rows += row('Buggies', entry.buggies);
   }
   rows += row('Points', entry.noPoints ? 'Scramble · no points' : (roundNo ? `Counts · round ${roundNo} of ${counting.length}` : 'Counts'));
-  if (cd) rows += row('Course', `Par ${cd.par} · CR ${cd.cr} · Slope ${cd.slope}`);
+  if (cd) rows += row('Course', `Par ${cd.par}` + (cd.cr ? ` · CR ${cd.cr}` : '') + (cd.slope ? ` · Slope ${cd.slope}` : ''));
   else if (entry.fixture && !entry.noPoints && isAdmin) rows += row('Scorecard', '<span style="color:#A32D2D">Not loaded yet</span>');
   if (isCancelled) rows += row('Status', '☔ Cancelled');
 
